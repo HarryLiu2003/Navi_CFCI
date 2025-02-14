@@ -1,0 +1,169 @@
+WEBVTT
+
+1
+00:00:00.000 --> 00:00:03.930
+Maria Chen: Hi Jennifer, thanks for meeting with me today.
+
+2
+00:00:04.330 --> 00:00:08.529
+Jennifer Anderson: Hi Maria, happy to help. Just finished my morning stress echo cases.
+
+3
+00:00:09.130 --> 00:00:20.840
+Maria Chen: Perfect timing. I understand you've been working with our CardioVue ultrasound systems and the new 3D imaging software. How long have you been supervising the echo lab?
+
+4
+00:00:21.240 --> 00:00:55.560
+Jennifer Anderson: I've been the lead sonographer here for six years, supervising a team of twelve sonographers. We do about 50-60 studies daily across different modalities - routine transthoracic echos, stress echos, TEEs, and increasingly more 3D studies. We've been using your systems for about two years now, and while the image quality is excellent, we've identified several workflow challenges that significantly impact our efficiency.
+
+5
+00:00:56.100 --> 00:01:10.300
+Maria Chen: Could you walk me through a typical day in your echo lab?
+
+6
+00:01:10.800 --> 00:02:00.450
+Jennifer Anderson: Sure. We start at 7 AM with inpatient rounds. Each sonographer has a portable unit for bedside studies, primarily your CardioVue Go system. Then we transition to outpatient studies in our main lab, where we have your premium systems for advanced imaging. The challenge starts with protocol management. Each study type has specific requirements - different measurements, views, calculations - and while your system has protocol templates, they're not flexible enough for our needs. We often need to modify protocols on the fly, especially for complex cases or research studies.
+
+7
+00:02:01.000 --> 00:02:15.200
+Maria Chen: How do you handle these protocol modifications currently?
+
+8
+00:02:15.700 --> 00:03:00.400
+Jennifer Anderson: That's one of our major pain points. When we need to modify a protocol, we can't save these changes for future use without administrator access. This means we're either repeatedly making the same modifications or calling IT for help. For research protocols, where we might need specific measurements or additional views, we end up creating paper checklists because the system can't accommodate our custom requirements. This creates extra work and increases the risk of missing required images or measurements.
+
+9
+00:03:01.000 --> 00:03:15.300
+Maria Chen: What about the image acquisition workflow? How's that working for you?
+
+10
+00:03:15.800 --> 00:04:15.600
+Jennifer Anderson: Image acquisition has improved with the new systems, but there are still issues. The automatic optimization features work well for basic views, but they're less reliable in challenging patients. For example, in obese patients or those with poor acoustic windows, we need more control over image parameters. The touch screen interface, while modern, can actually slow us down. Sometimes we need to make quick adjustments during scanning, and navigating through multiple menu layers isn't practical. We miss having physical knobs for certain critical controls.
+
+11
+00:04:16.100 --> 00:04:30.200
+Maria Chen: Could you tell me more about the 3D imaging workflow specifically?
+
+12
+00:04:30.700 --> 00:05:25.900
+Jennifer Anderson: 3D imaging is becoming more important, especially for valve assessment, but the workflow needs improvement. Acquiring 3D datasets is straightforward, but the post-processing is time-consuming. The auto-cropping tools aren't reliable enough - we often have to manually adjust cropping planes to get the views we need. And while the system can do automatic valve measurements from 3D datasets, we spend a lot of time verifying and correcting these measurements. The software seems particularly challenged by calcified valves or irregular anatomies.
+
+13
+00:05:26.400 --> 00:05:40.300
+Maria Chen: How do you handle measurement and calculation workflows?
+
+14
+00:05:40.800 --> 00:06:40.500
+Jennifer Anderson: Measurements are a significant part of our workflow, and this is where we need the most improvement. The system has all the standard calculations, but the interface for measurements could be more efficient. We constantly switch between different measurement tools, and each requires multiple clicks. For example, doing a complete diastolic function assessment requires measurements from multiple views, but there's no way to easily link or compare these measurements across different parts of the study. We end up manually writing down numbers to compare them, which seems outdated for such advanced equipment.
+
+15
+00:06:41.000 --> 00:07:00.200
+Maria Chen: What about the reporting process? How well does that integrate with your workflow?
+
+16
+00:07:00.700 --> 00:07:45.400
+Jennifer Anderson: Reporting is another area needing attention. While the system automatically populates measurements into report templates, the templates themselves are too rigid. We can't easily modify the report format or add custom sections. For complex pathologies, we often need to add detailed descriptions or additional measurements that don't fit the standard template. And the integration with our PACS and EMR is inconsistent - sometimes measurements don't transfer correctly, so we have to manually verify everything in the final report.
+
+17
+00:07:46.000 --> 00:08:05.300
+Maria Chen: How do you handle stress echo studies? Any specific challenges there?
+
+18
+00:08:05.800 --> 00:08:55.600
+Jennifer Anderson: Stress echo studies have unique challenges. The continuous capture feature works well, but the review and comparison tools need improvement. When we're trying to compare rest and stress images side by side, the synchronization isn't always perfect. And if we need to adjust the contrast or timing of captured loops, it's a cumbersome process. Also, the stress echo protocol is too linear - if we need to repeat a single view, we often have to go through multiple steps instead of just quickly acquiring that one view again.
+
+19
+00:08:56.100 --> 00:09:15.200
+Maria Chen: What about storing and retrieving previous studies? How's that working?
+
+20
+00:09:15.700 --> 00:10:00.900
+Jennifer Anderson: Image storage and retrieval is becoming a bigger challenge as we do more 3D imaging. The files are huge, and retrieving previous studies can be slow. This is particularly problematic when we're doing comparison studies - we need quick access to prior images, but there's often a delay. And the search functionality is basic - we can't easily search by specific findings or measurements, only by patient information and dates. This makes it difficult to find relevant comparison cases for teaching or research.
+
+21
+00:10:01.400 --> 00:10:20.300
+Maria Chen: Speaking of teaching, how do you handle training new sonographers on these systems?
+
+22
+00:10:20.800 --> 00:11:15.500
+Jennifer Anderson: Training is challenging because the systems are so feature-rich. New sonographers get overwhelmed by the number of options and settings. The built-in help features aren't context-sensitive enough - you have to leave what you're doing to look up how to do something. We've created our own quick reference guides because the official documentation is too comprehensive for day-to-day use. And for advanced features like 3D imaging or strain analysis, we really need better tutorial tools built into the system.
+
+23
+00:11:16.000 --> 00:11:30.200
+Maria Chen: How do you manage quality control across different sonographers and machines?
+
+24
+00:11:30.700 --> 00:12:25.400
+Jennifer Anderson: Quality control is crucial but time-consuming. We need better tools for standardizing image quality and measurements across different sonographers. The system has basic quality metrics, but we need more comprehensive quality tracking tools. For example, we'd like to track measurement variability between sonographers, image quality scores, and study completion rates. Currently, we're doing most of this manually through spreadsheets. And when we identify quality issues, there's no easy way to share example images or measurements for training purposes.
+
+25
+00:12:26.000 --> 00:12:40.300
+Maria Chen: What about integration with other cardiac imaging modalities?
+
+26
+00:12:40.800 --> 00:13:35.500
+Jennifer Anderson: Integration with other imaging modalities could be much better. When we're doing echo studies, it would be helpful to have easy access to previous cardiac CTs or MRIs for reference. Currently, we have to use a separate PACS viewer to look at these studies. And when we're doing follow-up studies on structural heart procedures, being able to reference the procedural images would be valuable. The systems exist in silos, which makes it harder to provide comprehensive imaging assessment.
+
+27
+00:13:36.000 --> 00:13:50.200
+Maria Chen: How do you handle portable studies and point-of-care echo integration?
+
+28
+00:13:50.700 --> 00:14:45.400
+Jennifer Anderson: The portable systems are good, but the workflow between portable and main lab systems isn't seamless. When we do bedside studies, we often need to complete them later in the lab, but transferring studies between systems is clunky. And for point-of-care echo done by other providers, like in the ICU, integrating their images with our full studies is challenging. We need better tools for incorporating point-of-care images while maintaining our quality standards.
+
+29
+00:14:46.000 --> 00:15:00.300
+Maria Chen: What about network connectivity and image transfer speeds?
+
+30
+00:15:00.800 --> 00:16:00.500
+Jennifer Anderson: Network performance is a growing concern, especially with larger 3D datasets. Transfers to PACS can be slow, and sometimes studies get stuck in the queue. This creates backup and delays our workflow. The wireless connectivity for portable systems can be unreliable in certain areas of the hospital, which means we have to wait until we return to the lab to transfer studies. We need better handling of interrupted transfers and more efficient data compression without losing image quality.
+
+31
+00:16:01.000 --> 00:16:15.300
+Maria Chen: How do you handle emergency or stat requests during busy clinics?
+
+32
+00:16:15.800 --> 00:17:10.400
+Jennifer Anderson: Managing emergency requests is challenging with the current setup. When we get stat requests, we need to quickly access the right protocol and equipment, but switching between different study types isn't always smooth. The system should help us prioritize and track urgent studies better. Also, for emergency cases, we often need to send preliminary findings before the full study is complete, but the system doesn't have good tools for creating quick preliminary reports while maintaining the workflow for the complete study.
+
+33
+00:17:11.000 --> 00:17:25.300
+Maria Chen: What about ergonomics and physical setup of the equipment?
+
+34
+00:17:25.800 --> 00:18:20.500
+Jennifer Anderson: Ergonomics is a major concern. We're doing more studies with more complex imaging requirements, which means more time scanning each patient. The physical design of the systems could be more adjustable for different sonographer heights and scanning positions. The monitor arms have limited range of motion, and the control panel positioning isn't ideal for all users. Also, with the transition to more touch screen controls, we're seeing increased repetitive stress from constantly looking down at the screen and making multiple taps for common functions.
+
+35
+00:18:21.000 --> 00:18:35.300
+Maria Chen: What features would make your daily workflow more efficient?
+
+36
+00:18:35.800 --> 00:19:30.400
+Jennifer Anderson: We need smarter automation that actually saves time. For example, automatic cavity recognition and measurement tools that work reliably across different patient types. Better protocol customization tools that let us modify workflows without administrative overhead. More efficient measurement tools that reduce the number of clicks needed. And most importantly, better integration between all the different components - image acquisition, measurements, reporting, and archiving should feel like one seamless process, not separate steps we have to navigate between.
+
+37
+00:19:31.000 --> 00:19:45.300
+Maria Chen: How do you see AI and automation fitting into your workflow?
+
+38
+00:19:45.800 --> 00:20:30.500
+Jennifer Anderson: AI has potential, but current implementations aren't reliable enough for clinical use. The automated measurements are often inaccurate in less-than-perfect images, which means we spend time correcting them. What we really need is AI that can help with workflow efficiency - automatically detecting standard views, suggesting optimal settings for different patient types, and flagging potential abnormalities for closer inspection. But it needs to be integrated in a way that doesn't disrupt our workflow when it doesn't work perfectly.
+
+39
+00:20:31.000 --> 00:20:45.300
+Maria Chen: Would you be willing to participate in future user testing sessions?
+
+40
+00:20:45.800 --> 00:21:15.500
+Jennifer Anderson: Definitely. It's crucial that these systems are designed with input from working sonographers. The practical realities of a busy echo lab are very different from ideal testing conditions. I'd be happy to have our team provide feedback on new features or workflow changes. Just being able to share these challenges is a good start.
+
+41
+00:21:16.000 --> 00:21:25.300
+Maria Chen: Thank you so much for all this detailed feedback, Jennifer.
+
+42
+00:21:25.800 --> 00:21:30.500
+Jennifer Anderson: You're welcome. Hope it helps improve the next generation of systems.

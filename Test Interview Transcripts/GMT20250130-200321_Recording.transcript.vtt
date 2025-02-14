@@ -1,0 +1,169 @@
+WEBVTT
+
+1
+00:00:00.000 --> 00:00:03.930
+Maria Chen: Dr. Patel, thank you for meeting with me today.
+
+2
+00:00:04.330 --> 00:00:08.529
+Dr. Patel: Of course. I've been looking forward to providing feedback on the EP lab integration.
+
+3
+00:00:09.130 --> 00:00:20.840
+Maria Chen: Perfect. You've been using our CardioNav system alongside the EP recording system for about a year now, correct?
+
+4
+00:00:21.240 --> 00:00:55.560
+Dr. Patel: Yes, we've integrated it into our workflow for complex ablation procedures. We do about 15-20 complex cases weekly, everything from AFib ablations to VT cases. The 3D mapping capabilities are impressive, but there are some workflow challenges we need to discuss, especially around real-time integration and data management.
+
+5
+00:00:56.100 --> 00:01:10.300
+Maria Chen: Could you walk me through a typical complex ablation case using these systems?
+
+6
+00:01:10.800 --> 00:02:00.450
+Dr. Patel: Let's take a typical AFib ablation. First, we need to import all the pre-procedure imaging - cardiac CT, echo data - into the CardioNav system. This should be straightforward, but we often run into DICOM compatibility issues. Once we start the case, we're running both your navigation system and our EP recording system simultaneously. We need to see the 3D map, intracardiac signals, and hemodynamic data all at once. The challenge is that these systems don't share a unified interface. I'm constantly asking my staff to switch views or adjust displays.
+
+7
+00:02:01.000 --> 00:02:15.200
+Maria Chen: How does that impact your workflow during critical moments of the procedure?
+
+8
+00:02:15.700 --> 00:03:00.400
+Dr. Patel: During critical moments, like when we're ablating near the phrenic nerve or close to the esophagus, we need immediate access to multiple data points. The respiratory monitoring, esophageal temperature, pacing thresholds, and location data all need to be instantly visible. Currently, some of this information is scattered across different screens. In a complex case, every second matters. When I have to ask someone to switch views or pull up different data, it disrupts the flow of the procedure and extends procedure time.
+
+9
+00:03:01.000 --> 00:03:15.300
+Maria Chen: What about the mapping interface itself? How well does it meet your needs?
+
+10
+00:03:15.800 --> 00:04:15.600
+Dr. Patel: The basic mapping functionality is good, but the user interface needs work. For example, when we're creating a voltage map, I want to be able to adjust the color scale thresholds on the fly without interrupting data collection. The current process requires too many steps. And while the automatic point acquisition is helpful, there's no easy way to filter out respiratory motion artifacts in real-time. We often have to clean up the maps after the fact, which adds time to the procedure. Also, the annotation tools for marking ablation lines could be more intuitive. Right now, it's too cumbersome to mark complex lesion sets accurately.
+
+11
+00:04:16.100 --> 00:04:30.200
+Maria Chen: How do you handle data export and procedure documentation?
+
+12
+00:04:30.700 --> 00:05:25.900
+Dr. Patel: Data export is a major pain point. After each case, we need comprehensive documentation of all ablation sites, electroanatomical maps, and associated electrical data. But the export process isn't streamlined. The CardioNav system exports beautiful 3D maps, but they're just static images. We lose all the interactive functionality that would be useful for case reviews and teaching. And when we try to correlate ablation points with electrogram data from the recording system, we have to manually sync timestamps. This makes it difficult to perform detailed post-case analysis or research.
+
+13
+00:05:26.400 --> 00:05:40.300
+Maria Chen: What about the preparation phase? How do you plan complex procedures?
+
+14
+00:05:40.800 --> 00:06:40.500
+Dr. Patel: Procedure planning could be much more sophisticated. Currently, I spend significant time the day before reviewing cardiac CT scans and previous procedure notes. It would be incredibly helpful to have planning tools that allow me to mark anticipated ablation lines on the CT model before the case. Also, for redo procedures, we need better tools for importing previous ablation data. When a patient comes back for a repeat procedure, we essentially start from scratch with mapping, even though we have all their previous procedure data somewhere in the system. The ability to overlay previous ablation lines with real-time mapping would be invaluable.
+
+15
+00:06:41.000 --> 00:07:00.200
+Maria Chen: How do you handle device calibration and setup at the start of each case?
+
+16
+00:07:00.700 --> 00:07:45.400
+Dr. Patel: Setup time is still longer than it should be. Impedance calibration and respiratory compensation setup take about 15 minutes if everything goes smoothly. But often we run into issues with reference patches or field scaling. The troubleshooting process isn't intuitive - the system gives generic error messages without clear resolution steps. And if we need to replace a reference patch mid-procedure, we sometimes have to recalibrate everything, which can add significant delays.
+
+17
+00:07:46.000 --> 00:08:05.300
+Maria Chen: What about integration with different catheter types? How well does that work?
+
+18
+00:08:05.800 --> 00:08:55.600
+Dr. Patel: Catheter integration is generally good with major manufacturers, but there are still some gaps. Contact force data doesn't always display consistently across different catheter types. And when we're using cryoballoon alongside RF ablation, switching between the two workflows isn't seamless. The system seems optimized for point-by-point RF ablation - other workflows feel like afterthoughts. We need more flexibility to customize the interface based on the tools we're using.
+
+19
+00:08:56.100 --> 00:09:15.200
+Maria Chen: Could you tell me more about how you use the system's measurement tools?
+
+20
+00:09:15.700 --> 00:10:00.900
+Dr. Patel: The measurement tools need refinement. When I'm measuring distances between ablation points or calculating areas of scarred tissue, I want more precise tools. The current distance measurement tool doesn't always follow anatomical contours accurately. And for area measurements, especially in irregular shapes like scarred regions, the calculations seem inconsistent. We often end up using third-party software for detailed analysis after the case, which isn't ideal.
+
+21
+00:10:01.400 --> 00:10:20.300
+Maria Chen: How do you handle unexpected situations or complications during procedures?
+
+22
+00:10:20.800 --> 00:11:15.500
+Dr. Patel: This is where system flexibility becomes crucial. If we encounter an unusual anatomy or need to switch approaches mid-procedure, the system should adapt quickly. For example, if we start with a planned pulmonary vein isolation but discover we need to address additional substrates, changing the mapping protocol should be straightforward. Currently, it feels like we have to work around the system rather than having it support our changing needs. And in emergency situations, like if we need to cardiovert a patient, the process of saving data and resuming mapping should be more streamlined.
+
+23
+00:11:16.000 --> 00:11:30.200
+Maria Chen: What about teaching and supervising fellows during procedures?
+
+24
+00:11:30.700 --> 00:12:25.400
+Dr. Patel: The teaching aspects could be enhanced significantly. When working with fellows, I want to be able to annotate the map in real-time to guide them - showing them optimal ablation lines or pointing out anatomical landmarks. The current annotation tools aren't dynamic enough for teaching. Also, we need better tools for procedure playback during case reviews. Being able to replay a procedure with all the mapping and electrical data synchronized would be invaluable for training. And for remote proctoring situations, we need better tools for remote physicians to interact with the map and guide less experienced operators.
+
+25
+00:12:26.000 --> 00:12:40.300
+Maria Chen: How do you manage different user preferences across your EP lab team?
+
+26
+00:12:40.800 --> 00:13:35.500
+Dr. Patel: User preference management is surprisingly difficult. Each operator has their own preferred layout, color schemes, and mapping parameters, but saving and loading these preferences isn't straightforward. We waste time at the start of each case reconfiguring displays and settings. And when we have visiting operators, there's no easy way to quickly set up their preferred configuration. We need user profiles that can store comprehensive preferences - everything from display layouts to mapping parameters to keyboard shortcuts.
+
+27
+00:13:36.000 --> 00:13:50.200
+Maria Chen: What about the system's AI and automation features? How are those working for you?
+
+28
+00:13:50.700 --> 00:14:45.400
+Dr. Patel: The AI features show promise but need refinement. The automatic chamber segmentation is helpful but often requires manual correction, especially in unusual anatomies. The automatic annotation of fractionated signals is inconsistent - it misses some significant signals and flags too many irrelevant ones. What we really need is smarter automation of routine tasks. For example, automatic tagging of ablation line gaps, real-time assessment of lesion continuity, or predictive algorithms for identifying likely breakthrough points in previous ablation lines.
+
+29
+00:14:46.000 --> 00:15:00.300
+Maria Chen: How do you maintain situational awareness during long procedures?
+
+30
+00:15:00.800 --> 00:16:00.500
+Dr. Patel: Situational awareness is crucial in complex cases that can last 4-6 hours. We need better tools for tracking procedure progress and remaining tasks. A simple timeline showing key procedure steps, ablation sets completed, and remaining targets would be helpful. Also, the system should help us track total fluoroscopy time, ablation time, and other key metrics more prominently. And for complex cases with multiple arrhythmia mechanisms, we need better tools for organizing and tracking different mapping datasets within the same procedure.
+
+31
+00:16:01.000 --> 00:16:15.300
+Maria Chen: What about integration with your lab's quality metrics and reporting systems?
+
+32
+00:16:15.800 --> 00:17:10.400
+Dr. Patel: Quality reporting is largely a manual process right now. We track metrics like procedure time, fluoroscopy time, and acute success rates, but extracting this data from the system is cumbersome. We need automated quality metrics dashboards that can help us track trends and identify areas for improvement. Also, for research protocols, we need better tools for standardized data collection and export. Currently, we have research coordinators manually entering data into separate databases because the system's export capabilities are limited.
+
+33
+00:17:11.000 --> 00:17:25.300
+Maria Chen: How do you handle cases that require custom approaches or unusual mapping strategies?
+
+34
+00:17:25.800 --> 00:18:20.500
+Dr. Patel: The system isn't flexible enough for truly custom approaches. For example, when dealing with complex congenital cases or unusual anatomies, we often need to create modified mapping strategies. But the software feels too rigid - it assumes a standard workflow for common procedures like AFib ablation. We need more tools for custom mapping protocols, flexible data visualization, and the ability to create new templates for unusual cases. This would also be valuable for research protocols where we might want to collect data in non-standard ways.
+
+35
+00:18:21.000 --> 00:18:35.300
+Maria Chen: What are your thoughts on remote monitoring and support capabilities?
+
+36
+00:18:35.800 --> 00:19:30.400
+Dr. Patel: Remote support needs improvement. When we have system issues during a case, the current remote support process is too slow and limited. We need better tools for remote troubleshooting and system optimization. Also, for complex cases, it would be valuable to have easy ways to get real-time input from colleagues at other institutions. The pandemic showed us the importance of remote collaboration, but our current tools aren't adequate for this kind of interaction.
+
+37
+00:19:31.000 --> 00:19:45.300
+Maria Chen: If you could change anything about the system, what would be your top priorities?
+
+38
+00:19:45.800 --> 00:20:30.500
+Dr. Patel: First priority would be better integration between mapping and recording systems - we need a truly unified interface. Second would be improved data management and export capabilities for research and quality tracking. Third would be more flexible and intuitive tools for real-time procedure annotation and modification. These changes would significantly improve our efficiency and ultimately lead to better patient outcomes.
+
+39
+00:20:31.000 --> 00:20:45.300
+Maria Chen: This has been incredibly helpful. Would you be willing to participate in future user testing?
+
+40
+00:20:45.800 --> 00:21:15.500
+Dr. Patel: Absolutely. The EP lab environment is unique, and it's crucial that new features are tested in realistic scenarios. I'd be happy to provide input during development. My fellows would probably be interested as well - they often have different perspectives on workflow and user interface issues.
+
+41
+00:21:16.000 --> 00:21:25.300
+Maria Chen: Thank you so much for your time and detailed feedback.
+
+42
+00:21:25.800 --> 00:21:30.500
+Dr. Patel: You're welcome. Looking forward to seeing these improvements implemented.

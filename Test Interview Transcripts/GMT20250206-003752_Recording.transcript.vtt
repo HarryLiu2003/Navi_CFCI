@@ -1,0 +1,169 @@
+WEBVTT
+
+1
+00:00:00.000 --> 00:00:03.930
+Maria Chen: Dr. Wilson, thank you for making time today.
+
+2
+00:00:04.330 --> 00:00:08.529
+Dr. Wilson: Of course. Just finished a long valve case, so good timing.
+
+3
+00:00:09.130 --> 00:00:20.840
+Maria Chen: Perfect. I understand you're using our CardioOR monitoring suite in your cardiac surgery cases. How long have you been working with these systems?
+
+4
+00:00:21.240 --> 00:00:55.560
+Dr. Wilson: I've been doing cardiac anesthesia for fifteen years, and we've had your systems for about three years now. We do around 600 cardiac cases annually - everything from routine CABGs to complex aortic procedures and heart transplants. The monitoring capabilities are comprehensive, but there are significant workflow challenges, especially during critical phases of surgery.
+
+5
+00:00:56.100 --> 00:01:10.300
+Maria Chen: Could you walk me through your typical setup for a cardiac case?
+
+6
+00:01:10.800 --> 00:02:00.450
+Dr. Wilson: Sure. A typical cardiac case requires multiple monitoring systems working in concert. We're tracking standard vitals, advanced hemodynamics, TEE imaging, and now with your integrated system, trying to consolidate all this data. Setup takes about 30 minutes - connecting arterial lines, central lines, TEE probe, configuring the displays. The challenge is that different components of the surgery require different monitoring priorities, but reconfiguring displays during critical moments is cumbersome. We need more flexible, context-aware layouts that can adapt to different phases of surgery.
+
+7
+00:02:01.000 --> 00:02:15.200
+Maria Chen: How do you manage different information displays during a case?
+
+8
+00:02:15.700 --> 00:03:00.400
+Dr. Wilson: That's one of our biggest challenges. During a typical case, I need to monitor multiple data streams simultaneously - hemodynamics, TEE images, lab values, temperature management, blood gas results. Your system has multiple screens, but the layout options aren't flexible enough. For example, during weaning from bypass, I need quick access to specific parameters that aren't easily grouped together. We end up using additional monitors just to keep critical information visible.
+
+9
+00:03:01.000 --> 00:03:15.300
+Maria Chen: What specific challenges do you face during different phases of cardiac surgery?
+
+10
+00:03:15.800 --> 00:04:15.600
+Dr. Wilson: Each phase has unique monitoring requirements. During induction, I need rapid access to hemodynamic trends and medication response. Going on bypass requires careful monitoring of ACT, temperature, and perfusion parameters. Coming off bypass is particularly demanding - we need to track volume status, inotrope responses, and ventricular function simultaneously. The system should adapt to these phases automatically. Instead, we're manually switching between different views and configurations, which diverts attention during critical moments.
+
+11
+00:04:16.100 --> 00:04:30.200
+Maria Chen: How do you handle TEE integration during cases?
+
+12
+00:04:30.700 --> 00:05:25.900
+Dr. Wilson: TEE integration needs significant improvement. While your system can display TEE images alongside other monitoring data, the workflow isn't seamless. Capturing and labeling views during the case is time-consuming. The touch interface, while modern, isn't practical when my hands are sterile or busy with other tasks. We need better voice control or gesture recognition for image acquisition and manipulation. Also, comparing pre- and post-repair images side by side is harder than it should be. The system lacks quick reference tools for reviewing earlier images while maintaining current monitoring.
+
+13
+00:05:26.400 --> 00:05:40.300
+Maria Chen: What about alarm management in the OR environment?
+
+14
+00:05:40.800 --> 00:06:40.500
+Dr. Wilson: Alarm management is a critical issue. The OR is already a noisy environment, and with multiple monitoring systems, alarm fatigue is real. Your system's alarm integration is better than having separate alarms for each device, but it's still not smart enough. We need more context-aware alarming. For example, during bypass, certain parameters naturally deviate from normal ranges - the system should automatically adjust alarm thresholds based on the surgical phase. And when we're troubleshooting an issue, having to manually silence multiple related alarms is distracting.
+
+15
+00:06:41.000 --> 00:07:00.200
+Maria Chen: How do you handle data recording and documentation during cases?
+
+16
+00:07:00.700 --> 00:07:45.400
+Dr. Wilson: Documentation is another pain point. The automated record-keeping is helpful, but it often captures too much unnecessary data while missing critical events. We need better tools for marking significant events in real-time. The system should automatically detect and highlight important clinical changes - like coming on and off bypass, or significant hemodynamic events. Currently, we rely heavily on manual annotations, which is difficult during busy moments. And accessing this information for post-case review isn't intuitive.
+
+17
+00:07:46.000 --> 00:08:05.300
+Maria Chen: What about integration with your EMR and other hospital systems?
+
+18
+00:08:05.800 --> 00:08:55.600
+Dr. Wilson: EMR integration is incomplete. Yes, vital signs flow into the EMR, but other important data - like TEE images or advanced hemodynamic calculations - don't transfer smoothly. We often have to manually enter significant findings or measurements. And bringing in relevant information from the EMR during cases, like pre-op cardiac catheterization data or echo results, requires logging into separate systems. This breaks our workflow and increases the risk of missing important information.
+
+19
+00:08:56.100 --> 00:09:15.200
+Maria Chen: How do you handle unexpected situations or emergencies during cases?
+
+20
+00:09:15.700 --> 00:10:00.900
+Dr. Wilson: Emergency situations really highlight the system's limitations. When something goes wrong - like sudden bleeding or cardiac arrest - we need instant access to specific monitoring configurations. The system should have emergency modes that automatically prioritize relevant data and adjust alarm thresholds. Instead, we're often juggling multiple screens and settings while trying to manage the crisis. And after the event, reconstructing the timeline of what happened is harder than it should be because the data isn't organized in a clinically meaningful way.
+
+21
+00:10:01.400 --> 00:10:20.300
+Maria Chen: What about the system's analysis and trending capabilities?
+
+22
+00:10:20.800 --> 00:11:15.500
+Dr. Wilson: The trending functions need work. While we can see basic vital sign trends, we need more sophisticated analysis tools. For example, during complex hemodynamic situations, seeing the relationship between multiple parameters over time would be helpful. The system has the data but doesn't present it in clinically useful ways. We also need better tools for analyzing TEE images alongside hemodynamic data. Currently, it's difficult to correlate echo findings with pressure and flow measurements in real-time.
+
+23
+00:11:16.000 --> 00:11:30.200
+Maria Chen: How do you manage handoffs during long cases?
+
+24
+00:11:30.700 --> 00:12:25.400
+Dr. Wilson: Handoffs are challenging because the system doesn't provide good tools for summarizing case progress. When another anesthesiologist takes over, they need to quickly understand the case history - what medications have been given, any significant events, ongoing concerns. The current system requires scrolling through lots of data to piece this together. We need better case summary views that highlight key events and active issues. Also, personal preferences for display layouts and alarm settings don't transfer easily between users.
+
+25
+00:12:26.000 --> 00:12:40.300
+Maria Chen: What about teaching and supervision in the OR?
+
+26
+00:12:40.800 --> 00:13:35.500
+Dr. Wilson: Teaching while managing complex cases is difficult with the current interface. When working with residents, I need to be able to highlight specific monitoring patterns or TEE findings quickly. The system lacks good annotation tools for real-time teaching. And for review purposes, we need better ways to export case data with annotations for educational conferences. The current export functions are basic and don't maintain the relationship between different data streams.
+
+27
+00:13:36.000 --> 00:13:50.200
+Maria Chen: How do you handle quality assurance and case review?
+
+28
+00:13:50.700 --> 00:14:45.400
+Dr. Wilson: Quality assurance would benefit from better analytics tools. We want to track patterns across cases - things like hemodynamic management strategies, medication responses, time spent on bypass. The current system captures this data but doesn't provide good tools for aggregate analysis. We need better reporting functions that can help us identify trends and potential areas for improvement. Also, when reviewing complicated cases, reconstructing the sequence of events and decision-making is more difficult than it should be.
+
+29
+00:14:46.000 --> 00:15:00.300
+Maria Chen: What about integration with perfusion systems during bypass?
+
+30
+00:15:00.800 --> 00:15:55.500
+Dr. Wilson: Perfusion integration is a major gap. While we can see basic bypass parameters, the detailed perfusion data lives in a separate system. During critical phases like cooling or rewarming, we need to correlate perfusion data with our monitoring parameters more easily. The communication between anesthesia and perfusion teams would be more efficient if we had a truly integrated display. Currently, we're often verbally confirming numbers that should be automatically shared between systems.
+
+31
+00:15:56.000 --> 00:16:15.300
+Maria Chen: How do you manage medication administration and documentation?
+
+32
+00:16:15.800 --> 00:17:10.400
+Dr. Wilson: Medication management could be more sophisticated. Yes, the system records what we give, but it doesn't help us track medication responses well. We need better tools for correlating drug administration with hemodynamic changes. Also, for complex drug protocols like coming off bypass, we need more automated support for timing and dosing. The system should help prevent errors by flagging unusual doses or potential drug interactions. And the interface for entering medications during busy periods isn't efficient enough.
+
+33
+00:17:11.000 --> 00:17:25.300
+Maria Chen: What about managing multiple monitoring devices in the OR?
+
+34
+00:17:25.800 --> 00:18:20.500
+Dr. Wilson: Device management is still too complex. While your system integrates several monitoring functions, we still have standalone devices that require separate attention. Each device has its own controls, displays, and alarms. Cable management is a constant challenge, and troubleshooting connectivity issues during cases is stressful. We need better wireless integration and more streamlined device interfaces. The physical setup in the OR could be more ergonomic - currently, we're often reaching across equipment or working around cables to access different controls.
+
+35
+00:18:21.000 --> 00:18:35.300
+Maria Chen: If you could improve anything about the system, what would be your priorities?
+
+36
+00:18:35.800 --> 00:19:30.400
+Dr. Wilson: First priority would be better context-awareness - having the system automatically adapt to different phases of surgery. Second would be improved TEE integration with more intuitive controls and better image management. Third would be smarter alarm management that reduces noise while ensuring we don't miss important events. We also need better tools for case review and quality assurance. The technology should help us improve patient care, not just collect data.
+
+37
+00:19:31.000 --> 00:19:45.300
+Maria Chen: How do you see AI fitting into future cardiac OR systems?
+
+38
+00:19:45.800 --> 00:20:30.500
+Dr. Wilson: AI could be valuable if implemented thoughtfully. We need AI that can help predict trends and alert us to developing problems before they become critical. But it needs to be reliable and transparent - we need to understand how it's making decisions. AI could also help with image analysis during TEE, suggesting measurements or highlighting abnormalities. But it shouldn't add complexity to our workflow. The focus should be on supporting clinical decision-making, not replacing it.
+
+39
+00:20:31.000 --> 00:20:45.300
+Maria Chen: Would you be interested in participating in future system development?
+
+40
+00:20:45.800 --> 00:21:15.500
+Dr. Wilson: Definitely. The OR environment is unique, and it's crucial that these systems are designed with input from clinicians who understand the practical challenges. I'd be happy to provide feedback during development. Having this discussion has highlighted how many opportunities there are for improvement.
+
+41
+00:21:16.000 --> 00:21:25.300
+Maria Chen: Thank you so much for your detailed insights, Dr. Wilson.
+
+42
+00:21:25.800 --> 00:21:30.500
+Dr. Wilson: You're welcome. Looking forward to seeing these improvements implemented.
