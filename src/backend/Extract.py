@@ -110,7 +110,7 @@ def main(file_path):
 
 
 # Specify the path to your .txt file
-file_path = "./Interview.txt"  # Change this to the actual file path
+file_path = "./src/backend/Interview.txt"  # Change this to the actual file path
 main(file_path)
 #print(find_phrase_in_file(file_path, "cardiac status"))
 
