@@ -110,7 +110,11 @@ def main(file_path):
 
 
 # Specify the path to your .txt file
+<<<<<<< HEAD:src/backend/Extract.py
 file_path = "./src/backend/Interview.txt"  # Change this to the actual file path
+=======
+file_path = "../resources/user_interview.txt"  # Change this to the actual file path
+>>>>>>> 3316e55a47f15db005a3552b0db4eea0fd410ee4:src/backend/apis/extract.py
 main(file_path)
 #print(find_phrase_in_file(file_path, "cardiac status"))
 
