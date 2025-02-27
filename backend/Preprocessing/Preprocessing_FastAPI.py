@@ -1,4 +1,4 @@
-from fastapi import FastAPI, File, UploadFile, HTTPException
+from fastapi import FastAPI, File, UploadFile, HTTPException, APIRouter
 import re
 import json
 import tiktoken
@@ -8,7 +8,7 @@ import uvicorn
 
 nltk.download('punkt')
 
-app = FastAPI()
+router = APIRouter()
 
 def read_vtt(file_content):
     lines = file_content.decode("utf-8").split("\n")
@@ -52,7 +52,7 @@ def chunk_text(text, max_tokens=512):
     
     return chunks
 
-@app.post("/preprocess/")
+@router.post("/preprocess")
 async def preprocess_vtt(file: UploadFile = File(...)):
     if not file.filename.endswith(".vtt"):
         raise HTTPException(status_code=400, detail="Only .vtt files are allowed")
@@ -64,6 +64,8 @@ async def preprocess_vtt(file: UploadFile = File(...)):
     
     return {"chunks": chunks}
 
+"""
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000)
+"""
 

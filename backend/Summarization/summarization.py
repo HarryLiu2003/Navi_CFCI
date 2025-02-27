@@ -2,9 +2,12 @@ import os
 import json
 import requests
 import dotenv
+import uvicorn
+from fastapi import  APIRouter, FastAPI, UploadFile, File, HTTPException
+
+router = APIRouter()
 
 dotenv.load_dotenv()
-
 
 def _load_model_configs(configuration_file):
     """Loads model configurations from a JSON file."""
@@ -17,7 +20,6 @@ def _load_model_configs(configuration_file):
             configs[model]["api_key"] = os.getenv(env_var, "MISSING_API_KEY")
 
     return configs
-
 
 def _get_model_config(model_choice, model_configs):
     """Retrieves configuration for a given model."""
@@ -32,7 +34,6 @@ def _get_model_config(model_choice, model_configs):
         raise ValueError(f"API key for {model_choice} is missing. Set the environment variable and try again.")
 
     return config
-
 
 def _read_interview_file(interview_file):
     """Reads the interview transcript from a file."""
@@ -65,7 +66,19 @@ def _call_model_api(config, interview_text):
 
     return response.json()
 
+async def read_file(file: UploadFile) -> str:
+    """
+    Reads and decodes an uploaded file.
+    """
+    try:
+        contents = await file.read()
+        if not contents:
+            raise HTTPException(status_code=400, detail="Uploaded file is empty")
+        return contents.decode("utf-8")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error reading file: {str(e)}")
 
+router.post("/summarize")
 def summarize_interview(model_choice, interview_file, configuration_file):
     """
     Summarizes a user interview using a specified AI model.
@@ -85,3 +98,24 @@ def summarize_interview(model_choice, interview_file, configuration_file):
     response_json = _call_model_api(config, interview_text)
 
     return response_json
+
+
+@router.post("/summarize")
+async def summarize_transcript(file: UploadFile = File(...)):
+    """
+    Summarizes the uploaded transcript file.
+    """
+    try:
+        model_configuration = "./backend/Summarization/config/model_configs.json"
+        transcript_text = await read_file(file)
+        model = "mistral"
+        
+        result = summarize_interview(model, transcript_text, model_configuration)
+        text = result["choices"][0]["message"]["content"]
+
+        return text
+    except HTTPException as he:
+        raise he
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Summarization failed: {str(e)}")
+

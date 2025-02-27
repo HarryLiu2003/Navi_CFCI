@@ -1,4 +1,4 @@
-from fastapi import FastAPI, UploadFile, File, HTTPException
+from fastapi import FastAPI, UploadFile, File, HTTPException, APIRouter
 import spacy
 import nltk  # Even though not directly used, better to keep if potentially used by RAKE
 from rake_nltk import Rake
@@ -7,7 +7,7 @@ import os
 from dotenv import load_dotenv
 from openai import OpenAI
 
-app = FastAPI()
+router = APIRouter()
 
 prompt = """Extract the key pain points and demands that the user is making in this user interview script. Be as specific if you can.
 Sections of the script are given based on the locations of relevant phrases and keywords. 
@@ -93,7 +93,7 @@ def query_openai(prompt, sections):
     return response.choices[0].message.content  # Return the content
 
 
-@app.post("/process")
+@router.post("/process")
 async def analyze_transcript(file: UploadFile = File(...)):
     """
     Analyzes a transcript file to extract key pain points and summaries using NER, RAKE, and OpenAI.
