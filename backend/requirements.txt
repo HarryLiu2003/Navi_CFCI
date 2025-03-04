@@ -1,0 +1,27 @@
+# Web Framework
+fastapi==0.110.0
+uvicorn==0.27.1
+
+# File Processing
+python-multipart==0.0.9
+
+# Natural Language Processing
+nltk==3.9.1
+spacy==3.7.2
+rake-nltk==1.0.6
+
+# Token Management
+tiktoken==0.9.0
+
+# API Integration
+openai==1.62.0
+requests==2.32.3
+
+# Environment Variables
+python-dotenv==1.0.1
+
+# Testing
+pytest==8.0.2
+
+# Utilities
+numpy>=1.24.0 
