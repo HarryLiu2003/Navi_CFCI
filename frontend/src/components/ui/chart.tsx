@@ -13,9 +13,32 @@ import {
   Line,
 } from "recharts"
 
-export const BarChart = ({ data, index, categories, colors, valueFormatter, yAxisWidth }: any) => {
+interface ChartOptions {
+  width?: number;
+  height?: number;
+}
+
+interface BarChartProps extends ChartOptions {
+  data: Array<{ [key: string]: number | string }>;
+  index: string;
+  categories: string[];
+  colors: string[];
+  valueFormatter: (val: number) => string;
+  yAxisWidth?: number;
+}
+
+export const BarChart = ({
+  data,
+  index,
+  categories,
+  colors,
+  valueFormatter,
+  yAxisWidth,
+  width,
+  height,
+}: BarChartProps) => {
   return (
-    <ResponsiveContainer width="100%" height={350}>
+    <ResponsiveContainer width={width || "100%"} height={height || 350}>
       <RechartsBarChart data={data}>
         <CartesianGrid strokeDasharray="3 3" />
         <XAxis dataKey={index} />
@@ -29,7 +52,19 @@ export const BarChart = ({ data, index, categories, colors, valueFormatter, yAxi
   )
 }
 
-export const PieChart = ({ data, index, categories, colors, valueFormatter }: any) => {
+export const PieChart = ({
+  data,
+  categories,
+  colors,
+  valueFormatter,
+  index,
+}: ChartOptions & {
+  data: Record<string, unknown>[];
+  categories: string[];
+  colors: string[];
+  valueFormatter: (val: number) => string;
+  index?: string;
+}) => {
   return (
     <ResponsiveContainer width="100%" height={350}>
       <RechartsPieChart>
@@ -41,10 +76,11 @@ export const PieChart = ({ data, index, categories, colors, valueFormatter }: an
           outerRadius={80}
           fill="#8884d8"
           dataKey={categories[0]}
+          nameKey={index}
           label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
         >
-          {data.map((entry: any, index: number) => (
-            <Cell key={`cell-${index}`} fill={colors[index % colors.length]} />
+          {data.map((entry: Record<string, unknown>, idx: number) => (
+            <Cell key={`cell-${idx}`} fill={colors[idx % colors.length]} />
           ))}
         </Pie>
         <Tooltip formatter={valueFormatter} />
@@ -53,19 +89,27 @@ export const PieChart = ({ data, index, categories, colors, valueFormatter }: an
   )
 }
 
-export const LineChart = ({ data, index, categories, colors, valueFormatter, yAxisWidth }: any) => {
+export const LineChart = ({
+  data,
+  index,
+  categories,
+  colors,
+  valueFormatter,
+  yAxisWidth,
+  width,
+  height,
+}: BarChartProps) => {
   return (
-    <ResponsiveContainer width="100%" height={350}>
+    <ResponsiveContainer width={width || "100%"} height={height || 350}>
       <RechartsLineChart data={data}>
         <CartesianGrid strokeDasharray="3 3" />
         <XAxis dataKey={index} />
         <YAxis width={yAxisWidth} tickFormatter={valueFormatter} />
         <Tooltip formatter={valueFormatter} />
         {categories.map((category: string, idx: number) => (
-          <Line key={`line-${idx}`} type="monotone" dataKey={category} stroke={colors[idx]} activeDot={{ r: 8 }} />
+          <Line key={`line-${idx}`} dataKey={category} stroke={colors[idx]} activeDot={{ r: 8 }} />
         ))}
       </RechartsLineChart>
     </ResponsiveContainer>
   )
 }
-

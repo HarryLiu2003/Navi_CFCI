@@ -29,7 +29,7 @@ const featureData = {
   ],
 }
 
-export default function KeyFeaturePage({ params }: { params: { id: string } }) {
+export default function KeyFeaturePage() {
   const [newComment, setNewComment] = useState("")
   const [teamScores, setTeamScores] = useState({
     Product: 0,
@@ -67,7 +67,7 @@ export default function KeyFeaturePage({ params }: { params: { id: string } }) {
         </CardHeader>
         <CardContent>
           <blockquote className="border-l-4 border-primary pl-4 italic">
-            "{featureData.highlightedSegment.text}"
+            &quot;{featureData.highlightedSegment.text}&quot;
           </blockquote>
           <p className="mt-2">
             <Link

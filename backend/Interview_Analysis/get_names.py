@@ -1,5 +1,5 @@
 from fastapi import APIRouter, UploadFile, File
-from google import genai
+import google.generativeai as genai
 import os
 from dotenv import load_dotenv
 from utils.api_responses import APIResponse

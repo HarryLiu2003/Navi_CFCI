@@ -12,13 +12,13 @@ import { useRouter } from 'next/navigation'
 import type { AnalysisResponse } from '@/lib/api'
 
 // Add these type definitions at the top of the file, after the imports
-type CategoryColor = {
-  [K in keyof typeof categoryColors]: string;
-};
+// type CategoryColor = {
+//   [K in keyof typeof categoryColors]: string;
+// };
 
-type ChunkRef = {
-  [key: number]: HTMLDivElement | null;
-};
+// type ChunkRef = {
+//   [key: number]: HTMLDivElement | null;
+// };
 
 // Update the categoryColors object with all possible categories
 const categoryColors = {
@@ -217,7 +217,7 @@ export default function InterviewAnalysisPage() {
                                   ))}
                                 </div>
                                 <blockquote className="border-l-2 border-muted-foreground/30 pl-3 italic text-sm mb-2">
-                                  "{excerpt.quote}"
+                                  &quot;{excerpt.quote}&quot;
                                 </blockquote>
                                 <p className="text-sm text-muted-foreground mb-2">{excerpt.insight}</p>
                                 <Button

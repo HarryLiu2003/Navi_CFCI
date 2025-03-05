@@ -16,7 +16,11 @@ tiktoken==0.9.0
 # API Integration
 openai==1.62.0
 requests==2.32.3
-google-generativeai>=0.8.4 
+
+# Google AI - with compatible version specifications
+google-ai-generativelanguage==0.6.15
+google-generativeai==0.8.4
+langchain-google-genai==2.0.10
 
 # Environment Variables
 python-dotenv==1.0.1
@@ -29,7 +33,6 @@ numpy>=1.24.0
 
 # LangChain
 langchain>=0.3.20
-langchain-google-genai>=2.0.11
 langchain-core>=0.3.41
 langchain-community>=0.3.19
 langgraph>=0.0.69
