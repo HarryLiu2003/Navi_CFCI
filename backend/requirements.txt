@@ -16,6 +16,7 @@ tiktoken==0.9.0
 # API Integration
 openai==1.62.0
 requests==2.32.3
+google-genai>=0.1.0 
 
 # Environment Variables
 python-dotenv==1.0.1
@@ -24,4 +25,15 @@ python-dotenv==1.0.1
 pytest==8.0.2
 
 # Utilities
-numpy>=1.24.0 
+numpy>=1.24.0
+
+# LangChain
+langchain>=0.3.20
+langchain-google-genai>=2.0.11
+langchain-core>=0.3.41
+langchain-community>=0.3.19
+langgraph>=0.0.69
+pydantic>=2.10.6
+
+# Add these new dependencies
+langchain-experimental>=0.0.53
