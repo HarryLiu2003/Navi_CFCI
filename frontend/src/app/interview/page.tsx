@@ -9,7 +9,7 @@ import { Separator } from "@/components/ui/separator"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Textarea } from "@/components/ui/textarea"
 import { ChevronLeft, Send } from "lucide-react"
-import ReactFlow, { Controls, Background } from "reactflow"
+import ReactFlow, { Controls, Background, Position } from "reactflow"
 import "reactflow/dist/style.css"
 
 // Mock data
@@ -220,31 +220,31 @@ export default function InterviewPage() {
                   position: { x: 0, y: 100 },
                   data: { label: "Start" },
                   type: "input",
-                  sourcePosition: "right",
-                  targetPosition: "left",
+                  sourcePosition: Position.Right,
+                  targetPosition: Position.Left,
                 },
                 {
                   id: "2",
                   position: { x: 200, y: 100 },
                   data: { label: "Search for Product" },
-                  sourcePosition: "right",
-                  targetPosition: "left",
+                  sourcePosition: Position.Right,
+                  targetPosition: Position.Left,
                 },
                 {
                   id: "3",
                   position: { x: 400, y: 100 },
                   data: { label: "Compare Options" },
                   style: { background: "#FFCCCB", borderColor: "#FF0000" },
-                  sourcePosition: "right",
-                  targetPosition: "left",
+                  sourcePosition: Position.Right,
+                  targetPosition: Position.Left,
                 },
                 {
                   id: "4",
                   position: { x: 600, y: 100 },
                   data: { label: "Purchase" },
                   type: "output",
-                  sourcePosition: "right",
-                  targetPosition: "left",
+                  sourcePosition: Position.Right,
+                  targetPosition: Position.Left,
                 },
               ]}
               edges={[

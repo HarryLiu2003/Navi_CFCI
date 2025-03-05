@@ -26,8 +26,10 @@
     "react-dom": "^19.0.0",
     "reactflow": "^11.11.4",
     "recharts": "^2.15.1",
+    "sonner": "^1.4.0",
     "tailwind-merge": "^3.0.1",
-    "tailwindcss-animate": "^1.0.7"
+    "tailwindcss-animate": "^1.0.7",
+    "next-themes": "^0.2.1"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",

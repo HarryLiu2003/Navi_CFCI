@@ -26,7 +26,7 @@ if not api_key:
 
 synthesis_chain = SynthesisChain(api_key)
 
-@router.post("/synthesis",
+@router.post("/api/interview/synthesis",
     summary="Synthesize Interview Analysis",
     description="Performs multi-step analysis of interview transcript.",
     tags=["interview_analysis"],
@@ -122,6 +122,21 @@ async def synthesize_interview(file: UploadFile = File(..., description="VTT fil
                 status_code=400
             )
         
+        # Process each chunk to extract speaker and text
+        processed_chunks = []
+        for chunk in transcript_data["chunks"]:
+            text = chunk["text"]
+            if ": " in text:
+                speaker, actual_text = text.split(": ", 1)
+            else:
+                speaker, actual_text = "Unknown", text
+
+            processed_chunks.append({
+                "chunk_number": chunk["number"],
+                "speaker": speaker,
+                "text": actual_text
+            })
+        
         # Run the synthesis pipeline
         logger.info("Starting synthesis pipeline")
         
@@ -151,17 +166,19 @@ async def synthesize_interview(file: UploadFile = File(..., description="VTT fil
             "transcript_length": len(transcript_text),
             "problem_areas_count": len(problem_areas["problem_areas"]),
             "excerpts_total_count": sum(len(area.get("excerpts", [])) for area in problem_areas["problem_areas"]),
-            "total_chunks": len(transcript_data["chunks"])
+            "total_chunks": len(processed_chunks)
         }
         
+        # Prepare the result
         result = {
             "problem_areas": problem_areas["problem_areas"],
             "synthesis": synthesis["synthesis"],
-            "metadata": metadata
+            "metadata": metadata,
+            "transcript": processed_chunks  # Use the processed chunks
         }
         
         # Validate result structure
-        if not isinstance(result, dict) or not all(k in result for k in ["problem_areas", "synthesis", "metadata"]):
+        if not isinstance(result, dict) or not all(k in result for k in ["problem_areas", "synthesis", "metadata", "transcript"]):
             logger.error("Invalid synthesis result structure")
             raise APIResponse.error("Invalid analysis result format", status_code=500)
             
