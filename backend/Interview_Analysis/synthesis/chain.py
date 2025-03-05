@@ -40,12 +40,13 @@ class SynthesisChain:
             logger.error(f"Error extracting problem areas: {str(e)}", exc_info=True)
             raise ValueError(f"Problem area extraction failed: {str(e)}")
 
-    async def extract_excerpts(self, transcript: str, problem_areas: Dict[str, list[ProblemArea]]) -> Dict[str, list[Excerpt]]:
+    async def extract_excerpts(self, transcript_data: Dict[str, Any], problem_areas: Dict[str, list[ProblemArea]]) -> Dict[str, list[Excerpt]]:
         """Extract supporting excerpts for each problem area."""
         try:
             logger.debug("Starting excerpt extraction")
             result = await self.excerpt_chain.ainvoke({
-                "transcript": transcript,
+                "transcript": transcript_data["chunks"],
+                "max_chunk_number": transcript_data["max_chunk"],
                 "problem_areas": json.dumps(problem_areas)
             })
             logger.debug(f"Excerpts extracted: {json.dumps(result, indent=2)}")

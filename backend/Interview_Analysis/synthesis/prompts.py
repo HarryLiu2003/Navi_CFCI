@@ -42,7 +42,9 @@ EXCERPT_PROMPT = ChatPromptTemplate.from_messages([
     1. The exact quote from the transcript
     2. Relevant categories (can be multiple)
     3. A brief insight that summarizes the key takeaway (1 sentence)
-    4. The timestamp from the transcript
+    4. The VTT chunk number (must be the exact integer that appears before the timestamp in the original transcript. 
+       Do not calculate or estimate this number - only use numbers you can see in the transcript.
+       The chunk number must be between 1 and {max_chunk_number}).
     
     Format as JSON with each problem area containing its excerpts:
     {{
@@ -54,7 +56,7 @@ EXCERPT_PROMPT = ChatPromptTemplate.from_messages([
                         "quote": "Exact quote from transcript",
                         "categories": ["Pain Point", "Impact"],
                         "insight": "Brief insight summary",
-                        "timestamp": "00:00:00"
+                        "chunk_number": 30
                     }}
                 ]
             }}

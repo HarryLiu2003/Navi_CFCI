@@ -29,17 +29,31 @@ class TranscriptPreprocessor:
         text = content.decode('utf-8')
         return self.read_vtt(text)
 
-    def read_vtt(self, content: str) -> str:
-        """Convert VTT content to plain text."""
+    def read_vtt(self, content: str) -> dict:
+        """Convert VTT content to structured format with preserved chunk numbers."""
         lines = content.split("\n")
-        text_lines = [
-            line.strip() for line in lines 
-            if line.strip() and 
-            not line.strip().isdigit() and 
-            '-->' not in line and 
-            not line.startswith('WEBVTT')
-        ]
-        return " ".join(text_lines)
+        chunks = []
+        current_chunk = None
+        
+        for line in lines:
+            line = line.strip()
+            if not line:
+                continue
+            if line.isdigit():
+                if current_chunk:
+                    chunks.append(current_chunk)
+                current_chunk = {"number": int(line), "text": ""}
+            elif '-->' not in line and not line.startswith('WEBVTT'):
+                if current_chunk:
+                    current_chunk["text"] = line
+        
+        if current_chunk:
+            chunks.append(current_chunk)
+        
+        return {
+            "chunks": chunks,
+            "max_chunk": max(chunk["number"] for chunk in chunks)
+        }
 
     def clean_transcript(self, text: str) -> str:
         """Clean and normalize transcript text."""

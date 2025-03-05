@@ -109,10 +109,13 @@ async def synthesize_interview(file: UploadFile = File(..., description="VTT fil
             )
         
         # Preprocess the transcript
-        raw_text = await preprocessor.read_vtt_file(file)
-        logger.debug(f"Preprocessed text length: {len(raw_text)}")
+        transcript_data = await preprocessor.read_vtt_file(file)
+        logger.debug(f"Preprocessed transcript data: {len(transcript_data['chunks'])} chunks")
         
-        if not raw_text.strip():
+        # Convert chunks to text for problem area extraction
+        transcript_text = " ".join(chunk["text"] for chunk in transcript_data["chunks"])
+        
+        if not transcript_text.strip():
             logger.warning("Empty transcript after preprocessing")
             raise APIResponse.error(
                 "No valid text content found in VTT file",
@@ -121,7 +124,41 @@ async def synthesize_interview(file: UploadFile = File(..., description="VTT fil
         
         # Run the synthesis pipeline
         logger.info("Starting synthesis pipeline")
-        result = await synthesis_chain.run_analysis(raw_text)
+        
+        # Extract problem areas using plain text
+        problem_areas = await synthesis_chain.extract_problem_areas(transcript_text)
+        
+        # Extract excerpts using structured data
+        excerpts_result = await synthesis_chain.extract_excerpts(transcript_data, problem_areas)
+        
+        # Merge excerpts into problem areas
+        for area in problem_areas["problem_areas"]:
+            matching_area = next(
+                (pa for pa in excerpts_result["problem_areas"] 
+                 if pa["problem_id"] == area["problem_id"]), 
+                None
+            )
+            if matching_area:
+                area["excerpts"] = matching_area["excerpts"]
+            else:
+                area["excerpts"] = []
+        
+        # Generate final synthesis
+        synthesis = await synthesis_chain.generate_synthesis(problem_areas)
+        
+        # Prepare metadata
+        metadata = {
+            "transcript_length": len(transcript_text),
+            "problem_areas_count": len(problem_areas["problem_areas"]),
+            "excerpts_total_count": sum(len(area.get("excerpts", [])) for area in problem_areas["problem_areas"]),
+            "total_chunks": len(transcript_data["chunks"])
+        }
+        
+        result = {
+            "problem_areas": problem_areas["problem_areas"],
+            "synthesis": synthesis["synthesis"],
+            "metadata": metadata
+        }
         
         # Validate result structure
         if not isinstance(result, dict) or not all(k in result for k in ["problem_areas", "synthesis", "metadata"]):
@@ -129,15 +166,12 @@ async def synthesize_interview(file: UploadFile = File(..., description="VTT fil
             raise APIResponse.error("Invalid analysis result format", status_code=500)
             
         logger.info("Synthesis pipeline completed successfully")
-        
-        # Return the result directly since metadata is already included
         return APIResponse.success(result)
         
     except Exception as e:
         logger.error(f"Error processing transcript: {str(e)}", exc_info=True)
         if isinstance(e, ValueError):
             raise APIResponse.error(str(e), status_code=400)
-        # Updated exception handling
         if isinstance(e, JsonOutputParser.ParserError):
             raise APIResponse.error("Failed to parse LLM response", status_code=422)
         if isinstance(e, ChatGoogleGenerativeAI.APIError):

@@ -1,11 +1,18 @@
 from pydantic import BaseModel, Field
 from typing import List, Optional
+from pydantic import validator
 
 class Excerpt(BaseModel):
     quote: str
     categories: List[str]
     insight: str
-    timestamp: str
+    chunk_number: int
+
+    @validator('chunk_number')
+    def validate_chunk_number(cls, v, values, **kwargs):
+        if not (1 <= v <= values.get('max_chunk_number', float('inf'))):
+            raise ValueError(f'Chunk number {v} is out of valid range')
+        return v
 
 class ProblemArea(BaseModel):
     problem_id: str
