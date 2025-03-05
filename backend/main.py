@@ -5,7 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from Summarization.summarization import router as summarize_router
 from Preprocessing.preprocessing import router as preprocess_router
 from Keyword_Extraction.keyword_extraction import router as keyword_router
-from Interview_Analysis.interview_analysis import router as interview_router
+from Interview_Analysis import names_router, analysis_router
 
 app = FastAPI(
     title="Interview Analysis API",
@@ -53,7 +53,12 @@ app.include_router(
     tags=["keywords"]
 )
 app.include_router(
-    interview_router,
+    names_router,
+    prefix="/interview",
+    tags=["participant_extraction"]
+)
+app.include_router(
+    analysis_router,
     prefix="/interview",
     tags=["interview_analysis"]
 )
