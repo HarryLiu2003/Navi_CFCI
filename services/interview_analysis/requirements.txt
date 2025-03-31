@@ -1,0 +1,33 @@
+# Web Framework
+fastapi>=0.110.0
+uvicorn>=0.27.1
+
+# File Processing
+python-multipart>=0.0.9
+webvtt-py>=0.4.6
+
+# API Integration
+requests>=2.32.3
+
+# Google AI - with compatible version specifications
+google-ai-generativelanguage>=0.6.15
+google-generativeai>=0.8.4
+langchain-google-genai>=2.0.10
+
+# Environment Variables
+python-dotenv>=1.0.1
+
+# Logging
+python-json-logger>=3.3.0
+
+# Testing
+pytest>=8.0.2
+pytest-asyncio>=0.23.5
+pytest-cov>=4.1.0
+
+# LangChain
+langchain>=0.3.20
+langchain-core>=0.3.41
+langchain-community>=0.3.19
+langgraph>=0.0.69
+pydantic>=2.10.6 

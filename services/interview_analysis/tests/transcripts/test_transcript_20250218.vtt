@@ -1,0 +1,1230 @@
+WEBVTT
+
+1
+00:00:27.900 --> 00:00:29.449
+Harry Liu: Hey? Good morning, Isaac!
+
+2
+00:00:30.910 --> 00:00:31.380
+Isaac Park: Hey, Eric.
+
+3
+00:00:32.060 --> 00:00:32.959
+Harry Liu: How are you?
+
+4
+00:00:33.320 --> 00:00:34.280
+Isaac Park: Good! How are you?
+
+5
+00:00:34.640 --> 00:00:36.320
+Harry Liu: Amazing. Yeah. Long time to see.
+
+6
+00:00:36.490 --> 00:00:38.260
+Isaac Park: Yeah, yeah. It's been a little bit.
+
+7
+00:00:38.500 --> 00:00:44.820
+Harry Liu: Yeah, just to make sure that you're you're conscious of your time. We have like, 30 min.
+
+8
+00:00:45.020 --> 00:00:45.790
+Isaac Park: Yep. Yep.
+
+9
+00:00:45.790 --> 00:00:46.360
+Harry Liu: Clip.
+
+10
+00:00:46.460 --> 00:01:01.190
+Harry Liu: Thanks. Yes, thanks so much for taking the time. So I'm in 2 pm. 2, this semester. We've definitely missed you. Yeah, it's really a good class. I loved it, and we're working with Nick and Kweku like, which you probably already know.
+
+11
+00:01:01.980 --> 00:01:05.290
+Harry Liu: Yeah, on their suite of products. So
+
+12
+00:01:05.670 --> 00:01:13.760
+Harry Liu: like, there, you already know, they're building something for the innovative economy. They're trying to like build tools for people like to, you know.
+
+13
+00:01:13.950 --> 00:01:20.269
+Harry Liu: get better in terms of knowing what to build and how to build things.
+
+14
+00:01:20.460 --> 00:01:25.840
+Harry Liu: Initially. We were tasked with this thing to like build an AI tile prompter for the user interview process. But then.
+
+15
+00:01:25.840 --> 00:01:27.160
+Isaac Park: To build. A what a what.
+
+16
+00:01:27.160 --> 00:01:28.880
+Harry Liu: AI teleprompter.
+
+17
+00:01:29.580 --> 00:01:31.040
+Isaac Park: AI teleprompter.
+
+18
+00:01:31.040 --> 00:01:31.600
+Harry Liu: Yeah.
+
+19
+00:01:31.870 --> 00:01:42.719
+Harry Liu: for the user interview process. To kind of like, the idea was to guide like people on their like during their user interviews. So they can like, you know, as.
+
+20
+00:01:42.720 --> 00:01:43.810
+Isaac Park: Oh, I see. Okay.
+
+21
+00:01:43.810 --> 00:01:57.928
+Harry Liu: On track, etcetera, but also like they specifically want us to explore the healthcare life sciences, space, because that they think that is a good area to tackle into like a more hard to tackle industry, I guess.
+
+22
+00:01:58.450 --> 00:02:12.090
+Harry Liu: And we don't think like, after, like a round of user interviews with like healthcare professionals from like either the clinical side or the like product side. We don't think that's the best like
+
+23
+00:02:12.790 --> 00:02:23.720
+Harry Liu: tangent to tack into like the AI teleprompter thing isn't the best thing to do, because there's so much, you know, variety in terms of how people conduct interviews within the healthcare space.
+
+24
+00:02:25.340 --> 00:02:29.447
+Harry Liu: But then we put it this kind of to the post interview
+
+25
+00:02:30.120 --> 00:02:40.490
+Harry Liu: phase, where we are now focusing on helping like product people in healthcare space. We're honestly like
+
+26
+00:02:41.120 --> 00:02:45.840
+Harry Liu: brought in the broader, like just product space to synthesize their
+
+27
+00:02:45.950 --> 00:02:56.990
+Harry Liu: insights from user interviews and then giving them a platform to collaborate with different stakeholders across teams. Yeah.
+
+28
+00:02:57.770 --> 00:03:17.899
+Harry Liu: but definitely would love to hear a little bit more about like how you you know, we are still locking down the specific user persona of. You know what kind of healthcare organizations we are innovating, for where the size of the team and how like team internally collaborate that like is really important for us. But we would love to hear more about like, how you
+
+29
+00:03:17.900 --> 00:03:34.210
+Harry Liu: kind of, you know, currently conduct product, innovation and user interviews in your organization. Most importantly, how do you kind of like, you know, make use of that information in your user interviews and share it with your team.
+
+30
+00:03:35.250 --> 00:03:36.760
+Isaac Park: Hmm, okay.
+
+31
+00:03:37.200 --> 00:03:38.190
+Isaac Park: Hi. Desiree.
+
+32
+00:03:38.190 --> 00:03:40.649
+Jesirae Dong: Hi! Sorry I was late.
+
+33
+00:03:40.650 --> 00:03:41.329
+Isaac Park: No, you're good.
+
+34
+00:03:41.330 --> 00:03:42.679
+Jesirae Dong: Sorry about that.
+
+35
+00:03:45.080 --> 00:03:45.930
+Isaac Park: Let's see.
+
+36
+00:03:46.570 --> 00:03:49.460
+Isaac Park: So, Harry, are you talking specifically like
+
+37
+00:03:50.750 --> 00:03:55.000
+Isaac Park: pro product people in general in healthcare? Or does it?
+
+38
+00:03:55.330 --> 00:04:08.260
+Isaac Park: So okay, let me back up. So in in product, I would say, in product and in healthcare generally, the behaviors are the same. Whether you're agnostic like it's kind of agnostic to the industry. I don't.
+
+39
+00:04:08.360 --> 00:04:11.710
+Isaac Park: I have not encountered very many products.
+
+40
+00:04:11.970 --> 00:04:23.548
+Isaac Park: I would say pathways or workflows that would be net and unique to a healthcare scenario that I would not typically find like in a general b 2 b saas business, right?
+
+41
+00:04:25.270 --> 00:04:38.239
+Isaac Park: with maybe like the added sort of component of it being a regulated industry, right where data is, is needs to be protected, but that that's not any different than any other traditional.
+
+42
+00:04:38.410 --> 00:04:52.450
+Isaac Park: I would say industry vertical, where there might be some gotcha, like legal right, where compliance and security is still the kind of the same thing, or government, even life sciences, where it's going to have some degree of like regulation or compliance aspect to it, so that
+
+43
+00:04:52.920 --> 00:04:58.180
+Isaac Park: it's all kind of the same same right? So there isn't anything like, I think.
+
+44
+00:04:58.600 --> 00:05:01.529
+Isaac Park: magically unique about healthcare that would make it
+
+45
+00:05:02.811 --> 00:05:09.128
+Isaac Park: indicative of doing a specific kind of product pathway or not. At least, that's not been my experience.
+
+46
+00:05:09.830 --> 00:05:10.940
+Jesirae Dong: Okay.
+
+47
+00:05:12.160 --> 00:05:32.359
+Harry Liu: I think that's good information. Yeah, like, it makes the, you know, it makes our user pool particularly bigger and just like more scalable. That's a good thing. The things we're trying to, you know, figure out like, definitely, the interview process itself can be a little bit different on the medical devices side, because, like, when you, you know, are thinking about a hardware or like an actual
+
+48
+00:05:32.740 --> 00:05:42.680
+Harry Liu: equipment or a software that's used in the healthcare setting. I feel like a lot of people we talk to like they talk about the need to like, actually do shadowing
+
+49
+00:05:42.940 --> 00:05:46.189
+Harry Liu: compared to just like doing like regular zoom interviews. More.
+
+50
+00:05:49.386 --> 00:05:55.839
+Isaac Park: That's true, I mean, if you're if you're thinking about it from that like binary of of
+
+51
+00:05:56.180 --> 00:05:58.240
+Isaac Park: hard product versus, not hard product.
+
+52
+00:05:58.420 --> 00:06:04.080
+Isaac Park: right, like physical good versus not, I think that's probably the more appropriate binary like, I'm looking at it like
+
+53
+00:06:04.530 --> 00:06:08.449
+Isaac Park: if the product is is software driven or software based. And that's the solution, like.
+
+54
+00:06:08.450 --> 00:06:08.940
+Harry Liu: Yeah.
+
+55
+00:06:08.940 --> 00:06:12.450
+Isaac Park: It's not this, it's it's all kind of the same right? That's good.
+
+56
+00:06:12.600 --> 00:06:13.200
+Isaac Park: So
+
+57
+00:06:13.200 --> 00:06:19.899
+Isaac Park: I think it'd be the same, for, like hardware, if you have a physical in person device, right? That you're that you're building product around like you probably.
+
+58
+00:06:20.010 --> 00:06:24.276
+Isaac Park: but also need the same same things. Right?
+
+59
+00:06:26.350 --> 00:06:31.079
+Isaac Park: yeah, I guess what I'm what would help me is like, what? What questions are you trying to get answered.
+
+60
+00:06:31.390 --> 00:06:32.260
+Harry Liu: Right.
+
+61
+00:06:32.810 --> 00:06:45.649
+Harry Liu: I think we are kind of already, you know, like double down this idea, because we, you know, we need to like, be cautious of the timeline. But right now we are in the design phase, like prototyping phase and a lot of our like, you know, our
+
+62
+00:06:45.780 --> 00:06:48.899
+Harry Liu: questions are on how?
+
+63
+00:06:49.656 --> 00:07:07.333
+Harry Liu: I guess how currently you like store and process interviews. After you conduct them and like your team dynamic. So how many people like? Where are the people who are conducting interviews? And or you know the people that are necessary that are related to
+
+64
+00:07:08.000 --> 00:07:08.850
+Harry Liu: this.
+
+65
+00:07:09.200 --> 00:07:36.895
+Isaac Park: Yeah, okay, so process wise we. We split it up into 2 kinds of interviews. We have existing customers that we're doing sort of just general calibration and feedback and that's part of almost like a customer operations customer delivery motion. And we do that at least right now, once a week for commercial agreements or commercial customers. And generally that person who leads that is going to be
+
+66
+00:07:37.410 --> 00:07:42.019
+Isaac Park: like the customer's primary delivery person or success person.
+
+67
+00:07:42.587 --> 00:07:50.170
+Isaac Park: and when we hire for delivery leads or customer, success leads, we, we pull them from like product.
+
+68
+00:07:50.580 --> 00:07:55.319
+Isaac Park: right, and so generally, our customer success. People are not your typical like
+
+69
+00:07:55.690 --> 00:08:01.899
+Isaac Park: customer success account accounts kind of a person where they're trying to upsell. But they're actually more like product product discovery. People
+
+70
+00:08:02.286 --> 00:08:04.260
+Isaac Park: that have just been titled in that direction.
+
+71
+00:08:04.944 --> 00:08:08.420
+Isaac Park: And then the flip side is more.
+
+72
+00:08:08.610 --> 00:08:19.909
+Isaac Park: R&d focused if you're thinking about like a brand new net, new product. And you're doing discovery around that or brand new problem to solve. Then we have your more traditional product manager with their little team
+
+73
+00:08:20.120 --> 00:08:24.170
+Isaac Park: going out and doing customer interviews, and and that's more ad hoc. But sometimes
+
+74
+00:08:24.720 --> 00:08:35.580
+Isaac Park: sometimes it's targeted towards our existing customers. If they're the easiest ones to get to. And we know that they have that problem. Sometimes it's like asking for referrals to other people who, we, you know.
+
+75
+00:08:36.110 --> 00:08:43.829
+Isaac Park: may have a connection into and recognize that they may have that problem. So that's just way more like the traditional innovation stuff that Nick are pretty familiar with.
+
+76
+00:08:44.718 --> 00:08:47.020
+Isaac Park: So, yeah, those are our 2 methodologies.
+
+77
+00:08:47.240 --> 00:08:50.650
+Isaac Park: terms of tooling, and what we do. Everything goes into notion.
+
+78
+00:08:51.308 --> 00:08:58.500
+Isaac Park: And so the people who who run it are generally that primary product or primary customer success, individual
+
+79
+00:08:59.077 --> 00:09:04.819
+Isaac Park: if we can get like our product designer or an engineer to join those meetings, we do.
+
+80
+00:09:05.020 --> 00:09:08.770
+Isaac Park: But that's not always like feasible, considering how often they happen.
+
+81
+00:09:09.339 --> 00:09:18.879
+Isaac Park: And so worst case scenario, in fact, probably the more common scenario is, it's just a solo, a solo solo person going at it. Right? So it's either
+
+82
+00:09:19.080 --> 00:09:28.000
+Isaac Park: we only have. We have 1, 2, we have 3 people who who typically do them me a brand new Pm. I just hired, and a customer success person. So those are the 3 that go out.
+
+83
+00:09:30.120 --> 00:09:31.490
+Isaac Park: Generally process wise.
+
+84
+00:09:31.490 --> 00:09:33.040
+Jesirae Dong: As we.
+
+85
+00:09:34.080 --> 00:09:34.750
+Isaac Park: -Oh!
+
+86
+00:09:35.830 --> 00:09:39.839
+Isaac Park: Fire alarm. Generally stay safe.
+
+87
+00:09:41.520 --> 00:09:46.870
+Isaac Park: Generally. What we'll do is we'll record it right using fireflies or something like that.
+
+88
+00:09:48.300 --> 00:09:56.079
+Isaac Park: And then we store that recording on fireflies. We link to it, and we drop it into our notion. That doesn't happen that often, like some that's also stylistic like. Sometimes
+
+89
+00:09:56.620 --> 00:10:03.490
+Isaac Park: I I tend to record them less. And some of our other team members tend to record them more like Andrew likes to record them a lot.
+
+90
+00:10:05.220 --> 00:10:23.890
+Isaac Park: and then I'll just take notes and they'll synthesize right there on the fly. So I don't do the traditional like here. All my observations, blah. And then, like, here's my insight statement, and here's my need statements, or that's how we teach it. But that's not how I do it. I I just jump straight from like as I'm listening. I'm jotting down like my core insights.
+
+91
+00:10:24.140 --> 00:10:25.553
+Isaac Park: And then
+
+92
+00:10:26.870 --> 00:10:29.509
+Isaac Park: I almost never go back and read them unless I have a question.
+
+93
+00:10:30.460 --> 00:10:40.490
+Harry Liu: I see. Yeah. Sorry. That's so like how you traditionally teaches observations inside statement. I'm just trying to track that down.
+
+94
+00:10:40.640 --> 00:10:43.570
+Isaac Park: Oh, did we not? Did Pm. Not teach you that.
+
+95
+00:10:44.960 --> 00:10:46.594
+Harry Liu: Probably maybe I.
+
+96
+00:10:47.140 --> 00:10:47.730
+Isaac Park: Oh, yeah.
+
+97
+00:10:47.730 --> 00:10:49.700
+Harry Liu: By learning. So, yeah.
+
+98
+00:10:50.070 --> 00:11:05.970
+Isaac Park: One and 2 should have taught you that right where, like your traditional customer interviews, you do observation right? So all you're doing is you're just walking the people through the their last steps. You ask the how, what? Why, you should actually, Nick, Nick teaches these units right? He's like, yeah, it's the yeah, it's the
+
+99
+00:11:06.170 --> 00:11:22.889
+Isaac Park: the. When was the last time? How did you do it? What was there any pain right? And then that's just observe like, it's just a crafted template for how you crank through like observation statements. And then, after you exhaustively put it all out, and then you do an insight statement, and then you translate that into need statements.
+
+100
+00:11:23.010 --> 00:11:25.700
+Isaac Park: I don't. I don't do that process. I just like.
+
+101
+00:11:26.450 --> 00:11:30.260
+Isaac Park: listen, ask ask questions, and then go straight to insights.
+
+102
+00:11:30.260 --> 00:11:58.769
+Harry Liu: Right? Okay, there are a couple of things I am really curious about in this process. So one you talked about like the differentiation between customer success and product person is this customer success person, kind of like? If I'm understanding this correctly, like he or she is like Con, like in touch with existing customers and trying to figure out, you know what like like kind of like, how the how the team can improve these customers experiences by like customizing a few features for them.
+
+103
+00:11:58.900 --> 00:12:02.163
+Isaac Park: Yeah, it's not really about customizing features. It's more about
+
+104
+00:12:02.760 --> 00:12:07.959
+Isaac Park: listening to what problems they have or what they're encountering, right? Because we're we're still pretty new.
+
+105
+00:12:08.160 --> 00:12:08.580
+Harry Liu: Yeah.
+
+106
+00:12:09.920 --> 00:12:14.830
+Isaac Park: And while we're in retail we have pretty big commercial agreements, right? The
+
+107
+00:12:15.170 --> 00:12:36.130
+Isaac Park: the experience we know the experience is not perfect or even close to ideal for our customers, and so like trying to understand what things they run into right. And the original intent was for us to start. Think we're a company. Right? So the original intent was for us tune our models to figure out like, whether whether our precision or accuracy was actually close, precision recall was actually pretty close to what the the
+
+108
+00:12:36.280 --> 00:12:43.609
+Isaac Park: the commercial entities really wanted. And then what we realized was like, as we were doing, that they had like stupid things like, Oh, actually.
+
+109
+00:12:44.190 --> 00:12:46.870
+Isaac Park: I just need to know when this patient was last updated.
+
+110
+00:12:47.587 --> 00:12:58.369
+Isaac Park: right? So like things like that where you're like, you're just really diving into understanding the workflow and making sure that the product itself is hardened or robust enough that, you know they it.
+
+111
+00:12:58.640 --> 00:13:01.569
+Isaac Park: We're not missing the things that would make their lives easier.
+
+112
+00:13:02.120 --> 00:13:08.589
+Harry Liu: Right and like correct me if I'm wrong. This is a 2 b like sulfur.
+
+113
+00:13:09.760 --> 00:13:10.470
+Isaac Park: Oh! What!
+
+114
+00:13:10.680 --> 00:13:12.319
+Harry Liu: This is a 2 b software.
+
+115
+00:13:12.320 --> 00:13:15.350
+Isaac Park: B, 2. B, yes, yeah. So we sell.
+
+116
+00:13:15.660 --> 00:13:19.040
+Isaac Park: We sell to very, very large healthcare organizations.
+
+117
+00:13:19.560 --> 00:13:24.339
+Harry Liu: Very large, as in like the healthcare systems, not like individual practices.
+
+118
+00:13:25.484 --> 00:13:28.989
+Isaac Park: Yes and no. So systems are
+
+119
+00:13:29.140 --> 00:13:53.289
+Isaac Park: traditionally what you would call like like Duke is a system, right? And that's where you have, like a couple of hot, maybe one multiple hospitals, ambulatory centers like a bunch of other kinds of things. You can. Those are very big. You can have groups that are just as big, but not be considered a system. Right? They're like they're called provider groups or Acos, or other kinds of like healthcare organizations, but they're they are equally as big.
+
+120
+00:13:53.570 --> 00:13:54.000
+Harry Liu: Totally.
+
+121
+00:13:54.000 --> 00:13:57.179
+Isaac Park: You just don't use the word system because it connotes a different thing.
+
+122
+00:13:57.530 --> 00:14:18.300
+Harry Liu: Right sounds good. So that's good. So the customer success. People are trying to surface insights from existing customers. You're also having the traditional product person to like build new features where the people who are interviews for the new features are the like. You said. It's part of our
+
+123
+00:14:18.460 --> 00:14:21.320
+Harry Liu: like existing customers, where the other part of people.
+
+124
+00:14:22.090 --> 00:14:23.804
+Isaac Park: Yeah, they might be like, we're
+
+125
+00:14:24.290 --> 00:14:29.249
+Isaac Park: referrals to other organizations that we know have those problems.
+
+126
+00:14:29.470 --> 00:14:30.400
+Isaac Park: Young.
+
+127
+00:14:31.960 --> 00:14:40.100
+Isaac Park: Yeah, that's that's about it. If there are other people that we know have that problem, but they're not an existing customer. We gotta figure out a way in right and talk to them. So
+
+128
+00:14:40.480 --> 00:14:53.519
+Isaac Park: it's either either cold emailing or what happens, or what seems to be the the much more natural fit is for warm introduction. So we know that like. Say, for example, this person over.
+
+129
+00:14:53.750 --> 00:15:05.410
+Isaac Park: I don't know. Over a harbor health runs an aco, but we don't know them. We just know their title right? And somebody just happened to say, Hey, you know, these guys actually have that problem. You may want to talk to them. Oh, cool! Can you send us a
+
+130
+00:15:05.550 --> 00:15:09.730
+Isaac Park: a warm introduction. And they say, great, yeah. So they introduce you over email, then you just follow up.
+
+131
+00:15:10.620 --> 00:15:25.290
+Harry Liu: I see and like, if your existing customer have a problem like how they report this back to you guys like, how would you guys receive kind of the do you guys do cast me out in athletics, or kind of collect feedback.
+
+132
+00:15:25.290 --> 00:15:30.100
+Isaac Park: No too early for that. So there's it's more it's much
+
+133
+00:15:33.120 --> 00:15:35.840
+Isaac Park: much simpler. Hang on one second.
+
+134
+00:15:44.330 --> 00:15:47.348
+Isaac Park: It's much simpler than that. It's the
+
+135
+00:15:48.750 --> 00:15:55.459
+Isaac Park: It's it's actually closer to like customer customer success, traditional customer success. Where you have like escalations.
+
+136
+00:15:55.933 --> 00:16:02.180
+Isaac Park: you might have an issue. You report it you if it's if it's like a non urgent, non critical bug, you just
+
+137
+00:16:02.340 --> 00:16:12.104
+Isaac Park: report it just sending me email, or you put it through a ticket system alright, and then, if it becomes urgent or becomes important, right? Then
+
+138
+00:16:12.670 --> 00:16:15.100
+Isaac Park: During our weekly check-ins it comes up
+
+139
+00:16:15.270 --> 00:16:22.209
+Isaac Park: right and we talk about it, and we talk about how to stack, rank it or prioritize it. Typically, by then we've already seen that issue. And like are are addressing it.
+
+140
+00:16:22.550 --> 00:16:28.129
+Isaac Park: And if it's like a new mission critical. Right? Then somebody picks up the phone and calls us
+
+141
+00:16:28.470 --> 00:16:31.286
+Isaac Park: right? And again, typically we're usually aware of them
+
+142
+00:16:31.740 --> 00:16:34.629
+Isaac Park: and are working on it. So yeah, that's that's that's more like.
+
+143
+00:16:35.020 --> 00:16:37.531
+Isaac Park: that's way, more like normal customer success.
+
+144
+00:16:38.060 --> 00:16:42.010
+Harry Liu: Definitely. So, how do you like? Can you give examples of what our.
+
+145
+00:16:42.250 --> 00:16:55.929
+Harry Liu: you know, the improvement features you can get from the customer success people. And what are the new features that you're, you know, getting from the product person like, are these defined scope, or are these just totally like
+
+146
+00:16:56.270 --> 00:16:57.700
+Harry Liu: a new product.
+
+147
+00:16:58.690 --> 00:17:20.479
+Isaac Park: No, it's easier for you to. I would say it's a lot easier to in the general industry like, if you ask a normal person like in, because they would tell you like, oh, no. One is much more like bug focus and product is much more R&D focus. And I don't think that's true. And this is why we've crafted our system the way we did. I think of everything as just generally a problem to be solved
+
+148
+00:17:20.599 --> 00:17:25.760
+Isaac Park: right, or or you'll hear the term job to be done right and
+
+149
+00:17:26.010 --> 00:17:31.309
+Isaac Park: like the source or inspiration for those problems that need to get solved can come from anywhere.
+
+150
+00:17:31.530 --> 00:17:42.610
+Isaac Park: Right? Generally they're in the either in the front line area or they're in. Actually, what's what else is really common is in the sales space right as somebody as your team members are going out to try and sell
+
+151
+00:17:42.830 --> 00:17:50.100
+Isaac Park: like your customers are like, Oh, can you do this? And we're like, actually, no. But why do you need that right? That kind of stuff?
+
+152
+00:17:50.550 --> 00:18:02.368
+Isaac Park: in the product space is gonna come from traditionally come from like data or metrics analytics. But we're we're too early for that. There's there's only like 5 customers, right? So I mean the big customers. Right? But
+
+153
+00:18:03.170 --> 00:18:08.970
+Isaac Park: yeah, there's only 5 of them. So you don't really need to watch metrics. You just need to ask them, yeah.
+
+154
+00:18:09.420 --> 00:18:16.720
+Harry Liu: Totally and going back to like how you like. You know how you process your interviews. You said that you just like you kind of just.
+
+155
+00:18:16.850 --> 00:18:29.849
+Harry Liu: you know, have all of these points already in mind after you like. Talk to the customer. Do you think that's because you are in the earlier stage. So it's really lean. The decision making is just like on you, or like few people.
+
+156
+00:18:30.723 --> 00:18:38.369
+Isaac Park: It's a combination of things for me. It's my, my, it's a preference in the style, a stylistic preference. Just the way that I do it.
+
+157
+00:18:40.310 --> 00:18:52.439
+Isaac Park: also because we're a smaller organization. And I don't have like tons of cross functional product, individuals like there's no reason for me to document it to the degree of fidelity that needs to be like communicated to other people.
+
+158
+00:18:52.690 --> 00:18:53.240
+Harry Liu: Yeah.
+
+159
+00:18:53.400 --> 00:19:02.329
+Isaac Park: Right, like I'd much rather me just do all the inside stuff save myself a few extra minutes, and then pull together like a quick, you know one paragraph brief.
+
+160
+00:19:02.510 --> 00:19:06.616
+Isaac Park: right on the occasion. I'll throw up a bigger like a bigger thing. But
+
+161
+00:19:07.100 --> 00:19:18.040
+Isaac Park: these days you I think you're starting to see that people are authoring less and less context like doc context documents. There might. They might be doing a few paragraphs here and there, but there's no like.
+
+162
+00:19:18.360 --> 00:19:24.329
+Isaac Park: I don't know. I think Amazon still doing the written narrative right. But the this is one thing that I would. I'd I'd be teaching in class if I
+
+163
+00:19:24.671 --> 00:19:43.760
+Isaac Park: because of the the speed at which you can get to a high fidelity, mock up now. People are just skipping straight to it right? And so it's just you have your customer interviews right? You maybe come up with a couple of insight statements, and then you just go straight to high fidelity mockup, or you skip everything in between. No customer journey, some of that projecting any of that kind of stuff, because you can, just
+
+164
+00:19:44.020 --> 00:19:50.990
+Isaac Park: you can just do it. You can literally push a button and like, have a Gen. AI tool. Just mock it up for you. And then you're
+
+165
+00:19:51.310 --> 00:19:59.069
+Isaac Park: your product designer can just go bang, bang, bang! Bang! Bang! And then fix it right and so your speed to iteration and speed of cycle is just way faster than it used to be.
+
+166
+00:19:59.360 --> 00:20:23.430
+Harry Liu: Right? Yeah, that's 1. Also, like one thing, we are trying to figure out like the actual exact target persona, because we recognize that leaner starts probably are going to be like much more faster in terms of iteration, and having, you know, no need for documentation. I assume that, like bigger organizations. One of the bigger organizations we talk about. They have a lot of products in their portfolio, and those stakeholders.
+
+167
+00:20:23.430 --> 00:20:40.449
+Harry Liu: either as product people like R&D, or like sales and marketing. They need to like collaboratively, come in to do all hands meeting, to decide on what features to build next. And in that sense. They said that they really need kind of documentation on what is said during the customer interviews. So everyone.
+
+168
+00:20:41.300 --> 00:20:42.150
+Isaac Park: No.
+
+169
+00:20:42.150 --> 00:20:42.910
+Harry Liu: I wouldn't.
+
+170
+00:20:42.910 --> 00:20:51.790
+Isaac Park: I wouldn't say that like, if you're in an organization that's doing an all hands to come up with like your product roadmap that something's wrong. You're
+
+171
+00:20:52.010 --> 00:20:55.390
+Isaac Park: your prioritization of what should be being built is
+
+172
+00:20:56.150 --> 00:21:00.400
+Isaac Park: if if you're talking like true, like product operating a model like
+
+173
+00:21:01.240 --> 00:21:11.959
+Isaac Park: that's in one person's head right for any scope of domain, because some product, leader or product, strategist or CEO or head of product whatever like, threw a problem over the wall and said, Hey.
+
+174
+00:21:12.140 --> 00:21:39.930
+Isaac Park: I need to make sure that you know these customers are able to get from point A to Point B in less than 30 seconds. Right? I just I need to know that right? And then the product person just iterates and iterates and iterates, and they have their north star where they're headed right? So they're the one that's empowered to make all the decisions on what features gets built. Nobody cares right about how. So like there's no all hands, where, like like, they may be talking to sales, or all these other people to like, try and
+
+175
+00:21:40.170 --> 00:21:46.989
+Isaac Park: get the information necessary to then make the Qb. Choice on what to do right. But there's no like
+
+176
+00:21:49.750 --> 00:22:02.410
+Isaac Park: the at that point. Like the the full documentation the customer reviews is is for the product person to go back and review, not for them to like, make the argument to everyone else, or convince everyone else that this is the case right.
+
+177
+00:22:02.410 --> 00:22:02.870
+Harry Liu: Okay.
+
+178
+00:22:03.118 --> 00:22:07.340
+Isaac Park: That's that's in like a traditional setting, or in like the I would say, the ideal setting.
+
+179
+00:22:07.810 --> 00:22:20.180
+Harry Liu: Okay, yeah. So like, we can definitely, that's a good piece of information. We can de-emphasize on collaboration part and reemphasize on the kind of like for one person's like, you know, reference purposes.
+
+180
+00:22:20.180 --> 00:22:29.879
+Isaac Park: Sorry. Let me clarify. The collaboration is important right within that product team. So if there's like a product team of like 4 or 5 people. Yeah, that's important. But there's no like
+
+181
+00:22:30.700 --> 00:22:39.770
+Isaac Park: there. There's no like sharing that as a broad, based knowledge, Wiki, for, like the entire organization, nobody cares about that right? Or maybe I don't know. I've I've never encountered it where it mattered.
+
+182
+00:22:40.100 --> 00:22:53.319
+Harry Liu: Okay, Gotcha. So the product team, like there might be a team of people who are like all working on the same product. Or they're, you know, they're all kind of interviewing people. They need to synthesize these user interviews after they come back to the team.
+
+183
+00:22:53.670 --> 00:23:03.960
+Isaac Park: Yeah, I think it's a lot easier to think about it as like the product, people are not like sitting there like developing features. They're they're given a roadmap of problems they have to solve.
+
+184
+00:23:04.427 --> 00:23:14.306
+Isaac Park: Right? So it's always much. It's much easier to think about it from the perspective of like yeah, this team. They've been tasked to solve that problem, this team. They've been tasked to solve that problem right?
+
+185
+00:23:15.590 --> 00:23:28.870
+Isaac Park: and so right, the set of features that they're paying attention to, to stack rank or force rank. What they're developing doesn't matter right? So if if it ever becomes like a conversation around like, oh, no, I need to do
+
+186
+00:23:29.510 --> 00:23:36.240
+Isaac Park: this protocol first, st then this protocol, second, then this one like somebody. Somebody, broke the philosophy of how they're doing this work.
+
+187
+00:23:36.939 --> 00:23:46.509
+Harry Liu: Okay, Gotcha. Let me actually show you like a quick mock up of what you're trying to do and there are a few questions like on the granular level.
+
+188
+00:23:46.860 --> 00:23:49.160
+Harry Liu: Love to get your opinion.
+
+189
+00:24:21.130 --> 00:24:22.539
+Harry Liu: Can you see my screen.
+
+190
+00:24:23.610 --> 00:24:24.190
+Isaac Park: Yeah.
+
+191
+00:24:24.620 --> 00:24:30.829
+Harry Liu: Okay, sounds good. Yeah, this is a really like
+
+192
+00:24:30.880 --> 00:24:59.580
+Harry Liu: baseline are thinking. And I think to our point, like, so currently, the flow goes like this. You have, like all your dashboard items, you have your projects which is defined in scope, and then you can go into these products and see what are the recent interviews are as well as top features that are requested that the system surface from these interview transcript. So for each interview you can see.
+
+193
+00:24:59.580 --> 00:25:16.089
+Harry Liu: you know, once you upload the Transcript, you can see the information summary, the transcript highlighted with like most important talking points, and then they will like help. You come up to the list of pain points mentioned in this interview, as well as key demands.
+
+194
+00:25:16.600 --> 00:25:18.050
+Isaac Park: Are this getting generated.
+
+195
+00:25:19.426 --> 00:25:24.189
+Harry Liu: These, these are like, basically like Lm processing of the inner transcript.
+
+196
+00:25:24.190 --> 00:25:28.079
+Isaac Park: So you just prompted to ask it. For what are the pain points and what are the key? Demands.
+
+197
+00:25:28.450 --> 00:25:35.759
+Harry Liu: Yeah, these are like working a little bit more on the back end side, like our engineers. Our builders are like trying to figure out how to better prompt them. But yeah.
+
+198
+00:25:36.440 --> 00:25:37.330
+Isaac Park: Okay. Alright.
+
+199
+00:25:37.440 --> 00:25:38.509
+Isaac Park: Alright. Keep going.
+
+200
+00:25:39.520 --> 00:25:56.569
+Harry Liu: And then, like, we're syncing like, we don't know whether this is helpful. But we're right now thinking also, like a user behavior map, like kind of like. If customers are talking about how they are. Currently, you know, using a system or currently like solving a problem. They're like, you know, walking
+
+201
+00:25:56.800 --> 00:26:18.610
+Harry Liu: like their processes, current user satisfaction based on their like kind of mood. And then, like any team notes to add and when you like, you know, identify a demand. There is a sensitization of like what this demand is, where it is surfaced like across interviews and comments. We were thinking about this team importance score just for, like
+
+202
+00:26:18.730 --> 00:26:28.709
+Harry Liu: like cross team and kind of collaboration. But like, I think, your to your point, this isn't necessary. This is this isn't what we're trying to reward, we should focus on.
+
+203
+00:26:31.620 --> 00:26:35.140
+Harry Liu: But yeah, okay, going back.
+
+204
+00:26:35.300 --> 00:26:37.560
+Harry Liu: Which page were you trying to look at?
+
+205
+00:26:38.000 --> 00:26:42.270
+Isaac Park: Projects. Yeah, that's fine. No, yeah. Go to one of them. Go to natural interview.
+
+206
+00:26:49.450 --> 00:26:51.109
+Isaac Park: Where's the transcript coming from.
+
+207
+00:26:52.180 --> 00:27:05.490
+Harry Liu: So the transcript is uploaded. So basically, like the 1st iteration, we're trying to just have our users upload their zoom like a zoom recorded transcript is gonna upload on the front page.
+
+208
+00:27:12.120 --> 00:27:12.860
+Isaac Park: Okay.
+
+209
+00:27:13.440 --> 00:27:14.070
+Harry Liu: Yeah.
+
+210
+00:27:16.670 --> 00:27:17.910
+Isaac Park: I guess, or.
+
+211
+00:27:17.910 --> 00:27:19.110
+Harry Liu: Alright. Go ahead. Yeah.
+
+212
+00:27:19.420 --> 00:27:24.130
+Harry Liu: Would love to hear your overall feedback on this, and we have a couple of questions.
+
+213
+00:27:25.230 --> 00:27:34.840
+Isaac Park: Yeah. I, I see like getting the transcript in the video in there. And my primary source is a huge speed bump. I would never use this unless, like.
+
+214
+00:27:34.950 --> 00:27:43.399
+Isaac Park: I could just turn it on like, I'm so used to using like recording or dictation or scribe software. But I would never use this unless like
+
+215
+00:27:43.600 --> 00:27:55.820
+Isaac Park: it, just auto piped in right? So if I just clicked like, if my fireflies person just came in automatically or had a zoom, app, or whatever, and then it was just literally transcribing it on the fly, and then doing this in that, like I could watch it
+
+216
+00:27:56.040 --> 00:28:02.179
+Isaac Park: do the system integration and synthesis that would be really important to me. The reason why is cause like
+
+217
+00:28:03.980 --> 00:28:09.179
+Isaac Park: any really great interviewers building a mental model of like the memory of that interview.
+
+218
+00:28:09.695 --> 00:28:28.970
+Isaac Park: Right? And it's going to be built on the fly while they are participating in that interview. So I'm remembering like, roughly this time space. This person said this roughly, this time space. This person said this, and my visual memory has captured where they are in the screen, like blah blah blah and like, that's how I'm remembering it.
+
+219
+00:28:29.497 --> 00:28:40.229
+Isaac Park: So it's gonna require an extra amount of effort for me to come back in here right? And then, like, be like, Oh, okay, system integration. Great. Where was that? Right? So it's just a little bit more like speed. Bump, hurdle, scroll down.
+
+220
+00:28:40.710 --> 00:28:42.100
+Harry Liu: That's an amazing point. Yeah.
+
+221
+00:28:42.100 --> 00:28:44.639
+Isaac Park: I would never trust it to give me key demands.
+
+222
+00:28:45.530 --> 00:28:46.060
+Harry Liu: Okay.
+
+223
+00:28:46.610 --> 00:28:49.299
+Isaac Park: Yeah, cause the whole point of right.
+
+224
+00:28:49.830 --> 00:28:59.070
+Isaac Park: The whole point of a product person is their ability to be outside constraints and to really offer some degree of creativity.
+
+225
+00:28:59.170 --> 00:29:29.129
+Isaac Park: So pain points is great. Right? Like synthesizing what those pain points are that's fantastic. Find pain points that I didn't understand before. I didn't see before. So good, right? Solving those pain points is not my AI, it's not the AI job, right? Maybe it gives me some suggestions and I could be okay with it if it gave me suggestions. But if I wasn't able to edit it, or add more or fluidly chapter notes right? That then I would feel too boxed in to care right to use it.
+
+226
+00:29:29.749 --> 00:29:36.229
+Isaac Park: The user behavior map. If it were accurate, I would love it. If not, I'd it's probably faster for me to just do it myself.
+
+227
+00:29:36.390 --> 00:29:38.039
+Harry Liu: Yeah. Scroll down.
+
+228
+00:29:39.761 --> 00:29:43.190
+Isaac Park: And then that satisfaction thing I
+
+229
+00:29:45.730 --> 00:30:05.749
+Isaac Park: I don't wouldn't know it like I wouldn't know what to do with it right? Because, like the whole point of of like a a larger customer interview that may be like 34 like, even in this conversation, like how many times have I fluctuated in terms of like what I liked and what I haven't liked. Alright, and my emotions are going to be tied to that particular unit of thing that I'm talking about in that moment.
+
+230
+00:30:06.150 --> 00:30:13.100
+Isaac Park: Alright. So give me a simplistic like frowny face is going to be meaningless to you, right meaningless to the product person.
+
+231
+00:30:13.550 --> 00:30:14.300
+Harry Liu: Yeah, that's.
+
+232
+00:30:14.300 --> 00:30:33.873
+Isaac Park: Right like, what the hell does that mean? Right? So it. It's only useful if it's tied to like that particular insight or that particular step in the user behavior or whatever. So that while the intent is interesting, like the artifact itself, it doesn't communicate enough information for me to give a shit about it.
+
+233
+00:30:35.460 --> 00:30:36.740
+Harry Liu: That is amazing.
+
+234
+00:30:37.518 --> 00:30:40.100
+Isaac Park: As well team notes. I don't know.
+
+235
+00:30:40.100 --> 00:30:41.200
+Harry Liu: As I said, Yeah.
+
+236
+00:30:41.200 --> 00:30:42.540
+Isaac Park: Okay, yeah, I
+
+237
+00:30:43.360 --> 00:30:48.299
+Isaac Park: cool. I team notes as a side as an aside, if they're not tied to like
+
+238
+00:30:49.360 --> 00:30:55.819
+Isaac Park: the one major thing here is. If this is not tied to any of my not like existing knowledge infrastructure, I would probably never use it.
+
+239
+00:30:56.401 --> 00:31:00.489
+Isaac Park: So there's some like table stake stuff there. That might might be really interesting.
+
+240
+00:31:00.840 --> 00:31:01.360
+Isaac Park: Okay.
+
+241
+00:31:02.390 --> 00:31:06.600
+Harry Liu: Yeah, how would you want it to tie to like, for example, notion that you're currently using
+
+242
+00:31:07.420 --> 00:31:09.280
+Harry Liu: like, what information you want.
+
+243
+00:31:09.280 --> 00:31:12.309
+Isaac Park: I'd want all of this dumped straight into a notion page.
+
+244
+00:31:13.290 --> 00:31:14.109
+Harry Liu: Okay, so.
+
+245
+00:31:14.110 --> 00:31:26.110
+Isaac Park: Right cause. I have area. I have an area, a discrete team space with a set of meeting notes that are specifically for customer interviews right? Based on who I'm talking to, like my attendees are their time all my like. It's connected to my Crm, so all of my like.
+
+246
+00:31:26.620 --> 00:31:36.479
+Isaac Park: it's attached to the people that I'm talking to, which, you know, brings in all of the organization, like the larger manage account. How big they are, what like.
+
+247
+00:31:36.720 --> 00:31:54.960
+Isaac Park: what Cms models they participate in. Right? So all the sort of like external, enriched data that help me understand who is the persona that I'm talking to, like it's all there, right. So if this is divorced from that, then I have to make that reconciliation happen manually, and if I'm doing a fun of these interviews. It's a pain in the ass.
+
+248
+00:31:55.760 --> 00:32:08.259
+Harry Liu: Totally okay, that's great. So you want this system to effectively capture from our hearing, like the facts of the user persona that you're interviewing like how big their team is like, what pain points they
+
+249
+00:32:08.730 --> 00:32:09.659
+Harry Liu: stuff like that.
+
+250
+00:32:10.420 --> 00:32:23.069
+Isaac Park: Yeah, yeah, well, like that, knowledge infrastructure already exists. Right? So for me to abandon, like my my current behavior, which is just taking notes and notion. To use this right, it would need to be significantly better, right? And then
+
+251
+00:32:23.170 --> 00:32:29.149
+Isaac Park: than what I'm currently doing or the value that I get out of like just being able to catalog all my data in notion in one place, right.
+
+252
+00:32:29.150 --> 00:32:40.249
+Harry Liu: Gotcha amazing! Can you like walk me through like you were like what you were thinking when you were doing interview? So you said that, you know, during interview user interview, like you kind of already, have.
+
+253
+00:32:40.880 --> 00:32:44.425
+Harry Liu: like the key points in your mind on the go.
+
+254
+00:32:45.280 --> 00:32:56.889
+Harry Liu: I was wondering how that looks like, and if you were to your point to transition this from a dashboard of itself to more so like a pop up or a plugin for your notion
+
+255
+00:32:57.260 --> 00:33:02.169
+Harry Liu: or for zoom. We are conducting user interviews. How would it look like.
+
+256
+00:33:03.070 --> 00:33:10.020
+Isaac Park: Yeah, honestly, if it were headless, I would love that right. So if it were a zoom plugin that just sat there and then.
+
+257
+00:33:10.538 --> 00:33:29.961
+Isaac Park: It literally authored the transcription and then summarize some key insights on the notion page that are already set up for this particular interview. That'd be fantastic right, just sitting there and like plugging away. And then all I have to do is do some synthesis at the very end, or like editing or note taking. That's that's that's great.
+
+258
+00:33:30.280 --> 00:33:30.690
+Harry Liu: Yeah.
+
+259
+00:33:30.690 --> 00:33:32.460
+Isaac Park: As it like links to.
+
+260
+00:33:33.670 --> 00:33:38.980
+Isaac Park: But that that's really just transcription software, right? Like, that's.
+
+261
+00:33:39.150 --> 00:33:44.499
+Isaac Park: I think what I'm struggling with is like, what is the problem to be solved with this particular like product?
+
+262
+00:33:44.880 --> 00:33:58.170
+Isaac Park: And I'm I'm kind of giving you a hard time, because I actually know, I know, like Nick and quick. And I know, Steven, I know the product. I know where they're headed right? And so like, yeah, there's a there there, but it's
+
+263
+00:33:58.350 --> 00:34:00.640
+Isaac Park: it's it's not necessarily like.
+
+264
+00:34:00.950 --> 00:34:01.500
+Harry Liu: Yeah.
+
+265
+00:34:01.690 --> 00:34:06.369
+Isaac Park: If you limit it to just like as a plugin for transcription and customer interviews where there's not enough right.
+
+266
+00:34:06.740 --> 00:34:27.920
+Harry Liu: Yeah, fully. We'll probably think about this a little bit with our value added. But if you do want to be mindful time, I guess the last question I have is like, so I'm struggling on. How like this project thing will like fit into the scope, because, like as you talk about like some things are improvements on existing products. Some things might be, you know, new. I was wondering like, how
+
+267
+00:34:28.070 --> 00:34:29.270
+Harry Liu: how would you
+
+268
+00:34:29.699 --> 00:34:41.979
+Harry Liu: want this to be, you know, presented. Do you want to like set up defined products? And then, like, you know, adding each interview to a product? Or do you want this to just be more of a like not defined thing.
+
+269
+00:34:42.239 --> 00:34:46.679
+Isaac Park: Yeah, it's gonna be many to many. And it's gonna be problems to interviews.
+
+270
+00:34:46.889 --> 00:34:49.249
+Isaac Park: Yeah, right? I would.
+
+271
+00:34:49.519 --> 00:34:52.429
+Isaac Park: I again, I hate that language of project.
+
+272
+00:34:52.629 --> 00:34:53.194
+Harry Liu: Yeah.
+
+273
+00:34:53.909 --> 00:34:59.729
+Isaac Park: Like in my business. This is basically what we call we call them journeys.
+
+274
+00:35:00.730 --> 00:35:29.119
+Isaac Park: Right and we use that language as as a nod to sort of the the semantics of agile software. Right? So agile software you have like a task. And then you have a story, right? Because everything's a narrative. And above story. You have an epic, right? Because every again, everything is a narrative, right? And so for us like, then the next. The next narrative, ontology higher, we just came up with, like typically in the regular world is initiative, but for us we just started calling them journeys.
+
+275
+00:35:29.578 --> 00:35:33.979
+Harry Liu: Right and for, and we have pretty strict discipline around the journeys being.
+
+276
+00:35:34.160 --> 00:35:42.028
+Isaac Park: Defined problems. Right? So like, my problem might be
+
+277
+00:35:43.120 --> 00:35:44.200
+Isaac Park: I don't know.
+
+278
+00:35:45.110 --> 00:35:49.970
+Isaac Park: Demo experience needs to close pilot on 1st call.
+
+279
+00:35:51.160 --> 00:35:57.740
+Isaac Park: Right? That's like a defined problem. Right? With a defined outcome metric less
+
+280
+00:35:58.140 --> 00:36:03.830
+Isaac Park: less projecty right? But as an as a but
+
+281
+00:36:04.380 --> 00:36:14.510
+Isaac Park: as an ontology. Great? Yeah, that's okay, right? That that you have this concept. And then you have a bunch of customer interviews. But it is many to many. Right? So like, I could have 15 problems.
+
+282
+00:36:14.650 --> 00:36:21.330
+Isaac Park: Alright. And I could have a thousand interviews. And each interview might have information that's useful for multiple of those problems.
+
+283
+00:36:21.520 --> 00:36:24.910
+Harry Liu: Yeah, okay, that's
+
+284
+00:36:25.230 --> 00:36:30.610
+Harry Liu: great. So maybe we can create tags instead compared to like defining them on under a product.
+
+285
+00:36:31.040 --> 00:36:40.209
+Isaac Park: Yeah. But the the major pain here isn't like, if you're gonna do tags, that's like just more work for the product person to do like it needs to do it automatically.
+
+286
+00:36:40.980 --> 00:36:49.750
+Harry Liu: Yeah, exactly. So, one interview might like be related to like multiple projects in this case. And then
+
+287
+00:36:49.860 --> 00:36:56.519
+Harry Liu: one project, yeah, like, that's true. One project might have a lot of interviews. Okay? Sounds good. That's really interesting information.
+
+288
+00:36:56.940 --> 00:36:58.187
+Isaac Park: I have to bounce
+
+289
+00:36:58.790 --> 00:37:03.060
+Isaac Park: Sorry for for cutting us off. Of course.
+
+290
+00:37:03.400 --> 00:37:09.859
+Isaac Park: Sorry, Harry, I gotta go. I got another call to go, Desiree. It's a pleasure to meet you. I know we didn't get a chance to really chat, but.
+
+291
+00:37:09.860 --> 00:37:14.509
+Jesirae Dong: Yeah, yeah, I had some questions. But it's okay. I can just reach out afterwards.
+
+292
+00:37:14.510 --> 00:37:16.740
+Isaac Park: Do you have a question? I can do one question.
+
+293
+00:37:16.740 --> 00:37:29.950
+Jesirae Dong: So I was thinking, like you were talking about like Job to be done right. And I was thinking like, if we should, if incorporating that like synthesizing insights, for example, like Job to be done instead of like you know.
+
+294
+00:37:29.950 --> 00:37:30.540
+Isaac Park: Yeah.
+
+295
+00:37:30.540 --> 00:37:36.019
+Jesirae Dong: Like like solutions, like actual solutions. Would that be helpful.
+
+296
+00:37:36.357 --> 00:37:43.790
+Isaac Park: Sort of like, I said. I don't actually use jt, Jtd, it's a useful like way to to interrogate something.
+
+297
+00:37:48.910 --> 00:37:59.159
+Isaac Park: Yeah, it's useful. I find it. It's a useful way to interrogate something, I think, what you'll you'll encounter. I mean, it's popular, right? But I think what you'll encounter is that some people don't give a shit about that heuristic, or that that like framework.
+
+298
+00:37:59.390 --> 00:38:13.590
+Isaac Park: and if you force them into that like framework. You'll lose them right like. If if I came into here and it were like forced, it would like really forced me into my jobs to be done, I'd be like, Oh, fuck that right. I wouldn't.
+
+299
+00:38:14.070 --> 00:38:18.010
+Isaac Park: Right I and I think your product people are going to be cut from a cloth that are much more
+
+300
+00:38:19.890 --> 00:38:23.119
+Isaac Park: interested in flexibility right than other people are.
+
+301
+00:38:23.360 --> 00:38:27.690
+Jesirae Dong: Okay. Okay, yeah, that's a, that's a really good point. Cool. Thank you.
+
+302
+00:38:28.380 --> 00:38:29.670
+Harry Liu: Yep, alright!
+
+303
+00:38:29.670 --> 00:38:30.200
+Harry Liu: Got it.
+
+304
+00:38:30.390 --> 00:38:31.250
+Jesirae Dong: Nice. Okay.
+
+305
+00:38:31.250 --> 00:38:31.860
+Harry Liu: Have a good one.
+
+306
+00:38:31.860 --> 00:38:32.870
+Isaac Park: That's Budget. Yep.
+
+307
+00:38:37.320 --> 00:38:37.935
+Harry Liu: Alright!
+

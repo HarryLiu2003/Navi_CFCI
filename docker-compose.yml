@@ -1,0 +1,64 @@
+# Development-focused Docker Compose configuration
+# This file is optimized for local development with hot-reloading
+
+services:
+  api_gateway:
+    build: 
+      context: ./services/api_gateway
+      target: development  # Use development target by default
+    ports:
+      - "8000:8000"
+    env_file:
+      - ./services/api_gateway/.env
+    depends_on:
+      - interview_analysis
+      - sprint1_deprecated
+    volumes:
+      - ./services/api_gateway:/app  # Mount code for hot-reloading
+      - api_gateway_logs:/app/logs
+
+  interview_analysis:
+    build: 
+      context: ./services/interview_analysis
+      target: development  # Use development target by default
+    ports:
+      - "8001:8001"
+    env_file:
+      - ./services/interview_analysis/.env
+    volumes:
+      - ./services/interview_analysis:/app  # Mount code for hot-reloading
+      - interview_analysis_logs:/app/logs
+    command: >
+      uvicorn app.main:app --host 0.0.0.0 --port 8001 --reload
+
+  sprint1_deprecated:
+    build:
+      context: ./services/sprint1_deprecated
+      target: development  # Use development target by default
+    ports:
+      - "8002:8002"
+    env_file:
+      - ./services/sprint1_deprecated/.env
+    volumes:
+      - ./services/sprint1_deprecated:/app  # Mount code for hot-reloading
+      - sprint1_deprecated_logs:/app/logs
+    command: >
+      bash -c "python post_install.py && uvicorn app.main:app --host 0.0.0.0 --port 8002 --reload"
+
+  frontend:
+    build:
+      context: ./frontend
+      target: development  # Use development target by default
+    ports:
+      - "3000:3000"
+    env_file:
+      - ./frontend/.env
+    volumes:
+      - ./frontend:/app  # Mount code for hot-reloading
+    depends_on:
+      - api_gateway
+
+volumes:
+  api_gateway_logs:
+  interview_analysis_logs:
+  sprint1_deprecated_logs: 

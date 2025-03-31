@@ -1,0 +1,21 @@
+{
+  "name": "navi-cfci",
+  "version": "1.0.0",
+  "description": "Interview Analysis Platform",
+  "scripts": {
+    "start": "docker compose up",
+    "build": "docker compose build"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git@github.com:harvard-app/Spring_25_Navi_CFCI.git"
+  },
+  "keywords": [
+    "interview-analysis",
+    "fastapi",
+    "nextjs",
+    "microservices"
+  ],
+  "author": "Harvard APPS Team",
+  "license": "MIT"
+} 

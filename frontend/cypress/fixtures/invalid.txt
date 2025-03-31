@@ -1,0 +1,6 @@
+This is not a valid VTT file.
+It's just plain text that should trigger an error in the transcript processing system.
+
+The system should detect this is not a proper VTT format and return an appropriate error message.
+
+Testing error handling is an important part of integration testing! 

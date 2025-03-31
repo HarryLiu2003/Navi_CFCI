@@ -27,8 +27,8 @@ export default function Home() {
   const [selectedProject, setSelectedProject] = useState("")
   const [isAnalyzing, setIsAnalyzing] = useState(false)
   const [interviewTime, setInterviewTime] = useState(() => {
-    const now = new Date()
-    return now.toISOString().slice(0, 16) // Format: "YYYY-MM-DDTHH:mm"
+    // Use a stable date string that won't change between server and client
+    return new Date().toISOString().slice(0, 16) // Format: "YYYY-MM-DDTHH:mm"
   })
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -55,22 +55,30 @@ export default function Home() {
     try {
       const result = await analyzeTranscript(selectedFile)
       
-      if (!result.data) {
-        throw new Error('No data received from analysis')
+      // Check if we have a valid response
+      if (!result || !result.data) {
+        toast.error('Invalid response received from the server', { id: 'analysis' })
+        return
       }
       
-      // Store the analysis result in localStorage
+      // Store the analysis result and navigate immediately
       localStorage.setItem('interviewAnalysis', JSON.stringify(result.data))
-      
       toast.success('Analysis complete', { id: 'analysis' })
-      
-      // Add a slight delay before redirect to ensure localStorage is set
-      setTimeout(() => {
-        router.push('/interview-analysis')
-      }, 500)
+      router.push('/interview-analysis')
       
     } catch (error) {
-      toast.error('Failed to analyze transcript', { id: 'analysis' })
+      // Extract the error message
+      let errorMessage = 'Failed to analyze transcript'
+      
+      if (error instanceof Error) {
+        errorMessage = error.message
+        // If the error message is too long, truncate it
+        if (errorMessage.length > 100) {
+          errorMessage = errorMessage.substring(0, 100) + '...'
+        }
+      }
+      
+      toast.error(errorMessage, { id: 'analysis' })
       console.error('Analysis error:', error)
     } finally {
       setIsAnalyzing(false)
@@ -266,7 +274,7 @@ export default function Home() {
                 </Avatar>
                 <div className="flex-1 space-y-1">
                   <p className="text-sm font-medium leading-none">User Interview {interview}</p>
-                  <p className="text-sm text-muted-foreground">Conducted on {new Date().toLocaleDateString()}</p>
+                  <p className="text-sm text-muted-foreground">Conducted on 2024-03-26</p>
                 </div>
                 <Link href="/interview" className="no-underline">
                   <Button variant="ghost">

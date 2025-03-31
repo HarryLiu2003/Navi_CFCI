@@ -34,7 +34,7 @@ export default function ProductPage() {
     if (featureSort === "mentions") {
       return b.mentions - a.mentions
     } else {
-      return new Date(b.lastMentioned).getTime() - new Date(a.lastMentioned).getTime()
+      return b.lastMentioned.localeCompare(a.lastMentioned)
     }
   })
 
