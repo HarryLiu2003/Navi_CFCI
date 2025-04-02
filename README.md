@@ -2,6 +2,13 @@
 
 A microservices-based platform for analyzing and processing interview transcripts, built with FastAPI, Next.js, and Supabase.
 
+## Features
+
+- **Interview Analysis**: Process VTT interview transcripts to extract insights
+- **Problem Area Identification**: Automatically identify key issues from interviews
+- **User Authentication**: Secure login, registration and personalized dashboards
+- **Interactive Visualization**: View analysis results in a user-friendly interface
+
 ## Quick Start 🚀
 
 1. Clone the repository:
@@ -23,6 +30,7 @@ cp frontend/.env.example frontend/.env
 # Add required API keys:
 # - Google Gemini API key to services/interview_analysis/.env
 # - OpenAI API key to services/sprint1_deprecated/.env
+# - Add a secure NEXTAUTH_SECRET to frontend/.env
 ```
 
 3. Set up Supabase:
@@ -46,6 +54,11 @@ docker compose up
 6. Access the application:
 - Frontend: http://localhost:3000
 - API Documentation: http://localhost:8000/docs
+
+7. Create a user account:
+- Visit http://localhost:3000/auth/signin
+- Register with your email and password
+- Sign in to access the dashboard
 
 ## Documentation
 
@@ -75,6 +88,9 @@ docker compose logs -f
 cd services/database
 npm run migrate:deploy    # Deploy migrations
 npm run generate         # Generate Prisma client
+
+# Schema synchronization
+npm run sync-schema      # Sync Prisma schema from database to frontend
 ```
 
 ## Prerequisites

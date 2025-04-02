@@ -38,6 +38,17 @@ This will start all services with the following access points:
 
 Note: You don't need to manually change any URLs when running in Docker. The environment variables and Docker Compose configuration handle the routing automatically.
 
+### Prisma Schema Synchronization
+
+When updating the database schema:
+
+1. Make changes to `services/database/prisma/schema.prisma` (source of truth)
+2. Run migration: `cd services/database && npx prisma migrate dev`
+3. Sync schema to frontend: `npm run sync-schema` (from project root)
+4. Rebuild frontend: `docker compose build frontend && docker compose up -d frontend`
+
+**IMPORTANT**: Always keep schemas synchronized to avoid runtime errors.
+
 ### Useful Docker Commands
 
 ```bash

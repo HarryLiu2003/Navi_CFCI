@@ -1,21 +1,23 @@
 {
   "name": "navi-cfci",
-  "version": "1.0.0",
-  "description": "Interview Analysis Platform",
+  "version": "0.1.0",
+  "description": "Microservices platform for analyzing interview transcripts",
   "scripts": {
     "start": "docker compose up",
-    "build": "docker compose build"
+    "stop": "docker compose down",
+    "build": "docker compose build",
+    "sync-schema": "cp services/database/prisma/schema.prisma frontend/prisma/schema.prisma && cd frontend && npx prisma generate",
+    "test": "echo \"Error: no test specified\" && exit 1"
   },
   "repository": {
     "type": "git",
-    "url": "git@github.com:harvard-app/Spring_25_Navi_CFCI.git"
+    "url": "git+https://github.com/yourusername/navi-cfci.git"
   },
   "keywords": [
-    "interview-analysis",
-    "fastapi",
-    "nextjs",
+    "interview",
+    "analysis",
     "microservices"
   ],
-  "author": "Harvard APPS Team",
+  "author": "",
   "license": "MIT"
 } 

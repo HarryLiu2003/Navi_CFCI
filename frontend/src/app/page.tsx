@@ -43,9 +43,11 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import { useSession, signOut } from "next-auth/react"
 
 export default function Home() {
   const router = useRouter()
+  const { data: session, status } = useSession()
   const projects = [{ id: 1 }, { id: 2 }, { id: 3 }]
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const [selectedProject, setSelectedProject] = useState("")
@@ -54,10 +56,19 @@ export default function Home() {
   const [isLoadingInterviews, setIsLoadingInterviews] = useState(false)
   const [dashboardTab, setDashboardTab] = useState('overview')
 
-  // Load interviews on component mount
+  // Redirect to signin if not authenticated
   useEffect(() => {
+    if (status === "unauthenticated") {
+      router.push("/auth/signin")
+    }
+  }, [status, router])
+
+  // Load interviews on component mount if authenticated
+  useEffect(() => {
+    if (status === "authenticated") {
     fetchInterviews()
-  }, [])
+    }
+  }, [status])
 
   const fetchInterviews = async () => {
     setIsLoadingInterviews(true)
@@ -153,6 +164,34 @@ export default function Home() {
     } catch (e) {
       return 'Unknown date'
     }
+  }
+
+  // Show loading state while checking authentication
+  if (status === "loading") {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+          <p className="text-muted-foreground">Loading...</p>
+        </div>
+      </div>
+    )
+  }
+
+  // If not authenticated, don't render anything as useEffect will redirect
+  if (status === "unauthenticated") {
+    return null
+  }
+
+  // Get user's initials for avatar
+  const getInitials = () => {
+    if (!session?.user?.name) return "U"
+    return session.user.name
+      .split(" ")
+      .map((n) => n[0])
+      .join("")
+      .toUpperCase()
+      .substring(0, 2)
   }
 
   return (
@@ -252,9 +291,9 @@ export default function Home() {
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" size="sm" className="flex items-center gap-2">
                   <Avatar className="h-7 w-7">
-                    <AvatarFallback>JD</AvatarFallback>
+                    <AvatarFallback>{getInitials()}</AvatarFallback>
                   </Avatar>
-                  <span className="hidden md:inline">John Doe</span>
+                  <span className="hidden md:inline">{session?.user?.name || "User"}</span>
                   <ChevronDown className="h-4 w-4 opacity-50" />
                 </Button>
               </DropdownMenuTrigger>
@@ -272,7 +311,7 @@ export default function Home() {
                   </DropdownMenuItem>
                 </DropdownMenuGroup>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem>
+                <DropdownMenuItem onClick={() => signOut({ callbackUrl: "/auth/signin" })}>
                   <LogOut className="mr-2 h-4 w-4" />
                   <span>Log out</span>
                 </DropdownMenuItem>

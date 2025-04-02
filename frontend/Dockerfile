@@ -12,10 +12,15 @@ WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm install
 
+# Generate Prisma client
+COPY prisma ./prisma/
+RUN npx prisma generate
+
 # Development target with hot reload
 FROM base AS development
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
+COPY --from=deps /app/node_modules/.prisma ./node_modules/.prisma
 COPY . .
 EXPOSE 3000
 CMD ["npm", "run", "dev"]
@@ -24,6 +29,7 @@ CMD ["npm", "run", "dev"]
 FROM base AS builder
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
+COPY --from=deps /app/node_modules/.prisma ./node_modules/.prisma
 COPY . .
 RUN npm run build
 

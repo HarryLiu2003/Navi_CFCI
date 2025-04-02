@@ -55,6 +55,140 @@ Supabase offers three connection types, each with different characteristics:
    npx prisma generate
    ```
 
+## Connection Pooling Best Practices
+
+### Preventing "Prepared Statement Does Not Exist" Errors
+
+When using Prisma with connection pooling (especially with Supabase or any PostgreSQL connection pooler like PgBouncer), you may encounter "prepared statement does not exist" errors. This happens because:
+
+1. Prisma generates prepared statements with names like "s0", "s1", etc.
+2. When connections are recycled in a pool, these prepared statements become invalid
+3. Subsequent queries attempt to use statements that no longer exist on the server
+
+#### Solution: Disable Prepared Statements
+
+To prevent these errors, modify your connection URL to include these parameters:
+
+```
+postgresql://username:password@host:port/database?pgbouncer=true&prepared_statements=false
+```
+
+The two critical parameters are:
+- `pgbouncer=true`: Tells Prisma this connection is using a connection pooler
+- `prepared_statements=false`: Explicitly disables prepared statements
+
+#### Implementation Example
+
+Here's how to implement this in your Prisma client:
+
+```typescript
+// Create a Prisma client with proper connection pooling parameters
+const getPrismaClient = () => {
+  const dbUrl = process.env.DATABASE_URL || '';
+  const finalDbUrl = dbUrl.includes('?') 
+    ? `${dbUrl}&pgbouncer=true&prepared_statements=false`
+    : `${dbUrl}?pgbouncer=true&prepared_statements=false`;
+  
+  return new PrismaClient({
+    datasources: {
+      db: { url: finalDbUrl }
+    },
+  });
+};
+```
+
+#### When to Use This Solution
+
+This solution is particularly important for:
+- Authentication flows with login/logout cycles
+- Next.js applications with hot reloading during development
+- Any service that interacts with the database intermittently
+- Environments using connection poolers (including Supabase's pooler)
+
+**IMPORTANT**: Always use this approach for all services that connect to the database through a connection pooler to avoid unpredictable errors.
+
+## Authentication Implementation
+
+The platform uses NextAuth.js integrated directly with the frontend Next.js application for user authentication.
+
+### Authentication Schema
+
+The following tables are added to the database schema for user authentication:
+
+```prisma
+model User {
+  id            String    @id @default(uuid())
+  name          String?
+  email         String    @unique
+  password      String
+  sessions      Session[]
+  interviews    Interview[]
+
+  @@map("users")
+}
+
+model Session {
+  id           String   @id @default(uuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("sessions")
+}
+```
+
+### Password Security
+
+Passwords are securely hashed using Node.js's built-in crypto module with PBKDF2:
+
+```typescript
+function hashPassword(password: string): string {
+  // Use SHA-512 with 100,000 iterations and a random salt
+  const algorithm = 'sha512';
+  const iterations = 100000;
+  const salt = crypto.randomBytes(16).toString('hex');
+  const hash = crypto.pbkdf2Sync(
+    password,
+    salt,
+    iterations,
+    64,
+    algorithm
+  ).toString('hex');
+
+  // Store in the format: algorithm:iterations:salt:hash
+  return `${algorithm}:${iterations}:${salt}:${hash}`;
+}
+```
+
+### Frontend Integration
+
+Authentication is implemented with:
+- A sign-in/registration page at `/auth/signin`
+- Route protection via Next.js middleware
+- Session persistence with NextAuth.js JWT tokens
+- User interface elements that adapt to authentication state
+
+### Required Environment Variables
+
+For the authentication system to work, these environment variables must be set:
+
+```
+# NextAuth Configuration
+NEXTAUTH_URL=http://localhost:3000
+NEXTAUTH_SECRET=your-random-secret-key-here
+
+# Database URL for Prisma connection
+DATABASE_URL=postgresql://username:password@host:port/database
+```
+
+### Schema Synchronization
+
+When working with authentication tables:
+1. Make schema changes in `services/database/prisma/schema.prisma` first
+2. Run `npm run sync-schema` from the project root to keep schemas in sync
+3. Run migrations and rebuild the frontend container
+
 ## Database Schema
 
 ### Main Tables
@@ -71,6 +205,23 @@ Supabase offers three connection types, each with different characteristics:
 | project_id         | text                  | Associated project ID                     | Yes      |
 | interviewer        | text                  | Name of the interviewer                   | Yes      |
 | interview_date     | timestamp with timezone | Date of the interview                    | Yes      |
+| userId             | uuid                  | User who owns this interview              | Yes      |
+
+#### users
+| Field              | Type                    | Description                               | Nullable |
+|--------------------|-----------------------|-------------------------------------------|----------|
+| id                 | uuid                  | Primary key                               | No       |
+| name               | text                  | User's display name                       | Yes      |
+| email              | text                  | User's email (unique)                     | No       |
+| password           | text                  | Hashed password                           | No       |
+
+#### sessions
+| Field              | Type                    | Description                               | Nullable |
+|--------------------|-----------------------|-------------------------------------------|----------|
+| id                 | uuid                  | Primary key                               | No       |
+| sessionToken       | text                  | Unique session token                      | No       |
+| userId             | uuid                  | Associated user                           | No       |
+| expires            | timestamp             | Session expiration timestamp              | No       |
 
 ### Schema Creation
 The schema is automatically created when you run migrations:
@@ -94,6 +245,8 @@ model Interview {
   project_id       String?
   interviewer      String?
   interview_date   DateTime?
+  user             User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
+  userId           String?
 
   @@map("interviews")
 }

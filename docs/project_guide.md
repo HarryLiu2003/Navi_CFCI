@@ -9,6 +9,7 @@ Navi CFCI is an interview analysis platform that processes interview transcripts
 - Analyzes interview transcripts using Google's Gemini AI
 - Identifies key themes, pain points, and insights
 - Visualizes findings for product and UX teams
+- Provides user authentication and personalized dashboards
 
 ## Architecture
 
@@ -37,15 +38,34 @@ The Navi CFCI project consists of multiple microservices with the following depe
 | Interview   |  | Sprint1     |
 | Analysis    |  | Deprecated  |
 |             |  |             |
-+-------------+  +-------------+
++------+------+  +-------------+
+       |
+       v
++------+------+
+|             |
+| Database    |
+| Service     |
+|             |
++-------------+
 ```
 
 ### Components
 
-- **Frontend**: Next.js application that depends on the API Gateway
+- **Frontend**: Next.js application with NextAuth.js for authentication
 - **API Gateway**: Routes requests to the appropriate backend service
 - **Interview Analysis**: Provides transcript analysis with Gemini AI
 - **Sprint1 Deprecated**: Legacy functionality for backward compatibility
+- **Database Service**: Handles data persistence and provides Prisma ORM access
+
+### Authentication System
+
+The platform uses NextAuth.js integrated directly in the frontend:
+
+- **Authentication Flow**: Email/password login with JWT token-based sessions
+- **User Management**: Registration, login, and session persistence
+- **Security**: Passwords hashed with PBKDF2 (SHA-512, 100k iterations)
+- **Route Protection**: Middleware-based access control for authenticated routes
+- **Database Integration**: Users and sessions stored in PostgreSQL via Prisma
 
 ### Deployment Architecture
 
@@ -76,6 +96,13 @@ Critical environment variables needed for each service:
   FRONTEND_PORT=3000
   ```
 
+- **Frontend**: Authentication configuration
+  ```
+  NEXTAUTH_URL=http://localhost:3000
+  NEXTAUTH_SECRET=your-secure-secret-key
+  DATABASE_URL=postgresql://username:password@host:port/database
+  ```
+
 - **Interview Analysis**: Requires Google Gemini API key
   ```
   GEMINI_API_KEY=your-api-key-here
@@ -93,7 +120,7 @@ Our documentation is organized into focused guides for different aspects of the 
 1. [**Development Guide**](../DEVELOPMENT.md) - Local development workflow and environment setup
 2. [**Testing Guide**](testing.md) - Testing approaches and practices
 3. [**Deployment Guide**](deployment.md) - Production deployment instructions
-4. [**Data Storage Guide**](data_storage.md) - Data storage best practices
+4. [**Data Storage Guide**](data_storage.md) - Data storage best practices and authentication schema
 
 ### Documentation Flow
 
@@ -101,6 +128,7 @@ Our documentation is organized into focused guides for different aspects of the 
 - Use the Development Guide for day-to-day development tasks
 - Consult the Testing Guide when writing or running tests
 - Reference the Deployment Guide when ready to deploy
+- Check the Data Storage Guide for database schema and authentication details
 
 ## Development Workflow
 
