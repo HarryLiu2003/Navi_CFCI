@@ -109,7 +109,8 @@ export default function Home() {
     toast.loading('Analyzing transcript...', { id: 'analysis' })
 
     try {
-      const result = await analyzeTranscript(selectedFile)
+      // Pass the user ID from the session to the API
+      const result = await analyzeTranscript(selectedFile, session?.user?.id)
       
       // Check if we have a valid response
       if (!result || !result.data) {

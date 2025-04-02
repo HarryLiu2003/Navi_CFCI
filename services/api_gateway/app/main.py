@@ -127,7 +127,8 @@ async def analyze_interview(
     file: UploadFile = File(...),
     project_id: Optional[str] = Form(None),
     interviewer: Optional[str] = Form(None),
-    interview_date: Optional[str] = Form(None)
+    interview_date: Optional[str] = Form(None),
+    userId: Optional[str] = Form(None)
 ):
     """Forward analyze transcript request to interview analysis service."""
     try:
@@ -145,6 +146,8 @@ async def analyze_interview(
             form_data["interviewer"] = interviewer
         if interview_date:
             form_data["interview_date"] = interview_date
+        if userId:
+            form_data["userId"] = userId
         
         # Forward to interview analysis service
         response = await http_client.post(

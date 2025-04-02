@@ -52,7 +52,8 @@ class InterviewWorkflow:
                 "project_id": metadata.get("project_id"),
                 "interviewer": metadata.get("interviewer"),
                 "interview_date": metadata.get("interview_date"),
-                "title": metadata.get("title", "Untitled Interview")
+                "title": metadata.get("title", "Untitled Interview"),
+                "userId": metadata.get("userId")
             }
             
             stored_data = await self.storage.store_interview(analysis_result, storage_metadata)

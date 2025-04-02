@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '../../auth/[...nextauth]/route';
 
 // Get the database API URL from environment variables
 const DATABASE_API_URL = process.env.DATABASE_API_URL || 'http://localhost:5001';
@@ -8,6 +10,17 @@ export async function GET(
   context: { params: { id: string } }
 ) {
   try {
+    // Get user session
+    const session = await getServerSession(authOptions);
+    
+    // Return error if not authenticated
+    if (!session || !session.user || !session.user.id) {
+      return NextResponse.json(
+        { status: 'error', message: 'Authentication required' },
+        { status: 401 }
+      );
+    }
+
     // Get the interview ID from the route params and await it
     const params = await context.params;
     const { id } = params;
@@ -30,7 +43,9 @@ export async function GET(
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 10000); // 10-second timeout
         
-        const response = await fetch(`${DATABASE_API_URL}/interviews/${id}`, {
+        // Include userId as query parameter to ensure it belongs to current user
+        const userId = session.user.id;
+        const response = await fetch(`${DATABASE_API_URL}/interviews/${id}?userId=${userId}`, {
           method: 'GET',
           headers: {
             'Content-Type': 'application/json',
@@ -45,6 +60,13 @@ export async function GET(
           return NextResponse.json(
             { status: 'error', message: 'Interview not found' },
             { status: 404 }
+          );
+        }
+        
+        if (response.status === 403) {
+          return NextResponse.json(
+            { status: 'error', message: 'Not authorized to access this interview' },
+            { status: 403 }
           );
         }
         

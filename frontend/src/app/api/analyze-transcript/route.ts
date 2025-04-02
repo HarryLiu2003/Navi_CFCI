@@ -1,8 +1,21 @@
 import { NextResponse } from 'next/server';
 import { API_CONFIG } from '@/lib/api';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '../auth/[...nextauth]/route';
 
 export async function POST(request: Request) {
   try {
+    // Get user session
+    const session = await getServerSession(authOptions);
+    
+    // Return error if not authenticated
+    if (!session || !session.user || !session.user.id) {
+      return NextResponse.json(
+        { error: 'Authentication required' },
+        { status: 401 }
+      );
+    }
+    
     const formData = await request.formData();
     const file = formData.get('file') as File;
 
@@ -16,6 +29,16 @@ export async function POST(request: Request) {
     // Create a new FormData instance
     const forwardForm = new FormData();
     forwardForm.append('file', file);
+    
+    // Add user ID to the request - this ensures it's always included
+    // even if client doesn't send it
+    forwardForm.append('userId', session.user.id);
+    
+    // Also add any userId that was passed in from client (should match session)
+    const userId = formData.get('userId');
+    if (userId && userId !== session.user.id) {
+      console.warn('Client provided userId doesn\'t match session userId');
+    }
 
     // Use the gateway to get analysis
     const analysisResponse = await fetch(

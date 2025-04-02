@@ -129,10 +129,18 @@ export const API_CONFIG = {
 async function apiRequest<T>(
   endpoint: string, 
   file: File, 
-  errorMessage: string = 'API request failed'
+  errorMessage: string = 'API request failed',
+  additionalData?: Record<string, string>
 ): Promise<T> {
   const formData = new FormData();
   formData.append('file', file);
+  
+  // Add any additional data to the form
+  if (additionalData) {
+    Object.entries(additionalData).forEach(([key, value]) => {
+      formData.append(key, value);
+    });
+  }
 
   try {
     const response = await fetch(`${API_CONFIG.API_URL}${endpoint}`, {
@@ -166,11 +174,14 @@ async function apiRequest<T>(
 }
 
 // API Client Functions
-export async function analyzeTranscript(file: File): Promise<AnalysisResponse> {
+export async function analyzeTranscript(file: File, userId?: string): Promise<AnalysisResponse> {
+  const additionalData = userId ? { userId } : undefined;
+  
   return apiRequest<AnalysisResponse>(
     API_CONFIG.ENDPOINTS.INTERVIEW_ANALYSIS.ANALYZE,
     file,
-    'Failed to analyze transcript'
+    'Failed to analyze transcript',
+    additionalData
   );
 }
 

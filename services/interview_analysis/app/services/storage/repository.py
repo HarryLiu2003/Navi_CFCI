@@ -56,6 +56,8 @@ class InterviewRepository:
                     interview_data["interviewer"] = metadata["interviewer"]
                 if "interview_date" in metadata and metadata["interview_date"]:
                     interview_data["interview_date"] = metadata["interview_date"]
+                if "userId" in metadata and metadata["userId"]:
+                    interview_data["userId"] = metadata["userId"]
             
             logger.info(f"Storing interview with title: {interview_data['title']}")
             

@@ -24,6 +24,7 @@ async def analyze_interview(
     project_id: Optional[str] = Form(None, description="Project ID to associate with the interview"),
     interviewer: Optional[str] = Form(None, description="Name of the interviewer"),
     interview_date: Optional[str] = Form(None, description="Date of the interview (ISO format)"),
+    userId: Optional[str] = Form(None, description="User ID of the authenticated user"),
     workflow: InterviewWorkflow = Depends(get_interview_workflow)
 ):
     """
@@ -41,6 +42,7 @@ async def analyze_interview(
         project_id: Optional project ID to associate with the interview
         interviewer: Optional name of the interviewer
         interview_date: Optional date of the interview
+        userId: Optional user ID for the authenticated user
         workflow: Interview workflow service injected via dependency
     
     Returns:
@@ -79,7 +81,8 @@ async def analyze_interview(
             "project_id": project_id,
             "interviewer": interviewer,
             "interview_date": interview_date,
-            "title": f"Interview - {file.filename}"
+            "title": f"Interview - {file.filename}",
+            "userId": userId
         }
         
         # Process the interview through the workflow

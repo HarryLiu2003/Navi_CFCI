@@ -53,15 +53,20 @@ app.get('/interviews', async (req: Request, res: Response) => {
   try {
     const limit = Math.min(parseInt(req.query.limit as string) || 10, 100);
     const offset = Math.max(parseInt(req.query.offset as string) || 0, 0);
+    const userId = req.query.userId as string;
+    
+    // Create where clause to filter by userId when provided
+    const where = userId ? { userId } : undefined;
     
     // Get both interviews and count in parallel for better performance
     const [interviews, total] = await Promise.all([
       interviewRepository.findMany({
         take: limit,
         skip: offset,
+        where,
         orderBy: { created_at: 'desc' }
       }),
-      interviewRepository.count()
+      interviewRepository.count(where)
     ]);
     
     res.json({
@@ -97,6 +102,15 @@ app.get('/interviews/:id', async (req: Request, res: Response) => {
       });
     }
     
+    // Check if userId is provided and matches the interview's userId
+    const requestedUserId = req.query.userId as string;
+    if (requestedUserId && interview.userId && interview.userId !== requestedUserId) {
+      return res.status(403).json({
+        status: 'error',
+        message: 'Not authorized to access this interview'
+      });
+    }
+    
     res.json({
       status: 'success',
       message: 'Interview retrieved successfully',
@@ -116,7 +130,7 @@ app.get('/interviews/:id', async (req: Request, res: Response) => {
 app.post('/interviews', async (req: Request, res: Response) => {
   try {
     // Validate required fields
-    const { title, problem_count, transcript_length, analysis_data } = req.body;
+    const { title, problem_count, transcript_length, analysis_data, userId } = req.body;
     
     if (!title || problem_count === undefined || transcript_length === undefined || !analysis_data) {
       return res.status(400).json({
@@ -126,7 +140,14 @@ app.post('/interviews', async (req: Request, res: Response) => {
       });
     }
     
-    const interview = await interviewRepository.create(req.body);
+    // Create the interview with the provided data
+    const interviewData = {
+      ...req.body,
+      // If userId is provided in the body or query, use it
+      userId: userId || req.query.userId as string || undefined
+    };
+    
+    const interview = await interviewRepository.create(interviewData);
     
     res.status(201).json({
       status: 'success',
@@ -154,6 +175,15 @@ app.put('/interviews/:id', async (req: Request, res: Response) => {
       return res.status(404).json({
         status: 'error',
         message: 'Interview not found'
+      });
+    }
+    
+    // Check if userId is provided and matches the interview's userId
+    const requestedUserId = req.query.userId as string || req.body.userId;
+    if (requestedUserId && existingInterview.userId && existingInterview.userId !== requestedUserId) {
+      return res.status(403).json({
+        status: 'error',
+        message: 'Not authorized to modify this interview'
       });
     }
     
@@ -185,6 +215,15 @@ app.delete('/interviews/:id', async (req: Request, res: Response) => {
       return res.status(404).json({
         status: 'error',
         message: 'Interview not found'
+      });
+    }
+    
+    // Check if userId is provided and matches the interview's userId
+    const requestedUserId = req.query.userId as string;
+    if (requestedUserId && existingInterview.userId && existingInterview.userId !== requestedUserId) {
+      return res.status(403).json({
+        status: 'error',
+        message: 'Not authorized to delete this interview'
       });
     }
     
