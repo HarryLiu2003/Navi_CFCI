@@ -1,115 +1,189 @@
 """
-Unit tests for the transcript analyzer component.
+Unit tests for the TranscriptAnalyzer class.
 
-These tests verify the TranscriptAnalyzer class functionality, including VTT file preprocessing
-and complete transcript analysis workflow. Tests use mock files and LLM responses.
+These tests verify the functionality of the transcript analyzer,
+including parsing VTT files and integrating with LLM chains.
 """
 import pytest
-from fastapi import UploadFile
+from unittest.mock import AsyncMock, patch, MagicMock
 import io
 import json
-from unittest.mock import patch, MagicMock
+from datetime import datetime
 
-from app.services.analyze import TranscriptAnalyzer
+from app.services.analysis.analyzer import TranscriptAnalyzer
+from app.utils.errors import FileProcessingError, AnalysisError
 
-@pytest.fixture
-def analyzer():
-    """Fixture providing a TranscriptAnalyzer instance."""
-    return TranscriptAnalyzer()
-
-@pytest.mark.asyncio
 @pytest.mark.unit
-async def test_preprocess_vtt(analyzer, test_vtt_file):
+@pytest.mark.asyncio
+@patch('app.services.analysis.analyzer.create_analysis_chain')
+async def test_analyzer_initialization(mock_chain_factory):
     """
-    Test VTT file preprocessing functionality.
-    
-    Args:
-        analyzer: TranscriptAnalyzer fixture
-        test_vtt_file: Fixture providing a test VTT file
+    Test the initialization of the TranscriptAnalyzer.
     
     Test Steps:
-        1. Create mock UploadFile with test content
-        2. Process VTT file through analyzer
-        3. Verify chunk structure and content
-        4. Validate total chunks information
+        1. Create analyzer instance with mocked chain factory
+        2. Verify initialization completes without errors
     """
-    # Create a mock UploadFile
-    upload_file = MagicMock(spec=UploadFile)
-    upload_file.filename = "test.vtt"
-    upload_file.read.return_value = test_vtt_file.getvalue()
+    # Create a mock chain
+    mock_chain = AsyncMock()
+    mock_chain_factory.return_value = mock_chain
     
-    # Process the file
-    result = await analyzer.preprocess_vtt(upload_file)
+    # Create an instance
+    analyzer = TranscriptAnalyzer()
     
-    # Check the result
-    assert "chunks" in result
-    assert len(result["chunks"]) == 3  # Our test file has 3 chunks
-    
-    # Verify the content format
-    # The actual implementation might strip the speaker prefix or process text differently
-    # Let's adjust the test to be more flexible
-    assert "text" in result["chunks"][0]
-    assert "biggest challenge" in result["chunks"][0]["text"]
-    assert "scaling our infrastructure" in result["chunks"][1]["text"]
-    assert "robust solution" in result["chunks"][2]["text"]
-    
-    # Verify total chunks information
-    assert "total_chunks" in result
-    assert result["total_chunks"] == 3
+    # Verify basic properties
+    assert isinstance(analyzer, TranscriptAnalyzer)
+    assert analyzer.analysis_chain is mock_chain
 
-@pytest.mark.asyncio
 @pytest.mark.unit
-@patch('app.utils.analysis_chain.chain.SynthesisChain.run_analysis')
-async def test_analyze_transcript(mock_run_analysis, analyzer, test_vtt_file):
+@pytest.mark.asyncio
+@patch('app.services.analysis.analyzer.create_analysis_chain')
+async def test_transcript_analysis(mock_chain_factory, test_vtt_content):
     """
-    Test complete transcript analysis workflow.
+    Test the transcript analysis process.
     
     Args:
-        mock_run_analysis: Mock for the analysis chain
-        analyzer: TranscriptAnalyzer fixture
-        test_vtt_file: Fixture providing a test VTT file
+        mock_chain_factory: Mocked chain factory function
+        test_vtt_content: Sample VTT content
     
     Test Steps:
-        1. Configure mock analysis response
-        2. Create mock upload file
-        3. Execute complete analysis
-        4. Verify result structure and content
+        1. Mock LLM chain to return test data
+        2. Run analysis on sample transcript
+        3. Verify analysis result structure
     """
-    # Configure the mock
-    mock_run_analysis.return_value = {
+    # Create mock chain
+    mock_chain = AsyncMock()
+    mock_chain_factory.return_value = mock_chain
+    
+    # Configure mock chain response
+    mock_response = {
         "problem_areas": [
             {
-                "problem_id": "test-id",
-                "title": "Infrastructure Scaling",
-                "description": "Current systems can't handle growth",
-                "excerpts": [
-                    {
-                        "quote": "Our main issue is scaling our infrastructure",
-                        "categories": ["Pain Point"],
-                        "insight": "Growth causing scaling issues",
-                        "chunk_number": 2
-                    }
-                ]
+                "problem_id": "p1",
+                "title": "Test Problem",
+                "description": "A test problem description",
+                "excerpts": []
             }
         ],
-        "synthesis": "Test synthesis text about infrastructure scaling and its implications."
+        "synthesis": {
+            "background": "User testing session",
+            "problem_areas": ["Confusion", "Navigation"],
+            "next_steps": ["Simplify UI"]
+        },
+        "metadata": {
+            "transcript_length": 2,
+            "problem_areas_count": 1,
+            "excerpts_count": 0
+        }
     }
+    mock_chain.run_analysis.return_value = mock_response
     
-    # Create a mock UploadFile
-    upload_file = MagicMock(spec=UploadFile)
-    upload_file.filename = "test.vtt"
-    upload_file.read.return_value = test_vtt_file.getvalue()
+    # Initialize analyzer
+    analyzer = TranscriptAnalyzer()
     
-    # Analyze the transcript
-    result = await analyzer.analyze_transcript(upload_file)
+    # Run analysis
+    result = await analyzer.analyze_transcript(test_vtt_content.encode())
     
-    # Verify the result structure
+    # Verify result structure
     assert "problem_areas" in result
+    assert "transcript" in result
     assert "synthesis" in result
     assert "metadata" in result
     
-    # Verify the content
-    assert len(result["problem_areas"]) == 1
-    assert result["problem_areas"][0]["problem_id"] == "test-id"
-    assert "Infrastructure Scaling" in result["problem_areas"][0]["title"]
-    assert "synthesis" in result 
+    # Verify mock was called
+    mock_chain.run_analysis.assert_called_once()
+    
+@pytest.mark.unit
+@pytest.mark.asyncio
+@patch('app.services.analysis.analyzer.create_analysis_chain')
+async def test_empty_transcript(mock_chain_factory):
+    """
+    Test handling of empty transcript.
+    
+    Test Steps:
+        1. Create analyzer instance with mocked chain
+        2. Provide empty content
+        3. Verify appropriate error is raised
+    """
+    # Create mock chain
+    mock_chain = AsyncMock()
+    mock_chain_factory.return_value = mock_chain
+    
+    # Create an instance
+    analyzer = TranscriptAnalyzer()
+    
+    # Test with empty bytes
+    with pytest.raises(FileProcessingError) as exc_info:
+        await analyzer.analyze_transcript(b"")
+    
+    # Verify error message contains relevant text
+    assert "No valid content" in str(exc_info.value)
+    
+    # Verify that the chain was not called (because error was raised before analysis)
+    mock_chain.run_analysis.assert_not_called()
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+@patch('app.services.analysis.analyzer.create_analysis_chain')
+async def test_invalid_vtt_format(mock_chain_factory):
+    """
+    Test handling of invalid VTT format.
+    
+    Test Steps:
+        1. Create analyzer instance with mocked chain
+        2. Provide invalid content
+        3. Verify appropriate error is raised
+    """
+    # Create mock chain
+    mock_chain = AsyncMock()
+    mock_chain_factory.return_value = mock_chain
+    
+    # Create an instance
+    analyzer = TranscriptAnalyzer()
+    
+    # Invalid VTT content (missing WEBVTT header)
+    invalid_content = b"This is not a valid VTT file"
+    
+    # Should raise an error
+    with pytest.raises(FileProcessingError) as exc_info:
+        await analyzer.analyze_transcript(invalid_content)
+    
+    # Verify error message
+    assert "No valid content" in str(exc_info.value)
+    
+    # Verify chain was not called
+    mock_chain.run_analysis.assert_not_called()
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+@patch('app.services.analysis.analyzer.create_analysis_chain')
+async def test_llm_error_handling(mock_chain_factory, test_vtt_content):
+    """
+    Test handling of LLM chain errors.
+    
+    Args:
+        mock_chain_factory: Mocked chain factory function
+        test_vtt_content: Sample VTT content
+    
+    Test Steps:
+        1. Configure LLM chain to raise an exception
+        2. Run analysis
+        3. Verify error is propagated correctly
+    """
+    # Create mock chain that raises an error
+    mock_chain = AsyncMock()
+    mock_chain_factory.return_value = mock_chain
+    mock_chain.run_analysis.side_effect = ValueError("LLM processing error")
+    
+    # Initialize analyzer
+    analyzer = TranscriptAnalyzer()
+    
+    # Run analysis, expect error
+    with pytest.raises(AnalysisError) as exc_info:
+        await analyzer.analyze_transcript(test_vtt_content.encode())
+    
+    # Verify error message includes our custom message text
+    assert "Analysis failed" in str(exc_info.value)
+    
+    # Verify chain was called
+    mock_chain.run_analysis.assert_called_once() 

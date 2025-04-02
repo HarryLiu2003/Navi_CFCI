@@ -22,17 +22,15 @@ def test_real_transcript_analysis(test_client, real_transcript_file):
         real_transcript_file: Fixture providing a real interview transcript
     
     Test Steps:
-        1. Mock LLM chain response
+        1. Mock domain workflow response
         2. Submit real transcript for analysis
         3. Verify successful processing
         4. Validate response structure and metadata
     """
-    # This test validates that the VTT analyzer can handle the real transcript format
-    
-    # Mock the LLM chain to avoid actual API calls
-    with patch('app.utils.analysis_chain.chain.SynthesisChain.run_analysis') as mock_run:
+    # Mock the workflow to avoid actual API calls
+    with patch('app.domain.workflows.InterviewWorkflow.process_interview') as mock_process:
         # Set up mock response
-        mock_run.return_value = {
+        mock_process.return_value = {
             "problem_areas": [
                 {
                     "problem_id": "test-1",
@@ -41,7 +39,20 @@ def test_real_transcript_analysis(test_client, real_transcript_file):
                     "excerpts": []
                 }
             ],
-            "synthesis": "Test synthesis of the interview transcript."
+            "synthesis": {
+                "background": "Healthcare interview discussion",
+                "problem_areas": ["Interview process challenges"],
+                "next_steps": ["Refine interview protocol"]
+            },
+            "metadata": {
+                "transcript_length": 150,
+                "problem_areas_count": 1,
+                "excerpts_count": 0
+            },
+            "storage": {
+                "id": "interview-123",
+                "created_at": "2025-04-02T01:02:22"
+            }
         }
         
         # Create a file for upload
@@ -60,13 +71,11 @@ def test_real_transcript_analysis(test_client, real_transcript_file):
         assert "synthesis" in data["data"]
         assert "metadata" in data["data"]
         
-        # Verify metadata fields - matching what the actual implementation provides
+        # Verify metadata fields
         metadata = data["data"]["metadata"]
         assert "transcript_length" in metadata
-        # The field might be named differently in the actual implementation
-        # Check for either possible field name
-        assert "problem_areas_count" in metadata  # Number of problem areas
-        assert "excerpts_count" in metadata  # Should be present
+        assert "problem_areas_count" in metadata
+        assert "excerpts_count" in metadata
 
 @pytest.mark.integration
 def test_real_transcript_content_verification(test_client, real_transcript_file):
@@ -78,16 +87,16 @@ def test_real_transcript_content_verification(test_client, real_transcript_file)
         real_transcript_file: Fixture providing a real interview transcript
     
     Test Steps:
-        1. Mock analysis chain with realistic responses
+        1. Mock domain workflow with realistic responses
         2. Process real transcript content
         3. Verify problem area extraction
         4. Validate content-specific insights
     """
     
-    # Mock the analysis to check transcript processing
-    with patch('app.utils.analysis_chain.chain.SynthesisChain.run_analysis') as mock_run:
+    # Mock the workflow to check transcript processing
+    with patch('app.domain.workflows.InterviewWorkflow.process_interview') as mock_process:
         # Set up mocked response with real content from the transcript
-        mock_run.return_value = {
+        mock_process.return_value = {
             "problem_areas": [
                 {
                     "problem_id": "healthcare-context",
@@ -95,15 +104,28 @@ def test_real_transcript_content_verification(test_client, real_transcript_file)
                     "description": "Discussion about healthcare interview process",
                     "excerpts": [
                         {
-                            "quote": "we are still locking down the specific user persona of. You know what kind of healthcare organizations we are innovating",
+                            "text": "we are still locking down the specific user persona of. You know what kind of healthcare organizations we are innovating",
                             "categories": ["Context"],
-                            "insight": "Healthcare user persona exploration",
+                            "insight_summary": "Healthcare user persona exploration",
                             "chunk_number": 28
                         }
                     ]
                 }
             ],
-            "synthesis": "The transcript discusses healthcare interview processes and user personas."
+            "synthesis": {
+                "background": "The transcript discusses healthcare interview processes and user personas.",
+                "problem_areas": ["Healthcare context understanding"],
+                "next_steps": ["Define target personas"]
+            },
+            "metadata": {
+                "transcript_length": 150,
+                "problem_areas_count": 1,
+                "excerpts_count": 1
+            },
+            "storage": {
+                "id": "interview-456",
+                "created_at": "2025-04-02T01:02:22"
+            }
         }
         
         files = {
@@ -116,38 +138,42 @@ def test_real_transcript_content_verification(test_client, real_transcript_file)
         assert response.status_code == 200
         data = response.json()
         
-        # Check for specific quotes in the excerpts from the test transcript
+        # Check for specific problem areas
         problem_areas = data["data"]["problem_areas"]
         assert len(problem_areas) > 0
         
         # Verify the synthesis contains relevant terms
         synthesis = data["data"]["synthesis"]
-        assert "healthcare" in synthesis.lower() or "interview" in synthesis.lower()
+        assert "healthcare" in str(synthesis).lower() or "interview" in str(synthesis).lower()
 
 @pytest.mark.asyncio
 @pytest.mark.integration
-async def test_extract_problem_areas_with_real_transcript(real_transcript_file):
+async def test_analyzer_with_real_transcript(real_transcript_file):
     """
-    Test problem area extraction from real transcript content.
+    Test transcript analyzer with real transcript content.
     
     Args:
         real_transcript_file: Fixture providing a real interview transcript
     
     Test Steps:
         1. Initialize transcript analyzer
-        2. Mock LLM chain responses
+        2. Mock GeminiAnalysisChain responses
         3. Process transcript through analyzer
-        4. Verify problem area structure
+        4. Verify analysis result structure
         5. Validate extracted insights
     """
     
     # Import here to avoid circular imports
-    from app.services.analyze import TranscriptAnalyzer
-    from app.utils.analysis_chain.chain import SynthesisChain
+    from app.services.analysis.analyzer import TranscriptAnalyzer
+    from app.services.analysis.llm_chains.chain import GeminiAnalysisChain
+    
+    # Reset file position and read the content
+    real_transcript_file.seek(0)
+    file_content = real_transcript_file.read()
     
     # Mock the LLM chain
-    with patch('app.utils.analysis_chain.chain.SynthesisChain.extract_problem_areas') as mock_extract:
-        mock_extract.return_value = {
+    with patch('app.services.analysis.llm_chains.chain.GeminiAnalysisChain.run_analysis') as mock_run:
+        mock_run.return_value = {
             "problem_areas": [
                 {
                     "problem_id": "transcript-insights-1",
@@ -159,28 +185,23 @@ async def test_extract_problem_areas_with_real_transcript(real_transcript_file):
                     "title": "Product Documentation Needs",
                     "description": "Discussion about how to document user interviews"
                 }
-            ]
+            ],
+            "synthesis": {
+                "background": "Healthcare product development discussion",
+                "problem_areas": ["Interview process", "Documentation needs"],
+                "next_steps": ["Standardize documentation"]
+            }
         }
         
-        # Process real transcript
+        # Process real transcript by directly providing the byte content
         analyzer = TranscriptAnalyzer()
-        upload_file = MagicMock(spec=UploadFile)
-        upload_file.filename = "test_transcript.vtt"
         
-        # Reset the file position
-        real_transcript_file.seek(0)
-        upload_file.read = AsyncMock(return_value=real_transcript_file.read())
-        
-        # Process the file
-        preprocessed = await analyzer.preprocess_vtt(upload_file)
-        transcript = " ".join([chunk["text"] for chunk in preprocessed["chunks"]])
-        
-        # Mock the chain
-        chain = SynthesisChain("test_api_key")
-        result = await chain.extract_problem_areas(transcript)
+        # Process the file directly with bytes
+        result = await analyzer.analyze_transcript(file_content)
         
         # Verify the structure
         assert "problem_areas" in result
+        assert "synthesis" in result
         assert len(result["problem_areas"]) > 0
         
         for problem in result["problem_areas"]:

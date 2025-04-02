@@ -8,6 +8,7 @@ webvtt-py>=0.4.6
 
 # API Integration
 requests>=2.32.3
+httpx>=0.27.0  # For async HTTP requests
 
 # Google AI - with compatible version specifications
 google-ai-generativelanguage>=0.6.15

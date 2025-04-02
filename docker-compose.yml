@@ -1,7 +1,23 @@
 # Development-focused Docker Compose configuration
 # This file is optimized for local development with hot-reloading
+# The database service connects to Supabase instead of using a local PostgreSQL database
 
 services:
+  database:
+    build:
+      context: ./services/database
+    ports:
+      - "5001:5001"
+    env_file:
+      - ./services/database/.env    # Contains Supabase connection string
+    volumes:
+      - ./services/database/src:/app/src  # Mount only source code for hot-reloading
+      - ./services/database/prisma:/app/prisma  # Mount prisma directory
+      - ./services/database/package.json:/app/package.json  # Mount package.json
+      - ./services/database/tsconfig.json:/app/tsconfig.json  # Mount tsconfig.json
+      - ./services/database/.env:/app/.env  # Mount .env file directly
+      # Exclude the dist directory to keep the built files
+
   api_gateway:
     build: 
       context: ./services/api_gateway
@@ -28,6 +44,10 @@ services:
     volumes:
       - ./services/interview_analysis:/app  # Mount code for hot-reloading
       - interview_analysis_logs:/app/logs
+    environment:
+      - DATABASE_API_URL=http://database:5001
+    depends_on:
+      - database
     command: >
       uvicorn app.main:app --host 0.0.0.0 --port 8001 --reload
 
@@ -53,10 +73,13 @@ services:
       - "3000:3000"
     env_file:
       - ./frontend/.env
+    environment:
+      - DATABASE_API_URL=http://database:5001
     volumes:
       - ./frontend:/app  # Mount code for hot-reloading
     depends_on:
       - api_gateway
+      - database
 
 volumes:
   api_gateway_logs:

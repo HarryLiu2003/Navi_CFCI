@@ -13,35 +13,6 @@ This hybrid approach gives us the best of both worlds:
 - Simple local development where everything runs together
 - Optimized production deployment using specialized platforms
 
-## Getting Started
-
-### Prerequisites
-
-- Docker and Docker Compose (for local development)
-- Google Gemini API Key (for Interview Analysis service)
-- OpenAI API Key (for Sprint1 Deprecated service)
-- Node.js 18+ (optional, for frontend-only development)
-- Python 3.9+ (optional, for backend-only development)
-
-### Initial Setup
-
-```bash
-# Clone the repository
-git clone [repository-url]
-cd Navi_CFCI
-
-# Set up environment variables
-cp .env.example .env
-cp services/api_gateway/.env.example services/api_gateway/.env
-cp services/interview_analysis/.env.example services/interview_analysis/.env
-cp services/sprint1_deprecated/.env.example services/sprint1_deprecated/.env
-cp frontend/.env.example frontend/.env
-
-# Configure your API keys and other settings in each .env file
-# Required: Add your Google Gemini API key to services/interview_analysis/.env
-# Required: Add your OpenAI API key to services/sprint1_deprecated/.env
-```
-
 ## Development Workflows
 
 ### Option 1: Full-Stack Development with Docker (Recommended)
@@ -49,17 +20,23 @@ cp frontend/.env.example frontend/.env
 For most development tasks, use Docker Compose to run the entire stack:
 
 ```bash
-# Start all services with hot reload
 docker compose up
 ```
 
-This will start:
-- Frontend (Next.js) on port 3000
-- API Gateway on port 8000
-- Interview Analysis service on port 8001
-- Sprint1 Deprecated service on port 8002
+This will start all services with the following access points:
 
-Any code changes will trigger hot reloading.
+#### Browser Access (from your computer)
+- Frontend: http://localhost:3000
+- API Gateway: http://localhost:8000
+- API Documentation: http://localhost:8000/docs
+
+#### Service-to-Service Communication (within Docker)
+- Database Service: http://database:5001
+- Interview Analysis: http://interview_analysis:8001
+- Sprint1 Deprecated: http://sprint1_deprecated:8002
+- API Gateway: http://api_gateway:8000
+
+Note: You don't need to manually change any URLs when running in Docker. The environment variables and Docker Compose configuration handle the routing automatically.
 
 ### Useful Docker Commands
 
@@ -78,6 +55,9 @@ docker compose logs -f interview_analysis
 
 # Run only specific services
 docker compose up api_gateway interview_analysis
+
+# Rebuild containers after dependency changes
+docker compose build
 ```
 
 ### Option 2: Frontend-Only Development (Alternative)
@@ -103,60 +83,6 @@ pip install -r requirements.txt
 uvicorn app.main:app --host 0.0.0.0 --port 8001 --reload
 ```
 
-## Environment Variables
-
-The project uses multiple `.env` files for configuration:
-
-### Root `.env` (Docker Compose Configuration)
-
-```
-# Service Ports
-API_GATEWAY_PORT=8000
-INTERVIEW_ANALYSIS_PORT=8001
-SPRINT1_DEPRECATED_PORT=8002
-FRONTEND_PORT=3000
-```
-
-### API Gateway Service `.env`
-
-```
-# Service Configuration
-SERVICE_INTERVIEW_ANALYSIS=http://interview_analysis:8001
-SERVICE_SPRINT1_DEPRECATED=http://sprint1_deprecated:8002
-
-# CORS Settings
-CORS_ORIGINS=http://localhost:3000
-```
-
-### Interview Analysis Service `.env`
-
-```
-# API Keys
-GEMINI_API_KEY=your-gemini-api-key-here
-
-# Service Configuration
-MODEL_NAME=gemini-pro
-MAX_TOKENS=8192
-```
-
-### Sprint1 Deprecated Service `.env`
-
-```
-# API Keys
-OPENAI_API_KEY=your-openai-api-key-here
-
-# Service Configuration
-MODEL_NAME=gpt-3.5-turbo
-```
-
-### Frontend `.env`
-
-```
-# API Configuration
-NEXT_PUBLIC_API_URL=http://localhost:8000
-NEXT_PUBLIC_ENV=development
-```
-
 ## Testing
 
 For testing with Docker (with containers already running):
@@ -165,12 +91,6 @@ For testing with Docker (with containers already running):
 # Run all tests for a specific service
 docker exec -it navi_cfci-interview_analysis-1 pytest
 docker exec -it navi_cfci-frontend-1 npm test
-
-# Run frontend tests
-docker exec -it navi_cfci-frontend-1 npm test
-
-# Run backend tests for a specific service
-docker exec -it navi_cfci-interview_analysis-1 pytest
 
 # Run tests with coverage
 docker exec -it navi_cfci-interview_analysis-1 pytest --cov=app
@@ -197,8 +117,6 @@ pytest --cov=app
 cd frontend
 npm run cy:open
 ```
-
-For detailed testing information, see [Testing Guide](docs/testing.md).
 
 ## Common Development Tasks
 
@@ -237,6 +155,25 @@ docker compose build
 docker exec -it navi_cfci-interview_analysis-1 bash
 ```
 
-## Deployment
+## Troubleshooting
 
-For production deployment instructions, see [Deployment Guide](docs/deployment.md) 
+### Common Issues
+
+1. **API Connection Errors**
+   - Check that all services are running: `docker compose ps`
+   - Verify API Gateway is accessible at http://localhost:8000/docs
+   - Check service logs: `docker compose logs api_gateway`
+
+2. **Missing API Keys**
+   - Error message: "API key not configured"
+   - Solution: Add your API keys to the respective .env files:
+     - Gemini API key in `services/interview_analysis/.env`
+     - OpenAI API key in `services/sprint1_deprecated/.env`
+
+3. **Docker Container Conflicts**
+   - Error: "Port is already allocated"
+   - Solution: Stop other containers or change ports in `.env`
+
+4. **Hot Reload Not Working**
+   - Check that volume mounts are working correctly
+   - Verify that the appropriate development target is used in docker-compose.yml 

@@ -1,4 +1,4 @@
-from fastapi import FastAPI, UploadFile, File, HTTPException, Request
+from fastapi import FastAPI, UploadFile, File, HTTPException, Request, Form
 from fastapi.middleware.cors import CORSMiddleware
 import httpx
 import os
@@ -6,6 +6,8 @@ import logging
 import traceback
 import time
 import uuid
+from typing import Optional
+from io import BytesIO
 
 # Configure logging with level from environment variable
 log_level_name = os.getenv("LOG_LEVEL", "INFO")
@@ -83,7 +85,9 @@ async def log_requests(request: Request, call_next):
                             "service": "api_gateway",
                             "endpoints": {
                                 "interview_analysis": {
-                                    "analyze": "/api/interview_analysis/analyze"
+                                    "analyze": "/api/interview_analysis/analyze",
+                                    "interviews": "/api/interview_analysis/interviews",
+                                    "interview_detail": "/api/interview_analysis/interviews/{interview_id}"
                                 },
                                 "sprint1_deprecated": {
                                     "preprocess": "/api/sprint1_deprecated/preprocess",
@@ -104,7 +108,9 @@ async def root():
         "service": "api_gateway",
         "endpoints": {
             "interview_analysis": {
-                "analyze": "/api/interview_analysis/analyze"
+                "analyze": "/api/interview_analysis/analyze",
+                "interviews": "/api/interview_analysis/interviews",
+                "interview_detail": "/api/interview_analysis/interviews/{interview_id}"
             },
             "sprint1_deprecated": {
                 "preprocess": "/api/sprint1_deprecated/preprocess",
@@ -116,143 +122,53 @@ async def root():
 
 @app.post("/api/interview_analysis/analyze",
          summary="Analyze an interview transcript",
-         description="Upload a VTT file to analyze an interview transcript and extract key insights.",
-         responses={
-             200: {
-                 "description": "Successfully analyzed interview",
-                 "content": {
-                     "application/json": {
-                         "example": {
-                             "status": "success",
-                             "message": "Interview analysis completed successfully",
-                             "data": {
-                                 "problem_areas": [
-                                     {
-                                         "problem_id": "example-problem",
-                                         "title": "Example Problem Title",
-                                         "description": "Problem description here",
-                                         "excerpts": [
-                                             {
-                                                 "text": "Quote from transcript",
-                                                 "categories": ["Pain Point"],
-                                                 "insight_summary": "Brief insight",
-                                                 "chunk_number": 42
-                                             }
-                                         ]
-                                     }
-                                 ],
-                                 "synthesis": "The interview revealed several key challenges in the current workflow...",
-                                 "metadata": {
-                                     "transcript_length": 1000,
-                                     "problem_areas_count": 3,
-                                     "excerpts_count": 9,
-                                     "total_chunks": 50
-                                 },
-                                 "transcript": [
-                                     {
-                                         "chunk_number": 42,
-                                         "speaker": "Participant",
-                                         "text": "Quote from transcript"
-                                     }
-                                 ]
-                             }
-                         }
-                     }
-                 }
-             },
-             400: {
-                 "description": "Bad Request",
-                 "content": {
-                     "application/json": {
-                         "example": {
-                             "status": "error",
-                             "message": "Invalid file format. Only .vtt files are accepted"
-                         }
-                     }
-                 }
-             },
-             503: {
-                 "description": "Service Unavailable",
-                 "content": {
-                     "application/json": {
-                         "example": {
-                             "status": "error",
-                             "message": "Cannot connect to analysis service"
-                         }
-                     }
-                 }
-             },
-             504: {
-                 "description": "Gateway Timeout",
-                 "content": {
-                     "application/json": {
-                         "example": {
-                             "status": "error",
-                             "message": "Analysis service timeout"
-                         }
-                     }
-                 }
-             },
-             500: {
-                 "description": "Internal Server Error",
-                 "content": {
-                     "application/json": {
-                         "example": {
-                             "status": "error",
-                             "message": "Gateway error: [error details]"
-                         }
-                     }
-                 }
-             }
-         })
-async def analyze_transcript(file: UploadFile = File(...)):
-    """Forward synthesis request to interview analysis service."""
+         description="Upload a VTT file to analyze an interview transcript and extract key insights.")
+async def analyze_interview(
+    file: UploadFile = File(...),
+    project_id: Optional[str] = Form(None),
+    interviewer: Optional[str] = Form(None),
+    interview_date: Optional[str] = Form(None)
+):
+    """Forward analyze transcript request to interview analysis service."""
     try:
-        # Create form data to forward
-        content = await file.read()
+        # Read file content
+        file_content = await file.read()
         
-        # Log file information
-        logger.info(f"Forwarding file: {file.filename}, size: {len(content)} bytes, content-type: {file.content_type}")
+        # Prepare files and form data for httpx
+        files = {"file": (file.filename, file_content, file.content_type)}
         
-        # Create form for the forward request
-        form = {"file": (file.filename, content, file.content_type)}
+        # Prepare form data
+        form_data = {}
+        if project_id:
+            form_data["project_id"] = project_id
+        if interviewer:
+            form_data["interviewer"] = interviewer
+        if interview_date:
+            form_data["interview_date"] = interview_date
         
         # Forward to interview analysis service
-        logger.info(f"Sending request to {INTERVIEW_ANALYSIS_URL}/api/interview_analysis/analyze")
         response = await http_client.post(
             f"{INTERVIEW_ANALYSIS_URL}/api/interview_analysis/analyze",
-            files=form,
-            timeout=60.0  # Increase timeout for large files
+            files=files,
+            data=form_data
         )
         
-        # Log the response status
-        logger.info(f"Interview analysis service response status: {response.status_code}")
-        
-        # Check if response is successful using status_code, not the 'ok' attribute
+        # Check if response is successful
         if response.status_code < 200 or response.status_code >= 300:
             error_text = response.text
-            logger.error(f"Error response from analysis service: {error_text}")
-            raise HTTPException(status_code=response.status_code, detail=f"Analysis service error: {error_text}")
+            logger.error(f"Error response from interview analysis service: {error_text}")
+            raise HTTPException(status_code=response.status_code, detail=f"Interview analysis service error: {error_text}")
         
-        # Parse the response as JSON
-        try:
-            result = response.json()
-            logger.info("Successfully received and parsed JSON response")
-            return result
-        except Exception as json_err:
-            logger.error(f"Failed to parse JSON response: {str(json_err)}")
-            raw_response = response.text
-            logger.error(f"Raw response: {raw_response[:1000]}...")  # Log first 1000 chars
-            raise HTTPException(status_code=500, detail=f"Failed to parse service response: {str(json_err)}")
-            
+        # Return the JSON response
+        return response.json()
     except httpx.TimeoutException:
-        logger.error("Timeout while connecting to analysis service")
-        raise HTTPException(status_code=504, detail="Analysis service timeout")
+        logger.error("Timeout while connecting to interview analysis service")
+        raise HTTPException(status_code=504, detail="Interview analysis service timeout")
     except httpx.ConnectError as e:
-        logger.error(f"Connection error to analysis service: {str(e)}")
-        raise HTTPException(status_code=503, detail=f"Cannot connect to analysis service: {str(e)}")
+        logger.error(f"Connection error to interview analysis service: {str(e)}")
+        raise HTTPException(status_code=503, detail=f"Cannot connect to interview analysis service: {str(e)}")
     except Exception as e:
-        logger.error(f"Error forwarding to analysis service: {str(e)}", exc_info=True)
+        logger.error(f"Error forwarding to interview analysis service: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Gateway error: {str(e)}")
 
 @app.post("/api/sprint1_deprecated/keywords",

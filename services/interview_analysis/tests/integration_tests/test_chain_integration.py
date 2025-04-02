@@ -1,197 +1,119 @@
 """
 Integration tests for the analysis chain components.
 
-These tests verify the integration between different chain components (problem, excerpt, synthesis)
+These tests verify the integration between different chain components
 and their prompt templates. Tests ensure proper variable handling and chain communication.
 """
 import pytest
 import json
 from unittest.mock import patch, AsyncMock, MagicMock, mock_open, Mock
-from app.utils.analysis_chain.chain import SynthesisChain
-from app.utils.analysis_chain.prompts import PROBLEM_PROMPT, EXCERPT_PROMPT, SYNTHESIS_PROMPT
-from langchain_core.output_parsers import JsonOutputParser
+from app.services.analysis.llm_chains.chain import GeminiAnalysisChain
+from app.config.api_config import APIConfig
 
-
-def mock_llm_for_chain(chain, response_content):
+def mock_gemini_response(response_content):
     """
-    Helper function to mock LLM responses in a chain.
+    Helper function to mock Gemini responses.
     
     Args:
-        chain: The chain instance to mock
         response_content: Content to return in mock responses
     
     Returns:
-        None, but modifies the chain's LLM to return mock responses
+        A mocked response object
     """
-    # Create a mock for the LLM's invoke method that returns the provided content
     mock_response = Mock()
-    mock_response.content = response_content
-    
-    # Replace the LLM's invoke method with our mock
-    chain.llm.invoke = MagicMock(return_value=mock_response)
-    
-    # Also create an async version for ainvoke
-    async def mock_ainvoke(*args, **kwargs):
-        return mock_response
-    
-    chain.llm.ainvoke = AsyncMock(side_effect=mock_ainvoke)
+    mock_response.text = json.dumps(response_content) if isinstance(response_content, dict) else response_content
+    return mock_response
 
 
 @pytest.mark.asyncio
 @pytest.mark.integration
-async def test_problem_prompt_format():
+@patch('google.generativeai.GenerativeModel')
+async def test_analysis_chain_integration(mock_model_class):
     """
-    Test problem prompt template integration with chain.
+    Test integration of analysis chain.
     
     Test Steps:
-        1. Verify prompt template variables
-        2. Create chain with mocked components
-        3. Test problem area extraction
-        4. Validate response structure
+        1. Create chain with mocked Gemini model
+        2. Test analysis with sample transcript
+        3. Validate response structure
     """
-    # This tests if the template variables in PROBLEM_PROMPT are properly defined
-    variables = PROBLEM_PROMPT.input_variables
+    # Create a mock for the Gemini model
+    mock_model = MagicMock()
+    mock_model_class.return_value = mock_model
     
-    # The prompt should expect transcript as a variable
-    assert 'transcript' in variables
-    
-    # Create a SynthesisChain with properly mocked components
-    with patch('langchain_google_genai.ChatGoogleGenerativeAI'):
-        chain = SynthesisChain("fake_api_key")
-        
-        # Entirely replace the problem_chain with a mock
-        mock_result = {
-            "problem_areas": [
-                {
-                    "problem_id": "p1",
-                    "title": "Infrastructure Scaling",
-                    "description": "Current systems can't handle growth"
-                }
-            ]
-        }
-        
-        chain.problem_chain = AsyncMock()
-        chain.problem_chain.ainvoke.return_value = mock_result
-        
-        # Test that it processes a transcript correctly
-        transcript = "This is a test transcript"
-        result = await chain.extract_problem_areas(transcript)
-        
-        # Verify it was properly parsed
-        assert "problem_areas" in result
-        assert len(result["problem_areas"]) > 0
-        assert chain.problem_chain.ainvoke.called
-
-
-@pytest.mark.asyncio
-@pytest.mark.integration
-async def test_excerpt_prompt_format():
-    """
-    Test excerpt prompt template integration with chain.
-    
-    Test Steps:
-        1. Verify prompt template variables
-        2. Create chain with mocked components
-        3. Test excerpt extraction with sample data
-        4. Validate chain invocation and response
-    """
-    # This tests if the template variables in EXCERPT_PROMPT are properly defined
-    variables = EXCERPT_PROMPT.input_variables
-    
-    # The prompt should expect transcript, problem_areas, and max_chunk_number
-    assert 'transcript' in variables
-    assert 'problem_areas' in variables
-    assert 'max_chunk_number' in variables
-    
-    # Create a SynthesisChain with properly mocked components
-    with patch('langchain_google_genai.ChatGoogleGenerativeAI'):
-        chain = SynthesisChain("fake_api_key")
-        
-        # Entirely replace the excerpt_chain with a mock
-        mock_result = {
-            "problem_areas": [
-                {
-                    "problem_id": "p1",
-                    "excerpts": [
-                        {
-                            "quote": "Sample excerpt",
-                            "categories": ["Pain Point"],
-                            "insight": "Sample insight",
-                            "chunk_number": 1
-                        }
-                    ]
-                }
-            ]
-        }
-        
-        chain.excerpt_chain = AsyncMock()
-        chain.excerpt_chain.ainvoke.return_value = mock_result
-        
-        # Test excerpt chain
-        transcript_data = {
-            "chunks": [{"number": 1, "text": "Sample text"}],
-            "max_chunk": 1
-        }
-        
-        problem_areas = {
-            "problem_areas": [{
+    # Mock response for generate_content
+    mock_result = {
+        "problem_areas": [
+            {
                 "problem_id": "p1",
-                "title": "Test Problem",
-                "description": "Test description"
-            }]
+                "title": "Infrastructure Scaling",
+                "description": "Current systems can't handle growth",
+                "excerpts": [
+                    {
+                        "text": "Our main issue is scaling",
+                        "categories": ["Technical"],
+                        "insight_summary": "Scaling challenges",
+                        "chunk_number": 1
+                    }
+                ]
+            }
+        ],
+        "synthesis": {
+            "background": "Technical discussion",
+            "problem_areas": ["Infrastructure scaling"],
+            "next_steps": ["Evaluate solutions"]
         }
-        
-        # Should not raise any errors about missing variables
-        result = await chain.extract_excerpts(transcript_data, problem_areas)
-        
-        assert "problem_areas" in result
-        assert len(result["problem_areas"]) > 0
-        assert chain.excerpt_chain.ainvoke.called
+    }
+    
+    mock_response = mock_gemini_response(mock_result)
+    mock_model.generate_content.return_value = mock_response
+    
+    # Create the chain
+    chain = GeminiAnalysisChain(model_name="gemini-2.0-flash")
+    chain.model = mock_model
+    
+    # Test analysis with a transcript
+    transcript = "[Interviewer] (Chunk 1): What's your biggest challenge?\n[Interviewee] (Chunk 2): Our main issue is scaling."
+    
+    # Run the analysis
+    result = await chain.run_analysis(transcript)
+    
+    # Verify response format
+    assert "problem_areas" in result
+    assert "synthesis" in result
+    assert len(result["problem_areas"]) > 0
+    assert result["problem_areas"][0]["title"] == "Infrastructure Scaling"
+    assert mock_model.generate_content.called
 
 
 @pytest.mark.asyncio
 @pytest.mark.integration
-async def test_synthesis_prompt_format():
+@patch('google.generativeai.GenerativeModel')
+async def test_chain_error_handling(mock_model_class):
     """
-    Test synthesis prompt template integration with chain.
+    Test error handling in the analysis chain.
     
     Test Steps:
-        1. Verify prompt template variables
-        2. Create chain with mocked components
-        3. Test synthesis generation
-        4. Validate synthesis output format
+        1. Create chain with mocked Gemini model that raises an exception
+        2. Verify error handling when model fails
     """
-    # This tests if the template variables in SYNTHESIS_PROMPT are properly defined
-    variables = SYNTHESIS_PROMPT.input_variables
+    # Create a mock for the Gemini model
+    mock_model = MagicMock()
+    mock_model_class.return_value = mock_model
     
-    # The prompt should expect 'analyzed_content' as a variable
-    assert 'analyzed_content' in variables
+    # Mock response to raise an exception
+    mock_model.generate_content.side_effect = ValueError("API error")
     
-    # Create a SynthesisChain with properly mocked components
-    with patch('langchain_google_genai.ChatGoogleGenerativeAI'):
-        chain = SynthesisChain("fake_api_key")
-        
-        # Entirely replace the synthesis_chain with a mock
-        mock_result = {
-            "synthesis": "Test synthesis about the identified problems and their implications."
-        }
-        
-        chain.synthesis_chain = AsyncMock()
-        chain.synthesis_chain.ainvoke.return_value = mock_result
-        
-        # Test synthesis chain
-        analyzed_content = {
-            "problem_areas": [{
-                "problem_id": "p1",
-                "title": "Test Problem",
-                "description": "Test description",
-                "excerpts": []
-            }]
-        }
-        
-        # Should not raise any errors about missing variables
-        result = await chain.generate_synthesis(analyzed_content)
-        
-        assert "synthesis" in result
-        assert isinstance(result["synthesis"], str)
-        assert chain.synthesis_chain.ainvoke.called 
+    # Create chain
+    chain = GeminiAnalysisChain(model_name="gemini-2.0-flash")
+    chain.model = mock_model
+    
+    # Test with a transcript
+    transcript = "[Interviewer] (Chunk 1): What's your biggest challenge?\n[Interviewee] (Chunk 2): Our main issue is scaling."
+    
+    # Run analysis and expect an error
+    with pytest.raises(ValueError) as excinfo:
+        await chain.run_analysis(transcript)
+    
+    assert "Analysis chain failed" in str(excinfo.value)
+    assert mock_model.generate_content.called 

@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import Link from "next/link"
 import { CardDescription } from "@/components/ui/card"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -11,13 +11,13 @@ import { Progress } from "@/components/ui/progress"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { BarChart, PieChart, LineChart } from "@/components/ui/chart"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { BarChart2, Users, Zap, Upload, ArrowRight } from "lucide-react"
+import { BarChart2, Users, Zap, Upload, ArrowRight, RefreshCw } from "lucide-react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
 import { useRouter } from 'next/navigation'
-import { analyzeTranscript } from '@/lib/api'
+import { analyzeTranscript, getInterviews, Interview } from '@/lib/api'
 import { toast } from 'sonner'
 
 export default function Home() {
@@ -30,6 +30,30 @@ export default function Home() {
     // Use a stable date string that won't change between server and client
     return new Date().toISOString().slice(0, 16) // Format: "YYYY-MM-DDTHH:mm"
   })
+  const [interviews, setInterviews] = useState<Interview[]>([])
+  const [isLoadingInterviews, setIsLoadingInterviews] = useState(false)
+
+  // Load interviews on component mount
+  useEffect(() => {
+    fetchInterviews()
+  }, [])
+
+  const fetchInterviews = async () => {
+    setIsLoadingInterviews(true)
+    try {
+      const response = await getInterviews(5, 0) // Get the 5 most recent interviews
+      if (response.status === 'success' && response.data.interviews) {
+        setInterviews(response.data.interviews)
+      } else {
+        console.error('Failed to fetch interviews:', response)
+      }
+    } catch (error) {
+      console.error('Error fetching interviews:', error)
+      // Don't show a toast here as it might be confusing when the app first loads
+    } finally {
+      setIsLoadingInterviews(false)
+    }
+  }
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
@@ -64,6 +88,10 @@ export default function Home() {
       // Store the analysis result and navigate immediately
       localStorage.setItem('interviewAnalysis', JSON.stringify(result.data))
       toast.success('Analysis complete', { id: 'analysis' })
+      
+      // Refresh the interviews list after successful analysis
+      fetchInterviews()
+      
       router.push('/interview-analysis')
       
     } catch (error) {
@@ -82,6 +110,20 @@ export default function Home() {
       console.error('Analysis error:', error)
     } finally {
       setIsAnalyzing(false)
+    }
+  }
+
+  // Function to format date to a human-readable format
+  const formatDate = (dateString: string) => {
+    try {
+      const date = new Date(dateString)
+      return date.toLocaleDateString('en-US', { 
+        year: 'numeric', 
+        month: 'short', 
+        day: 'numeric'
+      })
+    } catch (e) {
+      return 'Unknown date'
     }
   }
 
@@ -258,31 +300,53 @@ export default function Home() {
         </Card>
       </div>
 
-      {/* Recent Interviews section remains unchanged */}
+      {/* Recent Interviews section - modified to use real data */}
       <Card>
-        <CardHeader>
-          <CardTitle>Recent Interviews</CardTitle>
-          <CardDescription>Latest user interviews and their key insights</CardDescription>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <div>
+            <CardTitle>Recent Interviews</CardTitle>
+            <CardDescription>Latest user interviews and their key insights</CardDescription>
+          </div>
+          <Button variant="ghost" onClick={fetchInterviews} disabled={isLoadingInterviews}>
+            <RefreshCw className={`h-4 w-4 mr-2 ${isLoadingInterviews ? 'animate-spin' : ''}`} />
+            Refresh
+          </Button>
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
-            {[1, 2, 3].map((interview) => (
-              <div key={interview} className="flex items-center space-x-4">
-                <Avatar>
-                  <AvatarImage src={`/placeholder.svg?height=40&width=40`} alt="User" />
-                  <AvatarFallback>U{interview}</AvatarFallback>
-                </Avatar>
-                <div className="flex-1 space-y-1">
-                  <p className="text-sm font-medium leading-none">User Interview {interview}</p>
-                  <p className="text-sm text-muted-foreground">Conducted on 2024-03-26</p>
-                </div>
-                <Link href="/interview" className="no-underline">
-                  <Button variant="ghost">
-                    View Details <ArrowRight className="ml-2 h-4 w-4" />
-                  </Button>
-                </Link>
+            {isLoadingInterviews ? (
+              <div className="flex items-center justify-center py-8">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
               </div>
-            ))}
+            ) : interviews.length > 0 ? (
+              interviews.map((interview) => (
+                <div key={interview.id} className="flex items-center space-x-4">
+                  <Avatar>
+                    <AvatarImage src={`/placeholder.svg?height=40&width=40`} alt="User" />
+                    <AvatarFallback>{interview.title?.charAt(0) || 'I'}</AvatarFallback>
+                  </Avatar>
+                  <div className="flex-1 space-y-1">
+                    <p className="text-sm font-medium leading-none">{interview.title || 'Untitled Interview'}</p>
+                    <p className="text-sm text-muted-foreground">
+                      Conducted on {interview.interview_date ? formatDate(interview.interview_date) : formatDate(interview.created_at)}
+                      {interview.interviewer && ` by ${interview.interviewer}`}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {interview.problem_count} problem areas, {interview.transcript_length} transcript chunks
+                    </p>
+                  </div>
+                  <Link href={`/interview-analysis/${interview.id}`} className="no-underline">
+                    <Button variant="ghost">
+                      View Details <ArrowRight className="ml-2 h-4 w-4" />
+                    </Button>
+                  </Link>
+                </div>
+              ))
+            ) : (
+              <div className="text-center py-8 text-muted-foreground">
+                <p>No interviews found. Upload a transcript to get started.</p>
+              </div>
+            )}
           </div>
         </CardContent>
       </Card>

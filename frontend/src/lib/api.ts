@@ -69,9 +69,40 @@ export interface PreprocessResponse {
   };
 }
 
+// Interview storage types
+export interface Interview {
+  id: string;
+  created_at: string;
+  title: string;
+  problem_count: number;
+  transcript_length: number;
+  analysis_data: any;
+  project_id?: string;
+  interviewer?: string;
+  interview_date?: string;
+}
+
+export interface InterviewsResponse {
+  status: string;
+  message: string;
+  data: {
+    interviews: Interview[];
+    total: number;
+  };
+}
+
+export interface InterviewDetailResponse {
+  status: string;
+  message: string;
+  data: Interview & {
+    analysis_data: any;
+  };
+}
+
 // API Configuration
 export const API_CONFIG = {
   API_URL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000',
+  DATABASE_URL: process.env.NEXT_PUBLIC_DATABASE_URL || 'http://localhost:5001',
   ENDPOINTS: {
     INTERVIEW_ANALYSIS: {
       ANALYZE: '/api/interview_analysis/analyze'
@@ -155,4 +186,83 @@ export async function extractKeywords(file: File): Promise<KeywordAnalysisRespon
     file,
     'Failed to extract keywords'
   );
+}
+
+// Get interviews from the API
+export async function getInterviews(limit: number = 10, offset: number = 0): Promise<InterviewsResponse> {
+  try {
+    const params = new URLSearchParams({
+      limit: limit.toString(),
+      offset: offset.toString()
+    });
+    
+    // Use local API endpoint that directly connects to the Database Service
+    // Bypassing the Interview Analysis service for more efficient retrieval
+    const response = await fetch(`/api/interviews?${params}`, {
+      method: 'GET',
+      headers: {
+        'Accept': 'application/json'
+      }
+    });
+
+    if (!response.ok) {
+      let errorDetail: string;
+      try {
+        // Try to parse error as JSON first
+        const errorJson = await response.json();
+        errorDetail = JSON.stringify(errorJson);
+      } catch {
+        // If not JSON, get as text
+        errorDetail = await response.text();
+      }
+      
+      throw new Error(`Failed to fetch interviews (${response.status}): ${errorDetail}`);
+    }
+
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    if (error instanceof Error) {
+      throw error;
+    }
+    // Handle non-Error throws
+    throw new Error('Failed to fetch interviews');
+  }
+}
+
+// Get a specific interview by ID
+export async function getInterviewById(id: string): Promise<InterviewDetailResponse> {
+  try {
+    // Use local API endpoint that directly connects to the Database Service
+    // Bypassing the Interview Analysis service for more efficient retrieval
+    const response = await fetch(`/api/interviews/${id}`, {
+      method: 'GET',
+      headers: {
+        'Accept': 'application/json'
+      }
+    });
+
+    if (!response.ok) {
+      let errorDetail: string;
+      try {
+        // Try to parse error as JSON first
+        const errorJson = await response.json();
+        errorDetail = JSON.stringify(errorJson);
+      } catch {
+        // If not JSON, get as text
+        errorDetail = await response.text();
+      }
+      
+      throw new Error(`Failed to fetch interview (${response.status}): ${errorDetail}`);
+    }
+
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    if (error instanceof Error) {
+      throw error;
+    }
+    // Handle non-Error throws
+    throw new Error('Failed to fetch interview');
+  }
 } 

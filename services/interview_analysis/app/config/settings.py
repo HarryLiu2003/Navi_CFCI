@@ -14,6 +14,9 @@ class Settings(BaseSettings):
     # CORS Configuration
     CORS_ORIGINS: list = ["http://localhost:3000"]
     
+    # Database Configuration
+    DATABASE_API_URL: str = os.getenv("DATABASE_API_URL", "http://localhost:5001")
+    
     # Logging Configuration
     LOG_LEVEL: str = os.getenv("LOG_LEVEL", "INFO")
     

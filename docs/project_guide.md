@@ -10,53 +10,9 @@ Navi CFCI is an interview analysis platform that processes interview transcripts
 - Identifies key themes, pain points, and insights
 - Visualizes findings for product and UX teams
 
-## Getting Started
+## Architecture
 
-### Quick Setup
-
-```bash
-# Clone the repository
-git clone [repository-url]
-cd Navi_CFCI
-
-# Set up environment files
-cp .env.example .env
-cp services/api_gateway/.env.example services/api_gateway/.env
-cp services/interview_analysis/.env.example services/interview_analysis/.env
-cp services/sprint1_deprecated/.env.example services/sprint1_deprecated/.env
-cp frontend/.env.example frontend/.env
-
-# Add required API keys to service .env files
-# Add Gemini API key to services/interview_analysis/.env
-# Add OpenAI API key to services/sprint1_deprecated/.env
-
-# Start the development environment
-docker compose up
-```
-
-Access the applications:
-- Frontend: http://localhost:3000
-- API Gateway: http://localhost:8000
-- API Documentation: http://localhost:8000/docs
-
-## Documentation Structure
-
-Our documentation is organized into focused guides for different aspects of the project:
-
-1. [**Architecture Guide**](architecture.md) - System design and component interaction
-2. [**Development Guide**](../DEVELOPMENT.md) - Local development workflow and environment setup
-3. [**Testing Guide**](testing.md) - Testing approaches and practices
-4. [**Deployment Guide**](deployment.md) - Production deployment instructions
-
-### Documentation Flow
-
-- Start with this Project Guide for an overview
-- Refer to the Architecture Guide to understand how components interact
-- Use the Development Guide for day-to-day development tasks
-- Consult the Testing Guide when writing or running tests
-- Reference the Deployment Guide when ready to deploy
-
-## Service Dependencies
+### Service Dependencies
 
 The Navi CFCI project consists of multiple microservices with the following dependencies:
 
@@ -84,10 +40,29 @@ The Navi CFCI project consists of multiple microservices with the following depe
 +-------------+  +-------------+
 ```
 
+### Components
+
 - **Frontend**: Next.js application that depends on the API Gateway
 - **API Gateway**: Routes requests to the appropriate backend service
 - **Interview Analysis**: Provides transcript analysis with Gemini AI
 - **Sprint1 Deprecated**: Legacy functionality for backward compatibility
+
+### Deployment Architecture
+
+#### Development Environment
+- All services run in Docker containers
+- Frontend connects to both API Gateway and Database Service
+- Database Service connects to PostgreSQL container
+- **URL Configuration**:
+  - Browser access uses `localhost` ports (e.g., http://localhost:3000)
+  - Service-to-service communication uses Docker service names (e.g., http://database:5001)
+  - Environment variables handle the routing automatically
+
+#### Production Environment
+- Frontend deployed to Vercel
+- Backend services deployed to Google Cloud Run
+- Database Service deployed as a separate service on Cloud Run
+- PostgreSQL hosted as a managed service (Cloud SQL or Supabase)
 
 ## Environment Variables
 
@@ -110,6 +85,22 @@ Critical environment variables needed for each service:
   ```
   OPENAI_API_KEY=your-api-key-here
   ```
+
+## Documentation Structure
+
+Our documentation is organized into focused guides for different aspects of the project:
+
+1. [**Development Guide**](../DEVELOPMENT.md) - Local development workflow and environment setup
+2. [**Testing Guide**](testing.md) - Testing approaches and practices
+3. [**Deployment Guide**](deployment.md) - Production deployment instructions
+4. [**Data Storage Guide**](data_storage.md) - Data storage best practices
+
+### Documentation Flow
+
+- Start with this Project Guide for an overview
+- Use the Development Guide for day-to-day development tasks
+- Consult the Testing Guide when writing or running tests
+- Reference the Deployment Guide when ready to deploy
 
 ## Development Workflow
 

@@ -49,12 +49,13 @@ class APIResponse:
         }
     
     @staticmethod
-    def error(message: str, detail: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+    def error(message: str, status_code: int = 500, detail: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         """
         Create a standardized error response.
         
         Args:
             message: Error message
+            status_code: HTTP status code (default: 500)
             detail: Optional error details
             
         Returns:

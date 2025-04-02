@@ -1,0 +1,22 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model Interview {
+  id               String    @id @default(uuid())
+  created_at       DateTime  @default(now())
+  title            String
+  problem_count    Int
+  transcript_length Int
+  analysis_data    Json
+  project_id       String?
+  interviewer      String?
+  interview_date   DateTime?
+
+  @@map("interviews")
+} 
