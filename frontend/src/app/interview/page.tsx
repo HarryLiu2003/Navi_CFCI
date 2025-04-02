@@ -190,16 +190,14 @@ export default function InterviewPage() {
           <CardContent>
             <div className="space-y-4">
               {interviewData.keyDemands.map((demand) => (
-                <Link href="/key-feature" key={demand.id} passHref>
-                  <Card className="w-full cursor-pointer hover:bg-muted transition-colors">
-                    <CardHeader className="pb-2">
-                      <CardTitle className="text-lg">{demand.title}</CardTitle>
-                    </CardHeader>
-                    <CardContent className="pt-0">
-                      <p>{demand.description}</p>
-                    </CardContent>
-                  </Card>
-                </Link>
+                <Card className="w-full cursor-pointer hover:bg-muted transition-colors">
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-lg">{demand.title}</CardTitle>
+                  </CardHeader>
+                  <CardContent className="pt-0">
+                    <p>{demand.description}</p>
+                  </CardContent>
+                </Card>
               ))}
             </div>
           </CardContent>
