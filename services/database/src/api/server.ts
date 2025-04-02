@@ -38,20 +38,21 @@ app.use(cors({
 
 app.use(json());
 
-// API Routes
+// Health check endpoint
 app.get('/', (req: Request, res: Response) => {
   res.json({
     status: 'success',
     message: 'Database API is running',
-    version: '1.0.0'
+    version: '1.0.0',
+    timestamp: new Date().toISOString()
   });
 });
 
 // Get all interviews with pagination
 app.get('/interviews', async (req: Request, res: Response) => {
   try {
-    const limit = parseInt(req.query.limit as string) || 10;
-    const offset = parseInt(req.query.offset as string) || 0;
+    const limit = Math.min(parseInt(req.query.limit as string) || 10, 100);
+    const offset = Math.max(parseInt(req.query.offset as string) || 0, 0);
     
     // Get both interviews and count in parallel for better performance
     const [interviews, total] = await Promise.all([
@@ -68,14 +69,18 @@ app.get('/interviews', async (req: Request, res: Response) => {
       message: 'Interviews retrieved successfully',
       data: { 
         interviews,
-        total
+        total,
+        limit,
+        offset,
+        hasMore: offset + interviews.length < total
       }
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error retrieving interviews:', error);
     res.status(500).json({
       status: 'error',
-      message: 'Failed to retrieve interviews'
+      message: 'Failed to retrieve interviews',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
     });
   }
 });
@@ -97,11 +102,12 @@ app.get('/interviews/:id', async (req: Request, res: Response) => {
       message: 'Interview retrieved successfully',
       data: interview
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error(`Error retrieving interview ${req.params.id}:`, error);
     res.status(500).json({
       status: 'error',
-      message: 'Failed to retrieve interview'
+      message: 'Failed to retrieve interview',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
     });
   }
 });
@@ -115,7 +121,8 @@ app.post('/interviews', async (req: Request, res: Response) => {
     if (!title || problem_count === undefined || transcript_length === undefined || !analysis_data) {
       return res.status(400).json({
         status: 'error',
-        message: 'Missing required fields'
+        message: 'Missing required fields',
+        required: ['title', 'problem_count', 'transcript_length', 'analysis_data']
       });
     }
     
@@ -126,11 +133,12 @@ app.post('/interviews', async (req: Request, res: Response) => {
       message: 'Interview created successfully',
       data: interview
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error creating interview:', error);
     res.status(500).json({
       status: 'error',
-      message: 'Failed to create interview'
+      message: 'Failed to create interview',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
     });
   }
 });
@@ -156,11 +164,12 @@ app.put('/interviews/:id', async (req: Request, res: Response) => {
       message: 'Interview updated successfully',
       data: updatedInterview
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error(`Error updating interview ${req.params.id}:`, error);
     res.status(500).json({
       status: 'error',
-      message: 'Failed to update interview'
+      message: 'Failed to update interview',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
     });
   }
 });
@@ -185,13 +194,24 @@ app.delete('/interviews/:id', async (req: Request, res: Response) => {
       status: 'success',
       message: 'Interview deleted successfully'
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error(`Error deleting interview ${req.params.id}:`, error);
     res.status(500).json({
       status: 'error',
-      message: 'Failed to delete interview'
+      message: 'Failed to delete interview',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
     });
   }
+});
+
+// Error handling middleware
+app.use((err: Error, req: Request, res: Response, next: Function) => {
+  console.error('Unhandled error:', err);
+  res.status(500).json({
+    status: 'error',
+    message: 'Internal server error',
+    error: process.env.NODE_ENV === 'development' ? err.message : undefined
+  });
 });
 
 // Start the server

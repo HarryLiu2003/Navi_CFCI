@@ -26,10 +26,6 @@ export default function Home() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const [selectedProject, setSelectedProject] = useState("")
   const [isAnalyzing, setIsAnalyzing] = useState(false)
-  const [interviewTime, setInterviewTime] = useState(() => {
-    // Use a stable date string that won't change between server and client
-    return new Date().toISOString().slice(0, 16) // Format: "YYYY-MM-DDTHH:mm"
-  })
   const [interviews, setInterviews] = useState<Interview[]>([])
   const [isLoadingInterviews, setIsLoadingInterviews] = useState(false)
 
@@ -92,7 +88,14 @@ export default function Home() {
       // Refresh the interviews list after successful analysis
       fetchInterviews()
       
-      router.push('/interview-analysis')
+      // Check if we have the interview ID in the storage data
+      if (result.data.storage && result.data.storage.id) {
+        // Navigate to the specific interview page using the ID
+        router.push(`/interview-analysis/${result.data.storage.id}`)
+      } else {
+        // Fallback to the main interview analysis page if ID is not available
+        router.push('/interview-analysis')
+      }
       
     } catch (error) {
       // Extract the error message
@@ -129,48 +132,45 @@ export default function Home() {
 
   return (
     <div className="container mx-auto p-6 space-y-6">
-      {/* Header section */}
-      <header className="flex justify-between items-center">
-        <h1 className="text-3xl font-bold flex items-baseline">
-          <span className="font-serif italic mr-2">Navi</span>
-          <span className="font-sans">
-            <span className="font-extrabold">Product</span>
-            <span className="font-light">Force</span>
-          </span>
-        </h1>
+      <header className="flex items-center justify-between">
+        <h1 className="text-3xl font-bold">Dashboard</h1>
         <Dialog>
           <DialogTrigger asChild>
             <Button>
-              <Upload className="mr-2 h-4 w-4" /> Upload New Transcript
+              <Upload className="mr-2 h-4 w-4" /> Upload Transcript
             </Button>
           </DialogTrigger>
           <DialogContent className="sm:max-w-[425px]">
             <DialogHeader>
-              <DialogTitle>Upload New Transcript</DialogTitle>
+              <DialogTitle>Upload Interview Transcript</DialogTitle>
             </DialogHeader>
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="file">Transcript File</Label>
+                <Label htmlFor="file">VTT Transcript File</Label>
                 <Input
                   id="file"
                   type="file"
                   accept=".vtt"
                   onChange={handleFileChange}
-                  required
                   disabled={isAnalyzing}
+                  required
                 />
+                <p className="text-sm text-muted-foreground">
+                  Upload a VTT format transcript file for analysis.
+                </p>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="project">Project</Label>
+                <Label htmlFor="project">Project (Optional)</Label>
                 <Select
-                  disabled={isAnalyzing}
                   value={selectedProject}
                   onValueChange={setSelectedProject}
+                  disabled={isAnalyzing}
                 >
-                  <SelectTrigger>
+                  <SelectTrigger id="project">
                     <SelectValue placeholder="Select a project" />
                   </SelectTrigger>
                   <SelectContent>
+                    <SelectItem value="none">None</SelectItem>
                     {projects.map((project) => (
                       <SelectItem key={project.id} value={project.id.toString()}>
                         Project {project.id}
@@ -178,16 +178,6 @@ export default function Home() {
                     ))}
                   </SelectContent>
                 </Select>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="time">Interview Time</Label>
-                <Input
-                  id="time"
-                  type="datetime-local"
-                  value={interviewTime}
-                  onChange={(e) => setInterviewTime(e.target.value)}
-                  disabled={isAnalyzing}
-                />
               </div>
               <Button type="submit" className="w-full" disabled={isAnalyzing}>
                 {isAnalyzing ? (
@@ -328,7 +318,7 @@ export default function Home() {
                   <div className="flex-1 space-y-1">
                     <p className="text-sm font-medium leading-none">{interview.title || 'Untitled Interview'}</p>
                     <p className="text-sm text-muted-foreground">
-                      Conducted on {interview.interview_date ? formatDate(interview.interview_date) : formatDate(interview.created_at)}
+                      Uploaded on {formatDate(interview.created_at)}
                       {interview.interviewer && ` by ${interview.interviewer}`}
                     </p>
                     <p className="text-xs text-muted-foreground">

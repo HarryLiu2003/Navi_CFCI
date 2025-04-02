@@ -6,7 +6,7 @@ This service provides a centralized database layer for the Navi CFCI platform us
 
 - TypeScript-based Prisma ORM for database access
 - RESTful API for database operations (available on port 5001)
-- Support for PostgreSQL databases
+- Support for PostgreSQL databases with PgBouncer connection pooling
 - Cross-Origin Resource Sharing (CORS) configuration for multiple environments
 
 ## Port Allocation
@@ -15,6 +15,22 @@ This project follows a port allocation pattern where:
 - Frontend UI services: 3000-3099
 - Backend API services: 8000-8099  
 - Data services: 5000-5099 (database service uses 5001)
+
+## Database Connection
+
+### Prisma with PgBouncer
+
+This service uses Prisma ORM with PgBouncer connection pooling for optimal database performance:
+
+- PgBouncer is configured automatically via connection URL parameters
+- Prepared statements are disabled to ensure compatibility with PgBouncer
+- Connection pooling is handled at the database level for better resource utilization
+- The service automatically adds required parameters to the DATABASE_URL
+
+Example connection URL structure:
+```
+postgresql://postgres.[PROJECT-REF]:[PASSWORD]@aws-0-us-east-1.pooler.supabase.com:6543/postgres
+```
 
 ## Deployment Patterns
 
@@ -110,6 +126,7 @@ The service exposes the following REST API endpoints:
 ### Interviews
 
 - `GET /interviews` - Get all interviews (paginated)
+  - Query parameters: `limit` (default: 10, max: 100), `offset` (default: 0)
 - `GET /interviews/:id` - Get interview by ID
 - `POST /interviews` - Create a new interview
 - `PUT /interviews/:id` - Update an existing interview

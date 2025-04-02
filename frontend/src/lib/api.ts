@@ -8,19 +8,23 @@ export type Chunk = {
 // API Response Types
 export interface AnalysisResponse {
   status: string;
+  message?: string;
   data: {
     problem_areas: Array<{
       problem_id: string;
       title: string;
       description: string;
       excerpts: Array<{
-        text: string;
+        quote?: string;
+        text?: string;
         categories: string[];
-        insight_summary: string;
-        transcript_reference: string;
+        insight?: string;
+        insight_summary?: string;
+        transcript_reference?: string;
+        chunk_number?: number;
       }>;
     }>;
-    synthesis: {
+    synthesis: string | {
       background: string;
       problem_areas: string[];
       next_steps: string[];
@@ -29,6 +33,12 @@ export interface AnalysisResponse {
       transcript_length: number;
       problem_areas_count: number;
       excerpts_count: number;
+      excerpts_total_count?: number;
+    };
+    transcript: Chunk[];
+    storage?: {
+      id: string;
+      created_at: string;
     };
   };
 }

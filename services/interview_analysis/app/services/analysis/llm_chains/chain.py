@@ -134,11 +134,14 @@ class GeminiAnalysisChain:
                     if field not in result:
                         raise ValueError(f"Required field '{field}' missing from response")
                 
-                # Check if each problem area has required fields
-                for problem_area in result.get("problem_areas", []):
-                    # Ensure required fields are present
+                # Check if each problem area has required fields and ensure numerical problem_ids
+                for i, problem_area in enumerate(result.get("problem_areas", []), 1):
+                    # Ensure required fields are present with numerical IDs
                     if "problem_id" not in problem_area:
-                        problem_area["problem_id"] = f"problem-{len(result['problem_areas'])}"
+                        problem_area["problem_id"] = str(i)
+                    # If problem_id exists but not numerical, replace with numerical index
+                    elif not problem_area["problem_id"].isdigit():
+                        problem_area["problem_id"] = str(i)
                     
                     # Make sure excerpts exist
                     if "excerpts" not in problem_area:
