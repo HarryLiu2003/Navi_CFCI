@@ -1,15 +1,15 @@
 """
-Unit tests for the LLM chain components.
+Unit tests for the Gemini analysis pipeline.
 
-These tests verify the functionality of the GeminiAnalysisChain class,
-focusing on prompt creation, response parsing, and error handling.
+These tests verify the functionality of the GeminiAnalysisPipeline class,
+which is responsible for processing interview transcripts using Google's Gemini API.
 """
 import pytest
 import json
 from typing import Dict, Any
 from unittest.mock import patch, AsyncMock, MagicMock
 
-from app.services.analysis.llm_chains.chain import GeminiAnalysisChain
+from app.services.analysis.gemini_pipeline.analysis_pipeline import GeminiAnalysisPipeline
 from app.config.api_config import APIConfig
 
 
@@ -62,15 +62,15 @@ def mock_gemini():
 @pytest.mark.unit
 async def test_chain_initialization():
     """
-    Test GeminiAnalysisChain initialization.
+    Test GeminiAnalysisPipeline initialization.
     
     Test Steps:
-        1. Initialize GeminiAnalysisChain
+        1. Initialize GeminiAnalysisPipeline
         2. Verify model is properly set up
     """
     # Initialize chain with a patch to prevent actual API call
     with patch('google.generativeai.GenerativeModel') as MockModel:
-        chain = GeminiAnalysisChain(model_name="gemini-2.0-flash")
+        chain = GeminiAnalysisPipeline(model_name="gemini-2.0-flash")
         assert chain.model is not None
         
 
@@ -90,7 +90,7 @@ async def test_chain_prompt_creation(sample_transcript):
     """
     # Arrange
     with patch('google.generativeai.GenerativeModel') as MockModel:
-        chain = GeminiAnalysisChain(model_name="gemini-2.0-flash")
+        chain = GeminiAnalysisPipeline(model_name="gemini-2.0-flash")
         
         # Act
         prompt = chain._create_prompt(sample_transcript)
@@ -145,7 +145,7 @@ async def test_parse_response():
 
     # Arrange
     with patch('google.generativeai.GenerativeModel') as MockModel:
-        chain = GeminiAnalysisChain(model_name="gemini-2.0-flash")
+        chain = GeminiAnalysisPipeline(model_name="gemini-2.0-flash")
         
         # Act
         result = chain._parse_response(response_text)
@@ -177,7 +177,7 @@ async def test_parse_malformed_response():
 
     # Arrange
     with patch('google.generativeai.GenerativeModel') as MockModel:
-        chain = GeminiAnalysisChain(model_name="gemini-2.0-flash")
+        chain = GeminiAnalysisPipeline(model_name="gemini-2.0-flash")
         
         # Act
         # This should handle the error and provide a fallback
@@ -218,7 +218,7 @@ async def test_run_analysis_success(mock_model_class, mock_gemini, sample_transc
     mock_gemini.generate_content.return_value = mock_response
     
     # Create chain
-    chain = GeminiAnalysisChain(model_name="gemini-2.0-flash")
+    chain = GeminiAnalysisPipeline(model_name="gemini-2.0-flash")
     chain.model = mock_gemini
     
     # Act
@@ -253,7 +253,7 @@ async def test_run_analysis_error(mock_model_class, mock_gemini, sample_transcri
     mock_gemini.generate_content.side_effect = ValueError("API error")
     
     # Create chain
-    chain = GeminiAnalysisChain(model_name="gemini-2.0-flash")
+    chain = GeminiAnalysisPipeline(model_name="gemini-2.0-flash")
     chain.model = mock_gemini
     
     # Act & Assert

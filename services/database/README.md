@@ -11,9 +11,7 @@ This service provides a centralized database layer for the Navi CFCI platform us
 
 ## Port Allocation
 
-This project follows a port allocation pattern where:
-- Frontend UI services: 3000-3099
-- Backend API services: 8000-8099  
+This service runs on port 5001, following the project's port allocation pattern:
 - Data services: 5000-5099 (database service uses 5001)
 
 ## Database Connection
@@ -32,31 +30,9 @@ Example connection URL structure:
 postgresql://postgres.[PROJECT-REF]:[PASSWORD]@aws-0-us-east-1.pooler.supabase.com:6543/postgres
 ```
 
-## Deployment Patterns
+## Service-Specific CORS Configuration
 
-### Local Development with Docker
-
-For local development, this service runs in a Docker container as defined in the root docker-compose.yml file:
-- The service is accessible to other containers at http://database:5001
-- The service is accessible from the host machine at http://localhost:5001
-- The PostgreSQL database runs in a separate container
-
-### Production Deployment
-
-For production, this service follows the project's deployment pattern:
-1. The frontend is deployed to Vercel
-2. Backend services (including this database service) are deployed to Google Cloud Run
-3. PostgreSQL database is hosted as a managed service (Cloud SQL or Supabase)
-
-Configuration for production deployment:
-- Update the CORS allowed origins in src/api/server.ts with your production domains
-- Deploy the service to Google Cloud Run
-- Configure the DATABASE_URL environment variable to point to your production database
-- Update other services to point to the deployed database service URL
-
-## CORS Configuration
-
-The service includes a robust CORS configuration that supports both development and production environments:
+The service includes a CORS configuration in `src/api/server.ts`:
 
 ```javascript
 const allowedOrigins = [
@@ -141,15 +117,16 @@ The current schema includes:
 ```prisma
 model Interview {
   id               String    @id @default(uuid())
+  created_at       DateTime  @default(now())
   title            String
-  createdAt        DateTime  @default(now()) @map("created_at")
-  updatedAt        DateTime  @updatedAt @map("updated_at")
-  problemCount     Int       @map("problem_count")
-  transcriptLength Int       @map("transcript_length")
-  analysisData     Json      @map("analysis_data")
-  projectId        String?   @map("project_id")
+  problem_count    Int
+  transcript_length Int
+  analysis_data    Json
+  project_id       String?
   interviewer      String?
-  interviewDate    DateTime? @map("interview_date")
+  interview_date   DateTime?
+  user             User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
+  userId           String?
 
   @@map("interviews")
 }

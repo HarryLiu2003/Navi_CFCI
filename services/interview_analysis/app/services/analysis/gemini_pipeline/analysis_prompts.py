@@ -1,5 +1,5 @@
 """
-Prompts for the LLM-based analysis chains.
+Prompts for the Gemini API analysis pipeline.
 """
 
 # System prompt for the Gemini model

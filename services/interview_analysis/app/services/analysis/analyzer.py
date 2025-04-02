@@ -7,7 +7,7 @@ import os
 from typing import Dict, Any, List
 import re
 import json
-from .llm_chains.chain import create_analysis_chain
+from .gemini_pipeline import create_analysis_pipeline
 from ...domain.models import InterviewAnalysis, TranscriptChunk
 from ...utils.errors import AnalysisError, FileProcessingError, ConfigurationError
 
@@ -18,13 +18,13 @@ logger = logging.getLogger(__name__)
 class TranscriptAnalyzer:
     """
     Analyzes interview transcripts to extract key insights and synthesis.
-    Uses LLM-powered chains to process and analyze transcript content.
+    Uses Gemini-powered pipeline to process and analyze transcript content.
     """
     
     def __init__(self):
         """Initialize the transcript analyzer."""
         logger.info("Initializing TranscriptAnalyzer")
-        self.analysis_chain = create_analysis_chain()
+        self.analysis_pipeline = create_analysis_pipeline()
     
     async def analyze_transcript(self, file_content: bytes) -> Dict[str, Any]:
         """
@@ -58,18 +58,18 @@ class TranscriptAnalyzer:
             # Step 2: Format transcript for analysis
             formatted_transcript = self._format_chunks_for_analysis(chunks)
             
-            # Step 3: Run the analysis chain
-            logger.info("Starting analysis with LLM chain")
+            # Step 3: Run the analysis pipeline
+            logger.info("Starting analysis with Gemini pipeline")
             try:
-                if not self.analysis_chain:
-                    logger.error("Analysis chain was not initialized properly")
-                    raise ConfigurationError("Analysis service configuration error: LLM chain not initialized")
+                if not self.analysis_pipeline:
+                    logger.error("Analysis pipeline was not initialized properly")
+                    raise ConfigurationError("Analysis service configuration error: Gemini pipeline not initialized")
                 
-                result = await self.analysis_chain.run_analysis(formatted_transcript)
-                logger.info("Analysis chain completed successfully")
+                result = await self.analysis_pipeline.run_analysis(formatted_transcript)
+                logger.info("Analysis pipeline completed successfully")
                 
             except Exception as e:
-                logger.error(f"Error in analysis chain: {str(e)}")
+                logger.error(f"Error in analysis pipeline: {str(e)}")
                 raise AnalysisError(f"Analysis failed: {str(e)}")
             
             # Step 4: Prepare the complete result
@@ -252,7 +252,7 @@ class TranscriptAnalyzer:
         Process and enrich the synthesis result with transcript details.
         
         Args:
-            result: Raw synthesis result from the LLM
+            result: Raw synthesis result from the Gemini pipeline
             chunks: Transcript chunks for reference
             
         Returns:

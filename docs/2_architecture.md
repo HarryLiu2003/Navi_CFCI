@@ -1,4 +1,4 @@
-# Navi CFCI Architecture
+# 2. Navi CFCI Architecture
 
 This document explains the architecture of the Navi CFCI platform for interview analysis.
 
@@ -39,16 +39,16 @@ This document explains the architecture of the Navi CFCI platform for interview 
 
 ### Interview Analysis Service (FastAPI)
 - Core service for analyzing interview transcripts
-- Uses Google's Gemini AI for advanced analysis
+- Uses Google's Gemini AI for advanced analysis through custom pipeline
 - Extracts problem areas, insights, and creates synthesis
 - Processes VTT (WebVTT) transcript files
-- Implements LangChain for structured AI prompting
+- Implements direct integration with Gemini API using a flexible pipeline architecture
 
 ### Sprint1 Deprecated Service (FastAPI)
 - Legacy service maintained for backward compatibility
 - Handles keyword extraction and basic analysis
 - Provides preprocessing capabilities for transcript formatting
-- Manages transcript summarization using OpenAI
+- Manages transcript summarization using OpenAI GPT-4
 - Supports older API formats
 
 ## Communication Flow
@@ -95,17 +95,19 @@ This document explains the architecture of the Navi CFCI platform for interview 
 ## Technology Stack
 
 - **Frontend**: 
-  - Next.js 15.x with React 18
+  - Next.js 15.1.7 with React 18
   - TypeScript for type safety
   - Tailwind CSS for styling
-  - shadcn/ui component library
+  - Radix UI component primitives
+  - Recharts for data visualization
   - Vercel for hosting
 
 - **Backend**: 
   - FastAPI for API development
   - Python 3.9+
-  - LangChain for LLM integration
-  - Google Gemini and OpenAI for AI processing
+  - Direct integration with AI services:
+    - Google Gemini for Interview Analysis service
+    - OpenAI for legacy Sprint1 service
   - Google Cloud Run for hosting
 
 - **Development**: 

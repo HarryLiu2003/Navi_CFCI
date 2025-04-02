@@ -1,4 +1,4 @@
-# Navi CFCI Project Guide
+# 1. Project Guide for Navi CFCI
 
 Welcome to the Navi CFCI project! This guide serves as the central entry point for developers.
 
@@ -63,7 +63,7 @@ The platform uses NextAuth.js integrated directly in the frontend:
 
 - **Authentication Flow**: Email/password login with JWT token-based sessions
 - **User Management**: Registration, login, and session persistence
-- **Security**: Passwords hashed with PBKDF2 (SHA-512, 100k iterations)
+- **Security**: Passwords hashed and stored in the database
 - **Route Protection**: Middleware-based access control for authenticated routes
 - **Database Integration**: Users and sessions stored in PostgreSQL via Prisma
 
@@ -111,6 +111,7 @@ Critical environment variables needed for each service:
 - **Sprint1 Deprecated**: Requires OpenAI API key
   ```
   OPENAI_API_KEY=your-api-key-here
+  OPENAI_MODEL=gpt-4-0125-preview  # Or other appropriate model
   ```
 
 ## Documentation Structure

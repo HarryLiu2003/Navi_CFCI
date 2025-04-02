@@ -1,4 +1,4 @@
-# Deployment Guide
+# 5. Deployment Guide
 
 This guide explains how to deploy the Navi CFCI project to production using a hybrid cloud approach.
 

@@ -1,4 +1,4 @@
-# Data Storage Best Practices
+# 3. Data Storage Best Practices
 
 This document outlines the data storage setup for the Navi CFCI platform using Prisma ORM with Supabase PostgreSQL.
 
@@ -67,35 +67,34 @@ When using Prisma with connection pooling (especially with Supabase or any Postg
 
 #### Solution: Disable Prepared Statements
 
-To prevent these errors, modify your connection URL to include these parameters:
-
-```
-postgresql://username:password@host:port/database?pgbouncer=true&prepared_statements=false
-```
-
-The two critical parameters are:
-- `pgbouncer=true`: Tells Prisma this connection is using a connection pooler
-- `prepared_statements=false`: Explicitly disables prepared statements
-
-#### Implementation Example
-
-Here's how to implement this in your Prisma client:
+In our implementation, rather than modifying the connection URL directly in the .env files, we add the necessary parameters programmatically in the Prisma client configuration:
 
 ```typescript
 // Create a Prisma client with proper connection pooling parameters
-const getPrismaClient = () => {
+const prismaClientSingleton = () => {
+  // Add connection pooling parameters
   const dbUrl = process.env.DATABASE_URL || '';
   const finalDbUrl = dbUrl.includes('?') 
     ? `${dbUrl}&pgbouncer=true&prepared_statements=false`
     : `${dbUrl}?pgbouncer=true&prepared_statements=false`;
   
   return new PrismaClient({
+    log: ["error"],
     datasources: {
       db: { url: finalDbUrl }
     },
   });
 };
 ```
+
+This approach allows us to:
+1. Keep the base DATABASE_URL clean in the .env files
+2. Add the required parameters consistently across all environments
+3. Centralize the connection pooling configuration 
+
+The two critical parameters are:
+- `pgbouncer=true`: Tells Prisma this connection is using a connection pooler
+- `prepared_statements=false`: Explicitly disables prepared statements
 
 #### When to Use This Solution
 
@@ -385,7 +384,7 @@ All models must include:
 - Ensure your IP address isn't blocked by Supabase
 
 ### Prisma Compatibility
-- Use Prisma version 4.16.2 or later but not 6.x versions
+- Use Prisma version 6.5.0 or later
 - In Docker, use `node:20-slim` rather than Alpine for better compatibility
 - Make sure SSL libraries are installed in your container: `openssl` and `libssl-dev`
 

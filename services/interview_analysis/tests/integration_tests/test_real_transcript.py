@@ -11,6 +11,7 @@ from app.main import app
 import io
 import json
 from unittest.mock import patch, AsyncMock, MagicMock
+from app.services.analysis.gemini_pipeline.analysis_pipeline import GeminiAnalysisPipeline
 
 @pytest.mark.integration
 def test_real_transcript_analysis(test_client, real_transcript_file):
@@ -157,7 +158,7 @@ async def test_analyzer_with_real_transcript(real_transcript_file):
     
     Test Steps:
         1. Initialize transcript analyzer
-        2. Mock GeminiAnalysisChain responses
+        2. Mock GeminiAnalysisPipeline responses
         3. Process transcript through analyzer
         4. Verify analysis result structure
         5. Validate extracted insights
@@ -165,14 +166,14 @@ async def test_analyzer_with_real_transcript(real_transcript_file):
     
     # Import here to avoid circular imports
     from app.services.analysis.analyzer import TranscriptAnalyzer
-    from app.services.analysis.llm_chains.chain import GeminiAnalysisChain
+    from app.services.analysis.gemini_pipeline.analysis_pipeline import GeminiAnalysisPipeline
     
     # Reset file position and read the content
     real_transcript_file.seek(0)
     file_content = real_transcript_file.read()
     
     # Mock the LLM chain
-    with patch('app.services.analysis.llm_chains.chain.GeminiAnalysisChain.run_analysis') as mock_run:
+    with patch('app.services.analysis.gemini_pipeline.analysis_pipeline.GeminiAnalysisPipeline.run_analysis') as mock_run:
         mock_run.return_value = {
             "problem_areas": [
                 {
@@ -207,4 +208,12 @@ async def test_analyzer_with_real_transcript(real_transcript_file):
         for problem in result["problem_areas"]:
             assert "problem_id" in problem
             assert "title" in problem
-            assert "description" in problem 
+            assert "description" in problem
+
+        """
+        This test follows the complete flow:
+        1. Load a real transcript file from test fixtures
+        2. Mock GeminiAnalysisPipeline responses
+        3. Process the transcript through the analyzer
+        4. Verify the full analysis result has expected format and information
+        """ 

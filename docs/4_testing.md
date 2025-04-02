@@ -1,4 +1,4 @@
-# Testing Guide
+# 4. Testing Guide
 
 This guide explains the testing approach for the Navi CFCI project.
 

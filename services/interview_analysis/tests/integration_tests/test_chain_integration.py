@@ -7,7 +7,7 @@ and their prompt templates. Tests ensure proper variable handling and chain comm
 import pytest
 import json
 from unittest.mock import patch, AsyncMock, MagicMock, mock_open, Mock
-from app.services.analysis.llm_chains.chain import GeminiAnalysisChain
+from app.services.analysis.gemini_pipeline.analysis_pipeline import GeminiAnalysisPipeline
 from app.config.api_config import APIConfig
 
 def mock_gemini_response(response_content):
@@ -69,7 +69,7 @@ async def test_analysis_chain_integration(mock_model_class):
     mock_model.generate_content.return_value = mock_response
     
     # Create the chain
-    chain = GeminiAnalysisChain(model_name="gemini-2.0-flash")
+    chain = GeminiAnalysisPipeline(model_name="gemini-2.0-flash")
     chain.model = mock_model
     
     # Test analysis with a transcript
@@ -105,7 +105,7 @@ async def test_chain_error_handling(mock_model_class):
     mock_model.generate_content.side_effect = ValueError("API error")
     
     # Create chain
-    chain = GeminiAnalysisChain(model_name="gemini-2.0-flash")
+    chain = GeminiAnalysisPipeline(model_name="gemini-2.0-flash")
     chain.model = mock_model
     
     # Test with a transcript

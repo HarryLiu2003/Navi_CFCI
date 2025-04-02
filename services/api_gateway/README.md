@@ -17,6 +17,14 @@ pip install -r requirements.txt
 - Routes to: `interview_analysis:/api/interview_analysis/analyze`
 - Performs comprehensive analysis of interview transcripts
 
+**Endpoint**: `/api/interview_analysis/interviews`
+- Routes to: `interview_analysis:/api/interview_analysis/interviews`
+- Retrieves a list of interviews
+
+**Endpoint**: `/api/interview_analysis/interviews/{interview_id}`
+- Routes to: `interview_analysis:/api/interview_analysis/interviews/{interview_id}`
+- Retrieves details for a specific interview
+
 ### Preprocessing
 
 **Endpoint**: `/api/sprint1_deprecated/preprocess`
