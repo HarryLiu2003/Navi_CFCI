@@ -126,14 +126,16 @@ module.exports = router;
 
 ## API Gateway Authentication
 
-The API Gateway uses JWT-based authentication via middleware to protect endpoints and pass user information to backend services.
+The API Gateway uses JWT-based authentication via middleware to protect endpoints. It validates tokens issued by the frontend (NextAuth.js) and passes user information securely to backend services.
 
 ### Authentication Flow
 
-1. Frontend obtains a JWT from NextAuth.js
-2. Frontend includes the JWT in the Authorization header
-3. API Gateway validates the JWT
-4. User ID is extracted and forwarded to backend services
+1. Frontend (NextAuth.js) obtains a JWT after successful user login.
+2. Frontend includes the JWT in the `Authorization: Bearer <token>` header for requests to the API Gateway.
+3. API Gateway's authentication middleware (`app/middleware/auth.py`) intercepts the request.
+4. The middleware validates the JWT signature and expiry using a shared secret key.
+5. If valid, the user ID (from the `sub` claim) is extracted from the token payload and made available to the route handler.
+6. If invalid or missing, an appropriate HTTP error (e.g., 401 Unauthorized) is returned for protected routes.
 
 ### Code Structure
 
@@ -188,32 +190,40 @@ async def analyze_interview(
 
 ### Environment Configuration
 
-The API Gateway requires the JWT secret to be configured:
+The API Gateway requires the shared JWT secret key to validate tokens. This is configured securely:
 
 ```bash
-# In .env file
-JWT_SECRET=your_jwt_secret
+# In Google Secret Manager (Recommended)
+# Create a secret (e.g., 'nextauth-jwt-secret') storing the shared secret value.
 
-# Or when deploying to Cloud Run
-gcloud run deploy api-gateway \
-  --set-env-vars="JWT_SECRET=your_jwt_secret"
+# In Cloud Run Deployment (using gcloud or Cloud Build YAML)
+# Mount the secret as an environment variable:
+--update-secrets=JWT_SECRET=nextauth-jwt-secret:latest
+
+# --- Corresponding Frontend Configuration (Manual) ---
+# In Vercel project settings, manually set the environment variable:
+# NEXTAUTH_SECRET=<value_from_google_secret_manager>
 ```
 
-For local development, the JWT_SECRET should match the NEXTAUTH_SECRET used by the frontend.
+**IMPORTANT**: The `JWT_SECRET` used by the API Gateway *must* be identical to the `NEXTAUTH_SECRET` used by the Next.js frontend in Vercel for authentication to work correctly. Secure management and synchronization are crucial.
 
 ## Deployment Configuration
+
+Deployment is preferably handled via Cloud Build scripts (`cloudbuild.yaml`) for consistency and replicability, wrapping the `gcloud run deploy` commands.
 
 ### Database Service Deployment
 
 ```bash
+# Example gcloud command (likely wrapped in Cloud Build step)
 gcloud run deploy database-service \
   --image gcr.io/PROJECT_ID/database-service \
   --platform managed \
   --region us-central1 \
   --service-account database-service@PROJECT_ID.iam.gserviceaccount.com \
-  --no-allow-unauthenticated \
-  --set-env-vars CORS_ORIGINS=https://frontend.example.com
+  --no-allow-unauthenticated # Secure: Only allows IAM-authenticated access
+  # ... other flags like CORS, env vars, etc.
 ```
+*Note: The `database-service` acts as a runtime API wrapper for database interactions within the Cloud Run environment. It is accessed securely by other backend services (e.g., Interview Analysis) using IAM-based service-to-service authentication (see below).* 
 
 ### API Gateway Deployment
 
@@ -292,32 +302,6 @@ async function callAuthenticatedService(serviceUrl, method = 'GET', payload = nu
 }
 
 module.exports = { callAuthenticatedService };
-```
-
-## User Authentication
-
-We'll use Firebase Authentication for user authentication:
-
-### Setup
-
-```javascript
-// utils/auth.js
-const admin = require('firebase-admin');
-
-admin.initializeApp({
-  credential: admin.credential.applicationDefault()
-});
-
-async function verifyIdToken(token) {
-  try {
-    const decodedToken = await admin.auth().verifyIdToken(token);
-    return decodedToken;
-  } catch (error) {
-    throw new Error('Invalid token');
-  }
-}
-
-module.exports = { verifyIdToken };
 ```
 
 ## CORS Configuration
@@ -461,7 +445,3 @@ curl -H "Authorization: Bearer $(gcloud auth print-identity-token --audiences=ht
 # Verify service account permissions
 gcloud projects get-iam-policy PROJECT_ID --flatten="bindings[].members" --format="table(bindings.role,bindings.members)" --filter="bindings.members:serviceAccount:SERVICE_ACCOUNT@PROJECT_ID.iam.gserviceaccount.com"
 ```
-
----
-
-This implementation provides a secure, maintainable, and scalable approach to IAM and routing for our Cloud Run services.
