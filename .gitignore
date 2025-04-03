@@ -70,10 +70,8 @@ coverage.xml
 .pytest_cache/
 .mypy_cache/
 
-# Test data (exclude test_data but keep transcripts folder)
-services/interview_analysis/tests/test_data/
-# DO NOT exclude transcripts directory as we want it to be tracked
-# services/interview_analysis/tests/transcripts/
-
 # Misc
 .DS_Store 
+
+# Team setup
+TEAM_SETUP.txt
