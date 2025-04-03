@@ -1,4 +1,4 @@
-from fastapi import FastAPI, UploadFile, File, HTTPException, Request, Form
+from fastapi import FastAPI, UploadFile, File, HTTPException, Request, Form, Depends
 from fastapi.middleware.cors import CORSMiddleware
 import httpx
 import os
@@ -8,6 +8,9 @@ import time
 import uuid
 from typing import Optional
 from io import BytesIO
+
+# Import auth middleware
+from .middleware.auth import verify_token, get_optional_user, get_user_id_from_payload
 
 # Configure logging with level from environment variable
 log_level_name = os.getenv("LOG_LEVEL", "INFO")
@@ -128,7 +131,8 @@ async def analyze_interview(
     project_id: Optional[str] = Form(None),
     interviewer: Optional[str] = Form(None),
     interview_date: Optional[str] = Form(None),
-    userId: Optional[str] = Form(None)
+    userId: Optional[str] = Form(None),
+    user_payload: Optional[dict] = Depends(get_optional_user)
 ):
     """Forward analyze transcript request to interview analysis service."""
     try:
@@ -146,8 +150,16 @@ async def analyze_interview(
             form_data["interviewer"] = interviewer
         if interview_date:
             form_data["interview_date"] = interview_date
-        if userId:
+        
+        # Use userId from token if available, otherwise use the form value
+        # This prioritizes authenticated user info over form data
+        token_user_id = get_user_id_from_payload(user_payload)
+        if token_user_id:
+            form_data["userId"] = token_user_id
+            logger.info(f"Using authenticated user ID: {token_user_id}")
+        elif userId:
             form_data["userId"] = userId
+            logger.info(f"Using form-provided user ID: {userId}")
         
         # Forward to interview analysis service
         response = await http_client.post(
@@ -339,4 +351,18 @@ async def startup_event():
 @app.on_event("shutdown")
 async def shutdown_event():
     await http_client.aclose()
-    logger.info("API Gateway shutting down") 
+    logger.info("API Gateway shutting down")
+
+@app.get("/api/auth/me",
+         summary="Get authenticated user information",
+         description="Returns information about the authenticated user.")
+async def get_authenticated_user(payload: dict = Depends(verify_token)):
+    """
+    Protected endpoint that requires authentication.
+    Returns the authenticated user's information.
+    """
+    return {
+        "userId": get_user_id_from_payload(payload),
+        "isAuthenticated": True,
+        "timestamp": time.time()
+    } 

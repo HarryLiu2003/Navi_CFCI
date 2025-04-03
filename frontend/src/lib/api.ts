@@ -146,6 +146,7 @@ async function apiRequest<T>(
     const response = await fetch(`${API_CONFIG.API_URL}${endpoint}`, {
       method: 'POST',
       body: formData,
+      credentials: 'include',
     });
 
     if (!response.ok) {
@@ -223,7 +224,8 @@ export async function getInterviews(limit: number = 10, offset: number = 0): Pro
       method: 'GET',
       headers: {
         'Accept': 'application/json'
-      }
+      },
+      credentials: 'include'
     });
 
     if (!response.ok) {
@@ -260,7 +262,8 @@ export async function getInterviewById(id: string): Promise<InterviewDetailRespo
       method: 'GET',
       headers: {
         'Accept': 'application/json'
-      }
+      },
+      credentials: 'include'
     });
 
     if (!response.ok) {
