@@ -6,6 +6,7 @@ services:
   database:
     build:
       context: ./services/database
+      target: development  # Use development target by default
     ports:
       - "5001:5001"
     env_file:

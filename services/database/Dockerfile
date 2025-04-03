@@ -1,5 +1,7 @@
-FROM node:20-slim
+# Multi-stage Docker build for database service
 
+# Build stage
+FROM node:20-slim AS builder
 WORKDIR /app
 
 # Install OpenSSL and other required libraries for Prisma
@@ -13,8 +15,8 @@ RUN apt-get update && apt-get install -y \
 # Copy package files
 COPY package*.json ./
 
-# Install dependencies
-RUN npm install
+# Install dependencies including dev dependencies
+RUN npm install --include=dev
 
 # Copy prisma schema
 COPY prisma ./prisma/
@@ -33,9 +35,48 @@ RUN npm run build
 # Verify the build output
 RUN ls -la dist/ && ls -la dist/api/ || echo "Build failed to create expected output directories"
 
-# Expose the port the app runs on
-EXPOSE 5001
+# Development target with hot reload
+FROM node:20-slim AS development
+WORKDIR /app
 
-# For development, we start with ts-node for hot reloading
-# For production, we use the compiled JS
-CMD ["npm", "run", "dev"] 
+# Install OpenSSL and other required libraries for Prisma
+RUN apt-get update && apt-get install -y \
+    openssl \
+    libssl-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY package*.json ./
+RUN npm install
+COPY prisma ./prisma/
+RUN npx prisma generate
+COPY tsconfig.json ./
+COPY src ./src/
+
+EXPOSE 5001
+CMD ["npm", "run", "dev"]
+
+# Production stage
+FROM node:20-slim AS production
+WORKDIR /app
+
+# Install OpenSSL and other required libraries for Prisma
+RUN apt-get update && apt-get install -y \
+    openssl \
+    libssl-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy package files
+COPY package*.json ./
+
+# Install production dependencies only
+RUN npm install --omit=dev
+
+# Copy prisma schema and generate client
+COPY prisma ./prisma/
+RUN npx prisma generate
+
+# Copy built files from builder stage
+COPY --from=builder /app/dist ./dist
+
+EXPOSE 5001
+CMD ["npm", "run", "start"] 
