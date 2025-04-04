@@ -212,81 +212,94 @@ export async function extractKeywords(file: File): Promise<KeywordAnalysisRespon
 
 // Get interviews from the API
 export async function getInterviews(limit: number = 10, offset: number = 0): Promise<InterviewsResponse> {
+  console.log("[lib/api] getInterviews called");
   try {
     const params = new URLSearchParams({
       limit: limit.toString(),
       offset: offset.toString()
     });
     
-    // Use local API endpoint that directly connects to the Database Service
-    // Bypassing the Interview Analysis service for more efficient retrieval
-    const response = await fetch(`/api/interviews?${params}`, {
+    // The internal Next.js API route `/api/interviews` will handle authentication
+    // We just need to call it.
+    const apiUrl = `/api/interviews?${params}`;
+    console.log(`[lib/api] Fetching from internal API route: ${apiUrl}`);
+
+    const response = await fetch(apiUrl, {
       method: 'GET',
       headers: {
-        'Accept': 'application/json'
+        'Accept': 'application/json' // Standard Accept header
       },
-      credentials: 'include'
+      credentials: 'include', // Send cookies to the internal API route
+      cache: 'no-store' // Ensure fresh data
     });
+    
+    console.log(`[lib/api] Response status from ${apiUrl}: ${response.status}`);
 
     if (!response.ok) {
       let errorDetail: string;
+      const responseText = await response.text();
       try {
-        // Try to parse error as JSON first
-        const errorJson = await response.json();
+        const errorJson = JSON.parse(responseText);
         errorDetail = JSON.stringify(errorJson);
       } catch {
-        // If not JSON, get as text
-        errorDetail = await response.text();
+        errorDetail = responseText;
       }
-      
+      console.error(`[lib/api] Error fetching interviews (${response.status}): ${errorDetail}`);
       throw new Error(`Failed to fetch interviews (${response.status}): ${errorDetail}`);
     }
 
     const data = await response.json();
+    console.log("[lib/api] Successfully fetched and parsed interviews.");
     return data;
   } catch (error) {
+    console.error("[lib/api] Catch block error in getInterviews:", error);
     if (error instanceof Error) {
       throw error;
     }
-    // Handle non-Error throws
     throw new Error('Failed to fetch interviews');
   }
 }
 
 // Get a specific interview by ID
 export async function getInterviewById(id: string): Promise<InterviewDetailResponse> {
+  console.log("[lib/api] getInterviewById called for ID:", id);
   try {
-    // Use local API endpoint that directly connects to the Database Service
-    // Bypassing the Interview Analysis service for more efficient retrieval
-    const response = await fetch(`/api/interviews/${id}`, {
+    // The internal Next.js API route `/api/interviews/[id]` will handle authentication
+    const apiUrl = `/api/interviews/${id}`;
+    console.log(`[lib/api] Fetching from internal API route: ${apiUrl}`);
+
+    const response = await fetch(apiUrl, {
       method: 'GET',
       headers: {
         'Accept': 'application/json'
       },
-      credentials: 'include'
+      credentials: 'include',
+      cache: 'no-store',
     });
+    
+    console.log(`[lib/api] Response status from ${apiUrl}: ${response.status}`);
 
     if (!response.ok) {
       let errorDetail: string;
+      const responseText = await response.text();
       try {
-        // Try to parse error as JSON first
-        const errorJson = await response.json();
+        const errorJson = JSON.parse(responseText);
         errorDetail = JSON.stringify(errorJson);
       } catch {
-        // If not JSON, get as text
-        errorDetail = await response.text();
+        errorDetail = responseText;
       }
-      
+      console.error(`[lib/api] Error fetching interview ${id} (${response.status}): ${errorDetail}`);
       throw new Error(`Failed to fetch interview (${response.status}): ${errorDetail}`);
     }
 
     const data = await response.json();
+    console.log(`[lib/api] Successfully fetched and parsed interview ${id}.`);
     return data;
   } catch (error) {
+    console.error(`[lib/api] Catch block error in getInterviewById for ${id}:`, error);
     if (error instanceof Error) {
       throw error;
     }
-    // Handle non-Error throws
     throw new Error('Failed to fetch interview');
   }
 } 

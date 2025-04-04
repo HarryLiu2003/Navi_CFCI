@@ -56,21 +56,43 @@ class InterviewWorkflow:
                 "userId": metadata.get("userId")
             }
             
-            stored_data = await self.storage.store_interview(analysis_result, storage_metadata)
+            logger.info(f"Attempting to store interview with metadata: {storage_metadata}")
             
-            # Add storage information to result
-            analysis_result["storage"] = {
-                "id": stored_data.get("id"),
-                "created_at": stored_data.get("created_at")
-            }
-            
-            logger.info(f"Interview stored with ID: {stored_data.get('id')}")
+            try:
+                stored_data = await self.storage.store_interview(analysis_result, storage_metadata)
+                
+                # Add storage information to result
+                analysis_result["storage"] = {
+                    "id": stored_data.get("id"),
+                    "created_at": stored_data.get("created_at")
+                }
+                
+                logger.info(f"Interview stored with ID: {stored_data.get('id')}")
+            except Exception as storage_error:
+                # Log the storage error but continue
+                logger.error(f"Failed to store interview: {str(storage_error)}", exc_info=True)
+                
+                # Add error information to storage field
+                analysis_result["storage"] = {
+                    "error": f"Failed to store interview: {str(storage_error)}",
+                    "status": "error"
+                }
+                
+                # Add a note about the fallback behavior
+                if "notes" not in analysis_result:
+                    analysis_result["notes"] = []
+                    
+                analysis_result["notes"].append(
+                    "Note: This analysis was completed successfully, but could not be stored in the database. " +
+                    "You can still view the results, but they will not be saved for future reference."
+                )
             
         except Exception as e:
-            # Handle storage failure
-            logger.error(f"Failed to store interview: {str(e)}", exc_info=True)
+            # Handle any other errors in the storage process
+            logger.error(f"Unexpected error in storage process: {str(e)}", exc_info=True)
             analysis_result["storage"] = {
-                "error": f"Failed to store interview: {str(e)}"
+                "error": f"Unexpected error: {str(e)}",
+                "status": "error"
             }
         
         return analysis_result 

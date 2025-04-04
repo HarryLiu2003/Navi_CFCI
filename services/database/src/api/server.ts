@@ -7,18 +7,35 @@ import { json } from 'body-parser';
 const app = express();
 const interviewRepository = new InterviewRepository();
 
-// Configure CORS for both development and production
-const allowedOrigins = [
-  // Development origins
-  'http://localhost:3000',           // Frontend (local)
-  'http://localhost:8000',           // API Gateway (local)
-  'http://frontend:3000',            // Frontend (Docker)
-  'http://api_gateway:8000',         // API Gateway (Docker)
-  
-  // Production origins - replace with your actual domains
-  'https://navi-cfci.vercel.app',    // Vercel frontend (update with your domain)
-  'https://api-gateway-xxxx-uc.a.run.app'  // Cloud Run API Gateway (update with your URL)
-];
+// Configure CORS based on environment
+const isProduction = process.env.NODE_ENV === 'production';
+const isDevelopment = !isProduction;
+
+// Define default origins by environment
+const defaultOrigins = {
+  development: [
+    'http://localhost:3000',         // Frontend (local)
+    'http://localhost:8000',         // API Gateway (local)
+    'http://frontend:3000',          // Frontend (Docker)
+    'http://api_gateway:8000'        // API Gateway (Docker)
+  ],
+  production: [
+    'https://navi-cfci.vercel.app',  // Vercel frontend
+    'https://api-gateway-navi-cfci-project-uc.a.run.app'  // Cloud Run API Gateway
+  ]
+};
+
+// Use environment variable if available, otherwise use environment-specific defaults
+const corsOrigins = process.env.CORS_ORIGINS 
+  ? process.env.CORS_ORIGINS.split(',').map(origin => origin.trim())
+  : isProduction 
+    ? defaultOrigins.production
+    : [...defaultOrigins.development, ...defaultOrigins.production]; // Development includes all for testing
+
+// Log only in development or when debug is enabled
+if (isDevelopment || process.env.DEBUG) {
+  console.log(`[${isProduction ? 'PRODUCTION' : 'DEVELOPMENT'}] CORS allowed origins:`, corsOrigins);
+}
 
 // CORS configuration
 app.use(cors({
@@ -26,7 +43,7 @@ app.use(cors({
     // Allow requests with no origin (like mobile apps, curl, etc.)
     if (!origin) return callback(null, true);
     
-    if (allowedOrigins.indexOf(origin) === -1) {
+    if (corsOrigins.indexOf(origin) === -1) {
       const msg = 'The CORS policy for this site does not allow access from the specified Origin.';
       return callback(new Error(msg), false);
     }
@@ -255,6 +272,10 @@ app.use((err: Error, req: Request, res: Response, next: Function) => {
 
 // Start the server
 const PORT = process.env.PORT || 5001;
+const environment = process.env.NODE_ENV || 'development';
+console.log(`Starting database service in ${environment} mode`);
+console.log(`Using PORT=${PORT} (default: 5001 for local, 8080 for Cloud Run)`);
+
 app.listen(PORT, () => {
   console.log(`Database API server running on port ${PORT}`);
 }); 

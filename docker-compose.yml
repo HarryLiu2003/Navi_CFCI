@@ -2,11 +2,14 @@
 # This file is optimized for local development with hot-reloading
 # The database service connects to Supabase instead of using a local PostgreSQL database
 
+version: '3.8'
+
 services:
   database:
     build:
       context: ./services/database
       target: development  # Use development target by default
+    container_name: navi_cfci-database
     ports:
       - "5001:5001"
     env_file:
@@ -18,66 +21,82 @@ services:
       - ./services/database/tsconfig.json:/app/tsconfig.json  # Mount tsconfig.json
       - ./services/database/.env:/app/.env  # Mount .env file directly
       # Exclude the dist directory to keep the built files
+    environment:
+      - NODE_ENV=development
 
   api_gateway:
-    build: 
+    build:
       context: ./services/api_gateway
-      target: development  # Use development target by default
+      target: development
+    container_name: navi_cfci-api_gateway
+    volumes:
+      - ./services/api_gateway:/app
+      - /app/node_modules
     ports:
       - "8000:8000"
-    env_file:
-      - ./services/api_gateway/.env
     depends_on:
       - interview_analysis
+      - database
       - sprint1_deprecated
-    volumes:
-      - ./services/api_gateway:/app  # Mount code for hot-reloading
-      - api_gateway_logs:/app/logs
+    env_file:
+      - ./services/api_gateway/.env
+    environment:
+      - SERVICE_INTERVIEW_ANALYSIS=http://interview_analysis:8001
+      - SERVICE_DATABASE=http://database:5001
+      - SERVICE_SPRINT1_DEPRECATED=http://sprint1_deprecated:8002
+      - NODE_ENV=development
+      - DEBUG=true
+      - ENABLE_DEV_AUTH=true
+      - ALLOW_HEADER_PASSTHROUGH=true
+      - TRUSTED_ORIGINS=http://localhost:3000,http://frontend:3000
+      - DEVELOPMENT_USER_ID=dev-user-123
 
   interview_analysis:
-    build: 
+    build:
       context: ./services/interview_analysis
-      target: development  # Use development target by default
+      target: development
+    container_name: navi_cfci-interview_analysis
+    volumes:
+      - ./services/interview_analysis:/app
+      - /app/node_modules
     ports:
       - "8001:8001"
     env_file:
       - ./services/interview_analysis/.env
-    volumes:
-      - ./services/interview_analysis:/app  # Mount code for hot-reloading
-      - interview_analysis_logs:/app/logs
     environment:
-      - DATABASE_API_URL=http://database:5001
-    depends_on:
-      - database
-    command: >
-      uvicorn app.main:app --host 0.0.0.0 --port 8001 --reload
+      - NODE_ENV=development
 
   sprint1_deprecated:
     build:
       context: ./services/sprint1_deprecated
-      target: development  # Use development target by default
+      target: development
+    container_name: navi_cfci-sprint1_deprecated
+    volumes:
+      - ./services/sprint1_deprecated:/app
+      - /app/node_modules
     ports:
       - "8002:8002"
     env_file:
       - ./services/sprint1_deprecated/.env
-    volumes:
-      - ./services/sprint1_deprecated:/app  # Mount code for hot-reloading
-      - sprint1_deprecated_logs:/app/logs
-    command: >
-      bash -c "python post_install.py && uvicorn app.main:app --host 0.0.0.0 --port 8002 --reload"
+    environment:
+      - NODE_ENV=development
 
   frontend:
     build:
       context: ./frontend
-      target: development  # Use development target by default
+      target: development
+    container_name: navi_cfci-frontend
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+      - /app/.next
     ports:
       - "3000:3000"
     env_file:
       - ./frontend/.env
     environment:
-      - DATABASE_API_URL=http://database:5001
-    volumes:
-      - ./frontend:/app  # Mount code for hot-reloading
+      - NODE_ENV=development
+      - NEXT_PUBLIC_API_URL=http://localhost:8000
     depends_on:
       - api_gateway
       - database

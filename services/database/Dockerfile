@@ -78,5 +78,8 @@ RUN npx prisma generate
 # Copy built files from builder stage
 COPY --from=builder /app/dist ./dist
 
-EXPOSE 5001
-CMD ["npm", "run", "start"] 
+# Expose port 8080 for Cloud Run
+EXPOSE 8080
+
+# Use CMD instead of setting PORT in environment
+CMD ["node", "dist/api/server.js"] 

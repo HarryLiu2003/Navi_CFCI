@@ -42,13 +42,18 @@ We use a hybrid cloud approach that leverages the strengths of specialized platf
 └───────────────┘         └─────────────────────┘
                                  │        │
                                  ▼        ▼
-               ┌─────────────────────┐  ┌─────────────────────┐
-               │                     │  │                     │
-               │ Interview Analysis  │  │ Sprint1 Deprecated  │
-               │    (Cloud Run)      │  │    (Cloud Run)      │
-               │                     │  │                     │
-               └─────────────────────┘  └─────────────────────┘
+┌─────────────────────┐  ┌─────────────────────┐  ┌─────────────────────┐
+│                     │  │                     │  │                     │
+│  Database Service   │  │ Interview Analysis  │  │ Sprint1 Deprecated  │
+│    (Cloud Run)      │  │    (Cloud Run)      │  │    (Cloud Run)      │
+│                     │  │                     │  │                     │
+└─────────────────────┘  └─────────────────────┘  └─────────────────────┘
 ```
+
+**Note**: All communication between services follows a secure pattern:
+- Frontend communicates only with the API Gateway
+- API Gateway handles authenticated service-to-service communication
+- No direct access to backend services from the frontend
 
 ## Prerequisites
 
@@ -83,13 +88,25 @@ echo -n "your-gemini-api-key" | \
 echo -n "your-openai-api-key" | \
   gcloud secrets create openai-api-key --data-file=-
 
-# Grant service access
+# Store Database Connection String
+echo -n "your-database-connection-string" | \
+  gcloud secrets create database-connection-string --data-file=-
+
+# Store JWT Secret for authentication
+echo -n "your-jwt-secret" | \
+  gcloud secrets create nextauth-jwt-secret --data-file=-
+
+# Grant service access to secrets
 gcloud secrets add-iam-policy-binding gemini-api-key \
-  --member="serviceAccount:$PROJECT_ID@appspot.gserviceaccount.com" \
+  --member="serviceAccount:interview-analysis@$PROJECT_ID.iam.gserviceaccount.com" \
   --role="roles/secretmanager.secretAccessor"
 
-gcloud secrets add-iam-policy-binding openai-api-key \
-  --member="serviceAccount:$PROJECT_ID@appspot.gserviceaccount.com" \
+gcloud secrets add-iam-policy-binding database-connection-string \
+  --member="serviceAccount:database-service@$PROJECT_ID.iam.gserviceaccount.com" \
+  --role="roles/secretmanager.secretAccessor"
+
+gcloud secrets add-iam-policy-binding nextauth-jwt-secret \
+  --member="serviceAccount:api-gateway@$PROJECT_ID.iam.gserviceaccount.com" \
   --role="roles/secretmanager.secretAccessor"
 ```
 
@@ -98,43 +115,30 @@ gcloud secrets add-iam-policy-binding openai-api-key \
 First, deploy the individual services:
 
 ```bash
-# Deploy Interview Analysis Service
-cd services/interview_analysis
-gcloud builds submit --tag gcr.io/$PROJECT_ID/interview-analysis
-gcloud run deploy interview-analysis \
-  --image gcr.io/$PROJECT_ID/interview-analysis \
-  --platform managed \
-  --region us-central1 \
-  --allow-unauthenticated \
-  --update-secrets=GEMINI_API_KEY=gemini-api-key:latest
+# Deploy Database Service (private, not publicly accessible)
+cd services/database
+gcloud builds submit --config=cloudbuild.yaml
 
-# Deploy Sprint1 Deprecated Service (follow similar steps)
+# Deploy Interview Analysis Service
+cd ../interview_analysis
+gcloud builds submit --config=cloudbuild.yaml
+
+# Deploy Sprint1 Deprecated Service
 cd ../sprint1_deprecated
-gcloud builds submit --tag gcr.io/$PROJECT_ID/sprint1-deprecated
-gcloud run deploy sprint1-deprecated \
-  --image gcr.io/$PROJECT_ID/sprint1-deprecated \
-  --platform managed \
-  --region us-central1 \
-  --allow-unauthenticated \
-  --update-secrets=OPENAI_API_KEY=openai-api-key:latest
+gcloud builds submit --config=cloudbuild.yaml
 ```
 
-Then, deploy the API Gateway service:
+Then, deploy the API Gateway service which routes traffic to all other services:
 
 ```bash
 # Get service URLs
 INTERVIEW_URL=$(gcloud run services describe interview-analysis --format='value(status.url)')
+DATABASE_URL=$(gcloud run services describe database-service --format='value(status.url)')
 SPRINT1_URL=$(gcloud run services describe sprint1-deprecated --format='value(status.url)')
 
 # Deploy API Gateway
 cd ../api_gateway
-gcloud builds submit --tag gcr.io/$PROJECT_ID/api-gateway
-gcloud run deploy api-gateway \
-  --image gcr.io/$PROJECT_ID/api-gateway \
-  --platform managed \
-  --region us-central1 \
-  --allow-unauthenticated \
-  --set-env-vars="SERVICE_INTERVIEW_ANALYSIS=$INTERVIEW_URL,SERVICE_SPRINT1_DEPRECATED=$SPRINT1_URL"
+gcloud builds submit --config=cloudbuild.yaml --substitutions=_SERVICE_INTERVIEW_ANALYSIS=$INTERVIEW_URL,_SERVICE_DATABASE=$DATABASE_URL,_SERVICE_SPRINT1_DEPRECATED=$SPRINT1_URL
 ```
 
 Take note of the API Gateway URL, as you'll need it for frontend configuration.
@@ -151,7 +155,11 @@ Take note of the API Gateway URL, as you'll need it for frontend configuration.
    - Environment Variables:
      - `NEXT_PUBLIC_API_URL`: Your API Gateway URL from Google Cloud Run
      - `NEXT_PUBLIC_ENV`: `production`
+     - `NEXTAUTH_URL`: Your frontend URL (e.g., https://navi-cfci.vercel.app)
+     - `NEXTAUTH_SECRET`: Same value as the JWT secret stored in Google Cloud Secret Manager
 4. Click "Deploy"
+
+**Important**: The frontend is configured to route all backend requests through the API Gateway. It does not directly access any other backend services.
 
 ### Or Deploy with Vercel CLI
 
@@ -288,5 +296,6 @@ This workflow:
 
 - **CORS Issues**: Double-check CORS configuration in API Gateway
 - **API Connection Errors**: Verify environment variables and service URLs
+- **Authentication Issues**: Ensure JWT secrets match between API Gateway and Vercel
 - **Deployment Failures**: Check Cloud Build logs or Vercel build logs
-- **CI/CD Issues**: Review GitHub Actions logs for specific errors 
+- **Service-to-Service Communication**: Verify IAM permissions allow API Gateway to access database and other services 

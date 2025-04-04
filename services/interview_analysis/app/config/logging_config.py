@@ -1,10 +1,14 @@
 import logging.config
 import os
+import sys
 from .settings import settings
 
 def setup_logging():
     """Configure logging for the application."""
     log_level = getattr(logging, settings.LOG_LEVEL.upper(), logging.INFO)
+    
+    # Ensure higher level of logging during startup for Cloud Run
+    startup_level = logging.DEBUG if settings.DEBUG else logging.INFO
     
     logging_config = {
         "version": 1,
@@ -23,31 +27,46 @@ def setup_logging():
             "console": {
                 "class": "logging.StreamHandler",
                 "formatter": "default",
-                "stream": "ext://sys.stdout"
-            },
-            "file": {
-                "class": "logging.handlers.RotatingFileHandler",
-                "formatter": "json",
-                "filename": "logs/interview_analysis.log",
-                "maxBytes": 10485760,  # 10MB
-                "backupCount": 5
+                "level": startup_level,
+                "stream": sys.stdout
             }
         },
         "loggers": {
             "": {  # Root logger
-                "handlers": ["console", "file"],
-                "level": log_level
+                "handlers": ["console"],
+                "level": startup_level
             },
             "uvicorn": {
                 "handlers": ["console"],
-                "level": log_level,
+                "level": startup_level,
+                "propagate": False
+            },
+            "uvicorn.error": {
+                "handlers": ["console"],
+                "level": startup_level,
+                "propagate": False
+            },
+            "fastapi": {
+                "handlers": ["console"],
+                "level": startup_level,
                 "propagate": False
             }
         }
     }
     
-    # Create logs directory if it doesn't exist
-    os.makedirs("logs", exist_ok=True)
-    
     # Apply configuration
-    logging.config.dictConfig(logging_config) 
+    try:
+        logging.config.dictConfig(logging_config)
+        # Log that logging has been set up
+        logging.info(f"Logging configured with level: {log_level}")
+        logging.info(f"Running in {'production' if os.environ.get('K_SERVICE') else 'development'} mode")
+    except Exception as e:
+        # Fallback to basic configuration if dictConfig fails
+        logging.basicConfig(
+            level=startup_level,
+            format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+            datefmt="%Y-%m-%d %H:%M:%S",
+            stream=sys.stdout
+        )
+        logging.error(f"Failed to configure logging with dictConfig: {str(e)}")
+        logging.info("Using fallback basic logging configuration")

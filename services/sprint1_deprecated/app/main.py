@@ -2,6 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.api.routes import router as api_router
 from app.config.logging_config import setup_logging
+from app.config.settings import settings
 import logging
 
 # Initialize logging
@@ -14,10 +15,14 @@ app = FastAPI(
     version="1.0.0"
 )
 
+# Get CORS origins from settings
+cors_origins = settings.CORS_ORIGINS
+logger.info(f"Using CORS_ORIGINS: {cors_origins}")
+
 # Add CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],  # Your Next.js frontend URL
+    allow_origins=cors_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -64,6 +69,8 @@ async def root():
 @app.on_event("startup")
 async def startup_event():
     logger.info("Sprint 1 Deprecated Service starting up")
+    logger.info(f"Debug mode: {settings.DEBUG}")
+    logger.info(f"CORS Origins: {cors_origins}")
 
 @app.on_event("shutdown")
 async def shutdown_event():

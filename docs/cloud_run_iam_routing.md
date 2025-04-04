@@ -2,6 +2,51 @@
 
 This document outlines our approach to handling IAM and routing for our Google Cloud Run deployment, providing a consistent reference throughout implementation.
 
+## Security Architecture: Quick Reference
+
+Our security architecture follows these key principles:
+
+1. **Public Frontend, Protected Backend**: 
+   - Frontend (Vercel) is publicly accessible
+   - API Gateway (Cloud Run) is publicly accessible but routes are protected with JWT authentication
+   - Backend services (Database, Interview Analysis) are private and only accessible via authenticated service calls
+
+2. **Three-Layer Authentication**:
+   - **User Authentication**: JWT tokens via NextAuth.js, validated by API Gateway
+   - **Service-to-Service Authentication**: Google Cloud IAM with service accounts
+   - **CORS Protection**: Configured at each service level with environment-variable controlled origins
+
+3. **Security Best Practices**:
+   - Each service has its own dedicated service account with minimal permissions
+   - Secrets (API keys, connection strings) stored in Google Secret Manager
+   - Private services configured with `--no-allow-unauthenticated`
+   - Public API Gateway uses `--allow-unauthenticated` but implements JWT validation
+
+4. **Service Access Controls**:
+   - API Gateway can call all backend services (Database, Interview Analysis)
+   - Interview Analysis can call Database service
+   - Frontend can only call API Gateway
+   - Public users can only access API Gateway
+
+```
+┌───────────────┐        JWT Auth         ┌───────────────┐        IAM Auth        ┌───────────────┐
+│    Public     │ ─────────────────────▶  │  API Gateway  │ ─────────────────────▶ │   Database    │
+│   Frontend    │      (NextAuth)         │    Service    │      (Service Acct)    │    Service    │
+│    (Vercel)   │ ◀─────────────────────  │  (Public URL) │ ◀─────────────────────  │  (Private URL) │
+└───────────────┘                         └───────┬───────┘                         └───────┬───────┘
+                                                  │                                         ▲
+                                                  │                                         │
+                                                  │           IAM Auth                      │
+                                                  ▼       (Service Acct)                    │
+                                          ┌───────────────┐                                 │
+                                          │  Interview    │                                 │
+                                          │   Analysis    │ ────────────────────────────────┘
+                                          │  (Private URL)│            IAM Auth
+                                          └───────────────┘           (Service Acct)
+```
+
+This layered approach provides defense in depth while maintaining flexibility and simplicity in our architecture.
+
 ## Table of Contents
 
 1. [Architecture Overview](#architecture-overview)
