@@ -147,6 +147,7 @@ export default function Home() {
         router.push(`/interview-analysis/${result.data.storage.id}`)
       } else {
         // Fallback to the main interview analysis page if ID is not available
+        console.error("[page.tsx] Analysis successful but storage.id missing. Response data:", JSON.stringify(result, null, 2));
         router.push('/interview-analysis')
       }
       

@@ -1,0 +1,20 @@
+# Frontend .dockerignore
+
+# Dependencies managed inside the container
+node_modules
+
+# Build artifacts
+.next
+out
+build
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# Environment files
+.env
+.env*.local
+
+# Git directory
+.git

@@ -2,6 +2,8 @@
 
 This directory contains comprehensive test suite for the Interview Analysis service, testing all components from isolated units to integrated workflows.
 
+(For the overall project testing strategy, see [../../docs/testing_strategy.md](../../docs/testing_strategy.md)).
+
 ## Test Structure
 
 Tests are organized in the following directories:

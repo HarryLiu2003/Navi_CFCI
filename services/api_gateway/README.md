@@ -1,120 +1,95 @@
 # API Gateway Service
 
-This service routes requests from the frontend to the appropriate backend microservices, acting as a central entry point for all API calls.
+This service acts as the central entry point and router for the Navi CFCI platform. It receives requests from the frontend, validates user authentication (JWT), and forwards requests to the appropriate backend microservices using secure service-to-service communication.
 
-## Setup
+## Core Responsibilities
 
-Install dependencies:
+*   Route incoming API calls to backend services (`interview_analysis`, `database`, `sprint1_deprecated`).
+*   Validate end-user authentication using JWT Bearer tokens.
+*   Handle CORS for frontend requests.
+*   Provide a unified API interface.
+
+(See [../../docs/architecture.md](../../docs/architecture.md) and [../../docs/authentication.md](../../docs/authentication.md) for full system details).
+
+## Environment Variables (.env)
+
+Create `.env` from `.env.example`. Key variables for local development:
+
+*   `JWT_SECRET`: **Must match** `NEXTAUTH_SECRET` in `frontend/.env`.
+*   `SERVICE_INTERVIEW_ANALYSIS`: Local URL (e.g., `http://interview_analysis:8001`).
+*   `SERVICE_DATABASE`: Local URL (e.g., `http://database:5001`).
+*   `SERVICE_SPRINT1_DEPRECATED`: Local URL (e.g., `http://sprint1_deprecated:8002`).
+*   `ENABLE_DEV_AUTH`: Set `true` to allow testing without valid JWTs locally (uses fallback user).
+*   `DEVELOPMENT_USER_ID`: User ID used by the fallback mechanism.
+*   `CORS_ORIGINS`: e.g., `http://localhost:3000`.
+*   `LOG_LEVEL`: `INFO` or `DEBUG`.
+*   `NODE_ENV`: `development` or `production`.
+*   `DEBUG`: `true` or `false` (controls FastAPI debug mode).
+
+(See [../../docs/deployment_guide.md](../../docs/deployment_guide.md) for production environment variables and secret management).
+
+## Local Development & Testing
+
+### Running with Docker Compose (Recommended)
+
+The entire system, including the API Gateway, is best run using Docker Compose from the project root:
+
 ```bash
+# From project root
+docker compose up
+```
+
+Access the local API docs at: http://localhost:8000/docs
+
+### Running Standalone (Alternative)
+
+```bash
+# From this directory (services/api_gateway)
 pip install -r requirements.txt
+# Ensure backend services are running or mocked
+uvicorn app.main:app --reload --port 8000
+```
+
+### Running Tests
+
+Requires backend services to be running (use Docker Compose).
+
+```bash
+# Run all tests for this service within its Docker container
+docker exec -it navi_cfci-api_gateway-1 pytest
+
+# Run specific test files
+docker exec -it navi_cfci-api_gateway-1 pytest tests/unit_tests/test_auth_middleware.py
+```
+
+(See [../../docs/testing_strategy.md](../../docs/testing_strategy.md) for overall testing info).
+
+### Manual API Testing (Local)
+
+*   **Unauthenticated:** `curl -i http://localhost:8000/api/interviews` (Should use dev fallback if `ENABLE_DEV_AUTH=true`).
+*   **Authenticated:** Obtain a valid JWT from the frontend (browser dev tools -> cookies -> `next-auth.session-token` after login) and use it:
+    ```bash
+    TOKEN="your_copied_jwt_here"
+    curl -i -H "Authorization: Bearer $TOKEN" http://localhost:8000/api/auth/me
 ```
 
 ## API Endpoints
 
-### Interview Analysis
+*(Note: The API Gateway acts as a router. See individual service READMEs for detailed API contracts)*
 
-**Endpoint**: `/api/interview_analysis/analyze`
-- Routes to: `interview_analysis:/api/interview_analysis/analyze`
-- Performs comprehensive analysis of interview transcripts
+### Authentication Routes
+*   `GET /api/auth/me`: Returns authenticated user info (uses JWT).
 
-**Endpoint**: `/api/interview_analysis/interviews`
-- Routes to: `interview_analysis:/api/interview_analysis/interviews`
-- Retrieves a list of interviews
+### Interview Analysis Routes (Proxied to `interview_analysis` service)
+*   `POST /api/interviews`: Upload and analyze a new interview transcript.
+*   `GET /api/interviews`: Get list of user's interviews.
+*   `GET /api/interviews/{interview_id}`: Get details of a specific interview.
 
-**Endpoint**: `/api/interview_analysis/interviews/{interview_id}`
-- Routes to: `interview_analysis:/api/interview_analysis/interviews/{interview_id}`
-- Retrieves details for a specific interview
+### Database Routes (Proxied to `database` service)
+*   *(These are internal and typically called by other services, but potentially proxied if needed)*
+*   `GET /db/interviews`: Example internal route (might not be exposed via gateway).
 
-### Preprocessing
-
-**Endpoint**: `/api/sprint1_deprecated/preprocess`
-- Routes to: `sprint1_deprecated:/api/sprint1_deprecated/preprocess`
-- Preprocesses transcript files into structured text
-
-### Summarization
-
-**Endpoint**: `/api/sprint1_deprecated/summarize`
-- Routes to: `sprint1_deprecated:/api/sprint1_deprecated/summarize`
-- Generates concise summaries of transcripts
-
-### Keyword Extraction
-
-**Endpoint**: `/api/sprint1_deprecated/keywords`
-- Routes to: `sprint1_deprecated:/api/sprint1_deprecated/keywords`
-- Extracts key themes and insights from transcripts
-
-### Authentication
-
-**Endpoint**: `/api/auth/me`
-- Protected endpoint that requires authentication
-- Returns the authenticated user's information
-
-## Environment Variables
-
-Create a `.env` file in the service directory with the following variables:
-
-- `SERVICE_INTERVIEW_ANALYSIS`: URL of the Interview Analysis service
-- `SERVICE_SPRINT1_DEPRECATED`: URL of the Sprint1 Deprecated service
-- `CORS_ORIGINS`: Comma-separated list of allowed origins for CORS
-- `LOG_LEVEL`: Logging level (INFO, DEBUG, etc.)
-- `JWT_SECRET`: Secret key for JWT validation (should match frontend NEXTAUTH_SECRET)
-
-Example for local development:
-```
-SERVICE_INTERVIEW_ANALYSIS=http://interview_analysis:8001
-SERVICE_SPRINT1_DEPRECATED=http://sprint1_deprecated:8002
-CORS_ORIGINS=http://localhost:3000
-LOG_LEVEL=INFO
-JWT_SECRET=your_jwt_secret_here
-```
-
-## Local Development
-
-Run the service:
-```bash
-uvicorn app.main:app --reload --port 8000
-```
-
-## Testing
-
-### Running Tests
-
-To run all tests:
-```bash
-pytest
-```
-
-To run the authentication middleware tests:
-```bash
-pytest -xvs tests/unit_tests/test_auth_middleware.py
-```
-
-### Testing with Docker
-
-With Docker Compose:
-```bash
-# Start the API gateway service
-docker compose up -d api_gateway
-
-# Run the tests
-docker compose exec api_gateway pytest -xvs tests/unit_tests/test_auth_middleware.py
-```
-
-### Manual Testing of Protected Endpoints
-
-To test a protected endpoint, you need a valid JWT token:
-
-```bash
-# This will fail with 401 Unauthorized
-curl -i http://localhost:8000/api/auth/me
-
-# With a valid token (replace YOUR_TOKEN)
-curl -i -H "Authorization: Bearer YOUR_TOKEN" http://localhost:8000/api/auth/me
-```
-
-You can get a valid token from the frontend by:
-1. Login to the application
-2. Open browser developer tools
-3. Go to Application tab > Storage > Cookies
-4. Find the `next-auth.session-token` cookie
-5. Use this value as the Bearer token 
+### Sprint1 Deprecated Routes (Proxied to `sprint1_deprecated` service)
+*   `POST /api/sprint1/preprocess`
+*   `POST /api/sprint1/summarize`
+*   `POST /api/sprint1/keywords`

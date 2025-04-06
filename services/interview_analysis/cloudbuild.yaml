@@ -23,8 +23,6 @@ steps:
       - '--set-env-vars=DATABASE_API_URL=${_DATABASE_API_URL}'
       - '--set-env-vars=NODE_ENV=${_NODE_ENV}'
       - '--set-env-vars=DEBUG=${_DEBUG}'
-      - '--set-env-vars=CORS_ORIGINS=${_CORS_ORIGINS}'
-      - '--set-env-vars=API_GATEWAY_URL=${_API_GATEWAY_URL}'
       - '--set-env-vars=LOG_LEVEL=${_LOG_LEVEL}'
       - '--cpu=1'
       - '--memory=512Mi'
@@ -38,9 +36,7 @@ images:
 
 # Default substitutions - can be overridden during deployment
 substitutions:
-  _DATABASE_API_URL: https://database-service-821475546424.us-central1.run.app
+  _DATABASE_API_URL: ''
   _NODE_ENV: production
   _DEBUG: "false"
-  _CORS_ORIGINS: https://navi-cfci.vercel.app
-  _API_GATEWAY_URL: https://api-gateway-821475546424.us-central1.run.app
   _LOG_LEVEL: INFO 

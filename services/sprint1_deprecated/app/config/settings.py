@@ -21,6 +21,8 @@ class Settings(BaseSettings):
     
     # Logging Configuration
     LOG_LEVEL: str = os.getenv("LOG_LEVEL", "INFO")
+    # Environment Setting (development, production, etc.)
+    NODE_ENV: str = os.getenv("NODE_ENV", "development")
     
     class Config:
         env_file = ".env"

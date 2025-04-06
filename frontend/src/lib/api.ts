@@ -176,14 +176,48 @@ async function apiRequest<T>(
 
 // API Client Functions
 export async function analyzeTranscript(file: File, userId?: string): Promise<AnalysisResponse> {
-  const additionalData = userId ? { userId } : undefined;
-  
-  return apiRequest<AnalysisResponse>(
-    API_CONFIG.ENDPOINTS.INTERVIEW_ANALYSIS.ANALYZE,
-    file,
-    'Failed to analyze transcript',
-    additionalData
-  );
+  // Prepare FormData
+  const formData = new FormData();
+  formData.append('file', file);
+  if (userId) {
+      formData.append('userId', userId); // Still good practice to pass original userId if available
+  }
+
+  console.log("[lib/api] analyzeTranscript called");
+  try {
+    // Call the *internal* Next.js API route, not the gateway directly
+    const response = await fetch(`/api/analyze-transcript`, { 
+      method: 'POST',
+      body: formData,
+      // No explicit Authorization header needed here - the internal route handles it
+      credentials: 'include' // Send session cookies to the internal route
+    });
+
+    console.log(`[lib/api] Response status from /api/analyze-transcript: ${response.status}`);
+
+    if (!response.ok) {
+      let errorDetail: string;
+      const responseText = await response.text();
+      try {
+        const errorJson = JSON.parse(responseText);
+        errorDetail = JSON.stringify(errorJson);
+      } catch {
+        errorDetail = responseText;
+      }
+      console.error(`[lib/api] Error analyzing transcript (${response.status}): ${errorDetail}`);
+      throw new Error(`Failed to analyze transcript (${response.status}): ${errorDetail}`);
+    }
+
+    const data = await response.json();
+    console.log("[lib/api] Successfully received analysis response.");
+    return data;
+  } catch (error) {
+    console.error("[lib/api] Catch block error in analyzeTranscript:", error);
+    if (error instanceof Error) {
+      throw error;
+    }
+    throw new Error('Failed to analyze transcript');
+  }
 }
 
 export async function preprocessTranscript(file: File): Promise<PreprocessResponse> {

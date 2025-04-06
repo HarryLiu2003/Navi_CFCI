@@ -23,8 +23,8 @@ steps:
       - '--set-env-vars=DEBUG=${_DEBUG}'
       - '--set-env-vars=LOG_LEVEL=${_LOG_LEVEL}'
       # PORT is automatically set by Cloud Run (local development uses 5001)
-      - '--set-env-vars=CORS_ORIGINS=${_CORS_ORIGINS}'
       - '--update-secrets=DATABASE_URL=database-connection-string:latest'
+      - '--update-secrets=MIGRATE_DATABASE_URL=migrate-database-connection-string:latest' # Pooler Session URL (port 5432)
       - '--cpu=1'
       - '--memory=512Mi'
       - '--timeout=600s'
@@ -40,5 +40,4 @@ substitutions:
   _NODE_ENV: production
   _DEBUG: "false"
   _LOG_LEVEL: INFO
-  _CORS_ORIGINS: https://navi-cfci.vercel.app
 

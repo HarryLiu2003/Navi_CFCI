@@ -22,7 +22,6 @@ steps:
       - '--update-secrets=OPENAI_API_KEY=openai-api-key:latest'
       - '--set-env-vars=NODE_ENV=${_NODE_ENV}'
       - '--set-env-vars=DEBUG=${_DEBUG}'
-      - '--set-env-vars=CORS_ORIGINS=${_CORS_ORIGINS}'
       - '--set-env-vars=LOG_LEVEL=${_LOG_LEVEL}'
       - '--cpu=1'
       - '--memory=512Mi'
@@ -38,5 +37,4 @@ images:
 substitutions:
   _NODE_ENV: production
   _DEBUG: "false"
-  _CORS_ORIGINS: https://navi-cfci.vercel.app
   _LOG_LEVEL: INFO 

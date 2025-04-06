@@ -23,16 +23,24 @@ steps:
       - '--allow-unauthenticated'
       - '--service-account'
       - 'api-gateway@$PROJECT_ID.iam.gserviceaccount.com'
-      - '--set-env-vars'
-      - 'SERVICE_INTERVIEW_ANALYSIS=${_SERVICE_INTERVIEW_ANALYSIS},SERVICE_DATABASE=${_SERVICE_DATABASE},SERVICE_SPRINT1_DEPRECATED=${_SERVICE_SPRINT1_DEPRECATED},NODE_ENV=production,DEBUG=false,LOG_LEVEL=INFO,CORS_ORIGINS=https://navi-cfci.vercel.app,ENABLE_DEV_AUTH=false,ALLOW_X_USER_ID_HEADER=True'
-      - '--update-secrets'
-      - 'JWT_SECRET=nextauth-jwt-secret:latest'
+      - '--set-env-vars=SERVICE_INTERVIEW_ANALYSIS=${_SERVICE_INTERVIEW_ANALYSIS}'
+      - '--set-env-vars=SERVICE_DATABASE=${_SERVICE_DATABASE}'
+      - '--set-env-vars=NODE_ENV=${_NODE_ENV}'
+      - '--set-env-vars=DEBUG=${_DEBUG}'
+      - '--set-env-vars=LOG_LEVEL=${_LOG_LEVEL}'
+      - '--set-env-vars=CORS_ORIGINS=${_CORS_ORIGINS}'
+      - '--set-env-vars=ENABLE_DEV_AUTH=${_ENABLE_DEV_AUTH}'
+      - '--update-secrets=JWT_SECRET=nextauth-jwt-secret:latest'
 
 images:
   - 'gcr.io/$PROJECT_ID/api-gateway'
 
 # Default substitution values - can be overridden when submitting the build
 substitutions:
-  _SERVICE_INTERVIEW_ANALYSIS: 'https://interview-analysis-821475546424.us-central1.run.app'
-  _SERVICE_DATABASE: 'https://database-service-821475546424.us-central1.run.app'
-  _SERVICE_SPRINT1_DEPRECATED: 'https://sprint1-deprecated-821475546424.us-central1.run.app' 
+  _SERVICE_INTERVIEW_ANALYSIS: ''
+  _SERVICE_DATABASE: ''
+  _NODE_ENV: 'production'
+  _DEBUG: 'false'
+  _LOG_LEVEL: 'INFO'
+  _CORS_ORIGINS: 'https://navi-cfci.vercel.app'
+  _ENABLE_DEV_AUTH: 'false' 

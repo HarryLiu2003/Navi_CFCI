@@ -8,6 +8,7 @@ import time
 import uuid
 from typing import Optional, List, Dict, Any
 from io import BytesIO
+from dotenv import load_dotenv
 
 # Import auth middleware
 from .middleware.auth import verify_token, get_optional_user, get_user_id_from_payload
@@ -29,9 +30,20 @@ logger.info(f"Logging configured with level: {log_level_name}")
 DEBUG = os.getenv("DEBUG", "False").lower() == "true"
 logger.info(f"Debug mode: {DEBUG}")
 
-# Get service URLs from environment
+# Environment setup
+load_dotenv()
+
+DATABASE_SERVICE_URL = os.getenv("SERVICE_DATABASE")
 INTERVIEW_ANALYSIS_URL = os.getenv("SERVICE_INTERVIEW_ANALYSIS", "http://interview_analysis:8001")
 SPRINT1_DEPRECATED_URL = os.getenv("SERVICE_SPRINT1_DEPRECATED", "http://sprint1_deprecated:8002")
+
+# Ensure required service URLs are set (except deprecated one)
+if not DATABASE_SERVICE_URL:
+    # Use default for local dev if env var is not set
+    DATABASE_SERVICE_URL = "http://database-service:5001" # Default for local dev
+    logger.warning(f"SERVICE_DATABASE environment variable not set, using default: {DATABASE_SERVICE_URL}")
+if not INTERVIEW_ANALYSIS_URL:
+    raise ValueError("SERVICE_INTERVIEW_ANALYSIS environment variable not set")
 
 # Configure CORS based on environment
 is_production = os.getenv("NODE_ENV", "development") == "production"
@@ -128,24 +140,35 @@ async def call_authenticated_service(
             
             # Use Google's auth library to fetch ID token
             auth_req = google_requests.Request()
+            token = None # Initialize token as None
             try:
+                logger.debug(f"Attempting to fetch ID token for audience: {target_audience}")
+                start_token_fetch = time.time()
                 token = id_token.fetch_id_token(auth_req, target_audience)
-                logger.info(f"Successfully obtained ID token for {target_audience}")
+                fetch_duration = time.time() - start_token_fetch
+                if token:
+                    logger.info(f"Successfully obtained ID token for {target_audience} in {fetch_duration:.4f}s")
+                else:
+                    logger.warning(f"fetch_id_token returned None for {target_audience} after {fetch_duration:.4f}s")
+
             except Exception as e:
-                logger.error(f"Error fetching ID token: {str(e)}")
-                # Fallback to unauthenticated call if token fetching fails in production
-                logger.warning("Falling back to unauthenticated call in production due to token fetch error")
-                token = None
-            
+                fetch_duration = time.time() - start_token_fetch
+                logger.error(f"Error fetching ID token for {target_audience} after {fetch_duration:.4f}s: {str(e)}")
+                # Fallback logic can go here if needed, or just proceed without token
+
             # Add token to headers if available
             headers = {}
             if token:
                 headers["Authorization"] = f"Bearer {token}"
-                logger.debug(f"Created authentication token for {target_audience}")
-            
+                logger.debug(f"Using fetched authentication token for {target_audience}")
+            else:
+                logger.warning(f"Proceeding with call to {target_audience} WITHOUT authentication token.")
+
             # Make authenticated request
-            timeout = 60.0  # Increase timeout for production environments
+            timeout = 60.0
             async with httpx.AsyncClient(timeout=timeout) as client:
+                logger.debug(f"Initiating {method.upper()} request to {service_url}...")
+                start_request = time.time()
                 if method.upper() == "GET":
                     logger.debug(f"Making GET request to {service_url}")
                     response = await client.get(service_url, headers=headers, params=params)
@@ -162,6 +185,8 @@ async def call_authenticated_service(
                     response = await client.delete(service_url, headers=headers, params=params)
                 else:
                     raise ValueError(f"Unsupported HTTP method: {method}")
+                request_duration = time.time() - start_request
+                logger.info(f"Received response from {service_url} (Status: {response.status_code}) after {request_duration:.4f}s")
             
             # Check for successful response before handling JSON
             if response.status_code >= 400:
@@ -350,14 +375,14 @@ async def root():
 
 @app.post("/api/interview_analysis/analyze",
          summary="Analyze an interview transcript",
-         description="Upload a VTT file to analyze an interview transcript and extract key insights.")
+         description="Upload a VTT file to analyze an interview transcript and extract key insights.",
+         include_in_schema=False)
 async def analyze_interview(
     file: UploadFile = File(...),
     project_id: Optional[str] = Form(None),
     interviewer: Optional[str] = Form(None),
     interview_date: Optional[str] = Form(None),
-    userId: Optional[str] = Form(None),
-    user_payload: Optional[dict] = Depends(get_optional_user)
+    user_payload: Dict[str, Any] = Depends(verify_token)
 ):
     """Forward analyze transcript request to interview analysis service."""
     try:
@@ -376,15 +401,15 @@ async def analyze_interview(
         if interview_date:
             form_data["interview_date"] = interview_date
         
-        # Use userId from token if available, otherwise use the form value
-        # This prioritizes authenticated user info over form data
+        # Use userId from the validated token payload
         token_user_id = get_user_id_from_payload(user_payload)
-        if token_user_id:
-            form_data["userId"] = token_user_id
-            logger.info(f"Using authenticated user ID: {token_user_id}")
-        elif userId:
-            form_data["userId"] = userId
-            logger.info(f"Using form-provided user ID: {userId}")
+        if not token_user_id:
+             # This case should technically not happen if verify_token requires 'sub'
+             logger.error("analyze_interview: Validated token payload is missing user ID!")
+             raise HTTPException(status_code=500, detail="Internal authentication error")
+        
+        form_data["userId"] = token_user_id
+        logger.info(f"Using authenticated user ID: {token_user_id}")
         
         # Forward to interview analysis service with authentication
         endpoint_url = f"{INTERVIEW_ANALYSIS_URL}/api/interview_analysis/analyze"
@@ -416,164 +441,6 @@ async def analyze_interview(
         logger.error(f"Error forwarding to interview analysis service: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Gateway error: {str(e)}")
 
-@app.post("/api/sprint1_deprecated/keywords",
-         summary="Extract keywords from a transcript",
-         description="Upload a VTT file to extract key terms and phrases from an interview transcript.",
-         responses={
-             200: {
-                 "description": "Successfully extracted keywords",
-                 "content": {
-                     "application/json": {
-                         "example": {
-                             "status": "success",
-                             "message": "Keywords extracted successfully",
-                             "data": {
-                                 "keywords": [
-                                     {"term": "user experience", "frequency": 12, "relevance": 0.85},
-                                     {"term": "mobile app", "frequency": 8, "relevance": 0.75},
-                                     {"term": "performance issues", "frequency": 6, "relevance": 0.9}
-                                 ],
-                                 "metadata": {
-                                     "transcript_length": 1000,
-                                     "processing_time": "2.5s"
-                                 }
-                             }
-                         }
-                     }
-                 }
-             },
-             500: {
-                 "description": "Internal Server Error",
-                 "content": {
-                     "application/json": {
-                         "example": {
-                             "status": "error",
-                             "message": "Gateway error: [error details]"
-                         }
-                     }
-                 }
-             }
-         })
-async def extract_keywords(file: UploadFile = File(...)):
-    """Forward keywords request to sprint1_deprecated service."""
-    try:
-        form = {"file": (file.filename, await file.read(), file.content_type)}
-        response = await http_client.post(
-            f"{SPRINT1_DEPRECATED_URL}/api/sprint1_deprecated/keywords",
-            files=form
-        )
-        return response.json()
-    except Exception as e:
-        logger.error(f"Error forwarding to keywords service: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Gateway error: {str(e)}")
-
-@app.post("/api/sprint1_deprecated/summarize",
-         summary="Summarize an interview transcript",
-         description="Upload a VTT file to generate a summary of an interview transcript.",
-         responses={
-             200: {
-                 "description": "Successfully summarized transcript",
-                 "content": {
-                     "application/json": {
-                         "example": {
-                             "status": "success",
-                             "message": "Transcript summarized successfully",
-                             "data": {
-                                 "summary": "The participant discussed challenges with the current mobile app, highlighting performance issues and user experience concerns. They suggested several improvements including streamlined navigation and faster load times.",
-                                 "metadata": {
-                                     "transcript_length": 1000,
-                                     "summary_length": 150,
-                                     "processing_time": "3.2s"
-                                 }
-                             }
-                         }
-                     }
-                 }
-             },
-             500: {
-                 "description": "Internal Server Error",
-                 "content": {
-                     "application/json": {
-                         "example": {
-                             "status": "error",
-                             "message": "Gateway error: [error details]"
-                         }
-                     }
-                 }
-             }
-         })
-async def summarize_transcript(file: UploadFile = File(...)):
-    """Forward summarize request to sprint1_deprecated service."""
-    try:
-        form = {"file": (file.filename, await file.read(), file.content_type)}
-        response = await http_client.post(
-            f"{SPRINT1_DEPRECATED_URL}/api/sprint1_deprecated/summarize",
-            files=form
-        )
-        return response.json()
-    except Exception as e:
-        logger.error(f"Error forwarding to summarize service: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Gateway error: {str(e)}")
-
-@app.post("/api/sprint1_deprecated/preprocess",
-         summary="Preprocess an interview transcript",
-         description="Upload a VTT file to clean and format an interview transcript for analysis.",
-         responses={
-             200: {
-                 "description": "Successfully preprocessed transcript",
-                 "content": {
-                     "application/json": {
-                         "example": {
-                             "status": "success",
-                             "message": "Transcript preprocessed successfully",
-                             "data": {
-                                 "chunks": [
-                                     {
-                                         "chunk_number": 1,
-                                         "speaker": "Interviewer",
-                                         "text": "Can you tell me about your experience with our product?"
-                                     },
-                                     {
-                                         "chunk_number": 2,
-                                         "speaker": "Participant",
-                                         "text": "I've been using it for about six months now and overall it's been positive."
-                                     }
-                                 ],
-                                 "metadata": {
-                                     "total_chunks": 50,
-                                     "speakers": ["Interviewer", "Participant"],
-                                     "processing_time": "1.5s"
-                                 }
-                             }
-                         }
-                     }
-                 }
-             },
-             500: {
-                 "description": "Internal Server Error",
-                 "content": {
-                     "application/json": {
-                         "example": {
-                             "status": "error",
-                             "message": "Gateway error: [error details]"
-                         }
-                     }
-                 }
-             }
-         })
-async def preprocess_transcript(file: UploadFile = File(...)):
-    """Forward preprocess request to sprint1_deprecated service."""
-    try:
-        form = {"file": (file.filename, await file.read(), file.content_type)}
-        response = await http_client.post(
-            f"{SPRINT1_DEPRECATED_URL}/api/sprint1_deprecated/preprocess",
-            files=form
-        )
-        return response.json()
-    except Exception as e:
-        logger.error(f"Error forwarding to preprocess service: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Gateway error: {str(e)}")
-
 @app.on_event("startup")
 async def startup_event():
     logger.info("API Gateway starting up")
@@ -598,8 +465,6 @@ async def get_authenticated_user(payload: dict = Depends(verify_token)):
     }
 
 # Database service endpoints through the API Gateway
-# Get the database service URL from environment variables
-DATABASE_SERVICE_URL = os.getenv("SERVICE_DATABASE", "http://database:5001")
 
 @app.get("/api/interviews",
         summary="Get interviews with pagination",
@@ -613,35 +478,13 @@ async def get_interviews(
     """Proxy interviews list request to database service with authentication."""
     logger.info(f"get_interviews: Handler invoked. Limit={limit}, Offset={offset}")
     try:
-        # --- Start Enhanced Logging --- 
-        logger.debug(f"get_interviews: Received user_payload from dependency: {user_payload}")
-        if user_payload is None:
-            logger.warning("get_interviews: user_payload is None before calling get_user_id_from_payload.")
-        else:
-            logger.debug(f"get_interviews: Keys in user_payload: {list(user_payload.keys())}")
-        # --- End Enhanced Logging --- 
-            
-        # Get user ID from token if authenticated
-        user_id = get_user_id_from_payload(user_payload)
-        
+        user_id = get_user_id_from_payload(user_payload) 
         logger.info(f"get_interviews: User ID extracted: {user_id}")
         
-        # If not authenticated, return empty results
+        # Enforce authentication: Raise 401 if no valid user_id was obtained
         if not user_id:
-            logger.warning("No authenticated user found in get_interviews after extraction")
-            # Note: In dev mode with fallbacks enabled in auth.py, user_id might be the dev ID here
-            # If PRODUCTION and no user_id, this is an auth failure.
-            if is_production: 
-                 logger.error("Authentication failed in production for get_interviews.")
-                 # Returning success with empty data might mask frontend issues
-                 # Consider returning 401, but let's stick to current logic for now.
-                 # raise HTTPException(status_code=401, detail="Authentication required") 
-            
-            return {
-                "status": "success",
-                "message": "No authenticated user or auth failed",
-                "data": { "interviews": [], "total": 0, "limit": limit, "offset": offset, "hasMore": False }
-            }
+            logger.warning("get_interviews: No valid user ID found. Raising 401.")
+            raise HTTPException(status_code=401, detail="Authentication required")
         
         logger.info(f"Fetching interviews for user: {user_id} with limit: {limit}, offset: {offset}")
         
@@ -656,32 +499,24 @@ async def get_interviews(
         endpoint_url = f"{DATABASE_SERVICE_URL}/interviews"
         logger.info(f"Calling database service at: {endpoint_url} with params: {params}")
         
-        # Use the authenticated service call function
         response_data = await call_authenticated_service(
             service_url=endpoint_url,
             method="GET",
             params=params
         )
         
-        # Check if response contains an error
         if response_data.get("status") == "error":
             error_message = response_data.get("message", "Unknown error")
             logger.error(f"Error from database service when getting interviews: {error_message}")
             raise HTTPException(status_code=500, detail=f"Database service error: {error_message}")
         
-        # Log the successful response data for debugging
         logger.debug(f"Successfully received interviews data: {response_data}")
-        
-        # Return the response data
         return response_data
-    except httpx.TimeoutException:
-        logger.error("Timeout while connecting to database service")
-        raise HTTPException(status_code=504, detail="Database service timeout")
-    except httpx.ConnectError as e:
-        logger.error(f"Connection error to database service: {str(e)}")
-        raise HTTPException(status_code=503, detail=f"Cannot connect to database service: {str(e)}")
+        
+    except HTTPException as http_exc: # Re-raise specific HTTP exceptions
+        raise http_exc 
     except Exception as e:
-        logger.error(f"Error forwarding to database service: {str(e)}", exc_info=True)
+        logger.error(f"Error processing get_interviews request: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Gateway error: {str(e)}")
 
 @app.get("/api/interviews/{interview_id}",
@@ -690,32 +525,20 @@ async def get_interviews(
 async def get_interview_details(
     interview_id: str,
     request: Request,
-    user_payload: Optional[dict] = Depends(get_optional_user)
+    user_payload: Dict[str, Any] = Depends(verify_token)
 ):
     """Proxy interview details request to database service with authentication."""
     try:
-        # Log all headers for debugging
-        all_headers = {k.lower(): v for k, v in request.headers.items()}
-        logger.debug(f"Interview details request headers: {all_headers}")
-        
-        # Get user ID from token if authenticated
+        # Get user ID from the *validated* token payload
         user_id = get_user_id_from_payload(user_payload)
         
         logger.info(f"Attempting to fetch details for interview ID: {interview_id}, User ID: {user_id}")
         
-        # If not authenticated, try alternative methods
+        # Check if user_id was successfully extracted (should always be true if verify_token succeeded)
         if not user_id:
-            # Try getting user ID from X-User-ID header (direct method)
-            user_id_header = request.headers.get("X-User-ID")
-            if user_id_header:
-                user_id = user_id_header
-                logger.info(f"Using user ID from X-User-ID header: {user_id}")
+            logger.error("Validated token payload is missing user ID! This shouldn't happen.")
+            raise HTTPException(status_code=500, detail="Internal authentication processing error")
             
-            # If still not found, return error
-            if not user_id:
-                logger.error("No authenticated user found for interview details")
-                raise HTTPException(status_code=401, detail="Authentication required")
-        
         # Build the request parameters
         params = {"userId": user_id}
         
@@ -723,41 +546,146 @@ async def get_interview_details(
         endpoint_url = f"{DATABASE_SERVICE_URL}/interviews/{interview_id}"
         logger.info(f"Calling database service at: {endpoint_url} with params: {params}")
         
-        # Use the authenticated service call function
         response_data = await call_authenticated_service(
             service_url=endpoint_url,
             method="GET",
             params=params
         )
         
-        # Check if response contains an error
         if response_data.get("status") == "error":
             error_message = response_data.get("message", "Unknown error")
             logger.error(f"Error from database service for interview {interview_id}: {error_message}")
-            
-            # Determine appropriate status code based on error message
             status_code = 500
             if "not found" in error_message.lower():
                 status_code = 404
-            elif "not authorized" in error_message.lower():
+            elif "not authorized" in error_message.lower(): # Should userId check prevent this?
                 status_code = 403
-                
             raise HTTPException(status_code=status_code, detail=f"Database service error: {error_message}")
         
-        # Log the successful response data for debugging
         logger.debug(f"Successfully received details for interview {interview_id}: {response_data}")
-        
-        # Return the response data
         return response_data
-    except httpx.TimeoutException:
-        logger.error("Timeout while connecting to database service")
-        raise HTTPException(status_code=504, detail="Database service timeout")
-    except httpx.ConnectError as e:
-        logger.error(f"Connection error to database service: {str(e)}")
-        raise HTTPException(status_code=503, detail=f"Cannot connect to database service: {str(e)}")
+        
+    except HTTPException as http_exc: # Re-raise specific HTTP exceptions
+        raise http_exc
     except Exception as e:
-        logger.error(f"Error forwarding to database service: {str(e)}", exc_info=True)
+        logger.error(f"Error processing get_interview_details request: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Gateway error: {str(e)}")
 
 # Additional database service endpoints can be added as needed
 # POST, PUT, DELETE for interviews, etc. 
+
+# ==============================================================================
+# DATABASE SERVICE ENDPOINTS (FORWARDING)
+# ==============================================================================
+
+# Helper function for generic database forwarding
+
+# REMOVED Sprint1 Deprecated from service discovery endpoints
+@app.get("/api/services/discover", include_in_schema=False)
+async def discover_services():
+    """Internal endpoint for listing available backend services."""
+    return {
+        "interview_analysis": INTERVIEW_ANALYSIS_URL,
+        "database": DATABASE_SERVICE_URL,
+        "sprint1_deprecated": SPRINT1_DEPRECATED_URL
+    }
+
+@app.get("/api/services/openapi", include_in_schema=False)
+async def get_services_openapi():
+    """Fetches and combines OpenAPI schemas from backend services."""
+    services = {
+        "interview_analysis": INTERVIEW_ANALYSIS_URL,
+        "database": DATABASE_SERVICE_URL,
+        "sprint1_deprecated": SPRINT1_DEPRECATED_URL
+    }
+    combined_openapi = {
+        "openapi": "3.0.0",
+        "info": {
+            "title": "Navi CFCI Combined Service API",
+            "version": "1.0.0"
+        },
+        "paths": {},
+        "components": {
+            "schemas": {},
+            "securitySchemes": app.openapi().get("components", {}).get("securitySchemes", {})
+        },
+        "security": app.openapi().get("security", [])
+    }
+
+    for service_name, base_url in services.items():
+        if not base_url: continue
+        try:
+            openapi_url = f"{base_url}/openapi.json"
+            response = await http_client.get(openapi_url)
+            response.raise_for_status()
+            service_openapi = response.json()
+
+            # Merge paths, prefixing with service name
+            for path, path_item in service_openapi.get("paths", {}).items():
+                combined_openapi["paths"][f"/api/{service_name}{path}"] = path_item
+
+            # Merge components schemas, prefixing with service name to avoid conflicts
+            for schema_name, schema_def in service_openapi.get("components", {}).get("schemas", {}).items():
+                combined_openapi["components"]["schemas"][f"{service_name.capitalize()}_{schema_name}"] = schema_def
+
+        except httpx.RequestError as e:
+            logger.error(f"Error fetching OpenAPI schema for {service_name}: {e}")
+        except Exception as e:
+            logger.error(f"Error processing OpenAPI schema for {service_name}: {e}")
+
+    return combined_openapi
+
+# ==============================================================================
+# SPRINT1 DEPRECATED ENDPOINTS (FORWARDING) - Re-added for local dev
+# ==============================================================================
+
+@app.post("/api/sprint1_deprecated/keywords",
+         summary="Extract keywords from a transcript",
+         description="Upload a VTT file to extract key terms and phrases from an interview transcript.",
+         include_in_schema=False) # Keep hidden from prod docs
+async def extract_keywords(file: UploadFile = File(...)):
+    """Forward keywords request to sprint1_deprecated service."""
+    try:
+        form = {"file": (file.filename, await file.read(), file.content_type)}
+        response = await http_client.post(
+            f"{SPRINT1_DEPRECATED_URL}/api/sprint1_deprecated/keywords",
+            files=form
+        )
+        return response.json()
+    except Exception as e:
+        logger.error(f"Error forwarding to keywords service: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Gateway error: {str(e)}")
+
+@app.post("/api/sprint1_deprecated/summarize",
+         summary="Summarize an interview transcript",
+         description="Upload a VTT file to generate a summary of an interview transcript.",
+         include_in_schema=False) # Keep hidden from prod docs
+async def summarize_transcript(file: UploadFile = File(...)):
+    """Forward summarize request to sprint1_deprecated service."""
+    try:
+        form = {"file": (file.filename, await file.read(), file.content_type)}
+        response = await http_client.post(
+            f"{SPRINT1_DEPRECATED_URL}/api/sprint1_deprecated/summarize",
+            files=form
+        )
+        return response.json()
+    except Exception as e:
+        logger.error(f"Error forwarding to summarize service: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Gateway error: {str(e)}")
+
+@app.post("/api/sprint1_deprecated/preprocess",
+         summary="Preprocess an interview transcript",
+         description="Upload a VTT file to clean and format an interview transcript for analysis.",
+         include_in_schema=False) # Keep hidden from prod docs
+async def preprocess_transcript(file: UploadFile = File(...)):
+    """Forward preprocess request to sprint1_deprecated service."""
+    try:
+        form = {"file": (file.filename, await file.read(), file.content_type)}
+        response = await http_client.post(
+            f"{SPRINT1_DEPRECATED_URL}/api/sprint1_deprecated/preprocess",
+            files=form
+        )
+        return response.json()
+    except Exception as e:
+        logger.error(f"Error forwarding to preprocess service: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Gateway error: {str(e)}") 

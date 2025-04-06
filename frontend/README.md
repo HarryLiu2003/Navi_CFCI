@@ -1,91 +1,70 @@
 # Navi CFCI Frontend
 
-A Next.js application for the Navi CFCI platform that provides a user interface for transcript analysis.
+A Next.js application for the Navi CFCI platform that provides a user interface for transcript analysis, result visualization, and user authentication.
 
-## Development
+## Key Features
 
-### Local Development
+*   User dashboard for managing interviews.
+*   Transcript upload interface.
+*   Interactive display of analysis results (problem areas, synthesis, transcript linking).
+*   User registration and login (via NextAuth).
 
-#### Option 1: With Docker (via Docker Compose)
-This is the recommended approach for full-stack development:
+(See [../docs/architecture.md](../docs/architecture.md) for how this fits into the overall system).
+
+## Local Development
+
+### Running with Docker Compose (Recommended)
+
+Run the full stack from the project root:
 
 ```bash
-# From the root directory of the project
-npm run start  # Starts all services including frontend
+# From project root
+docker compose up
 ```
+Access the frontend at http://localhost:3000.
 
-#### Option 2: Standalone
-For frontend-only development:
+### Running Standalone (Alternative)
 
 ```bash
-# From the frontend directory
+# From this directory (frontend/)
 npm install
 npm run dev
 ```
+Access at http://localhost:3000. Requires backend services (especially API Gateway) to be running and accessible at the URL specified in `.env`.
 
-The application will be available at http://localhost:3000.
+## Environment Variables (.env)
 
-### Environment Variables
+Create `.env` from `.env.example`.
 
-Create a `.env` file based on `.env.example`:
+*   `NEXTAUTH_SECRET`: **Required.** Secret for NextAuth session/JWT handling. **Must match** `JWT_SECRET` in `api_gateway/.env` locally.
+*   `NEXTAUTH_URL`: URL for NextAuth callbacks (e.g., `http://localhost:3000` locally).
+*   `NEXT_PUBLIC_API_URL`: **Required.** URL of the API Gateway the frontend will call.
+    *   Local: `http://localhost:8000` (when running via Docker Compose)
+    *   Production: The Cloud Run URL of the deployed API Gateway.
+*   `NODE_ENV`: `development` or `production`. Used by Next.js build process (was `NEXT_PUBLIC_ENV`).
+*   `DATABASE_URL`: **Required.** Connection string for Prisma (used by NextAuth Prisma Adapter).
 
-```bash
-cp .env.example .env
-```
+(See [../docs/deployment_guide.md](../docs/deployment_guide.md) for production environment variables and secret management).
 
-Key environment variables:
-- `NEXT_PUBLIC_API_URL`: URL of the API Gateway
-  - Local development: `http://localhost:8000`
-  - Production: Your Google Cloud Run API Gateway URL
-- `NEXT_PUBLIC_ENV`: `development` or `production`
-
-## Production Deployment
-
-### Vercel Deployment (Recommended)
-
-#### Prerequisites
-- Vercel account
-- GitHub repository connected to Vercel
-
-#### Deployment Steps
-
-1. Import the project in Vercel dashboard
-2. Configure build settings:
-   - Framework: Next.js
-   - Root directory: `frontend`
-3. Set up environment variables:
-   - `NEXT_PUBLIC_API_URL`: Your Google Cloud Run API Gateway URL
-   - `NEXT_PUBLIC_ENV`: `production`
-4. Deploy
-
-#### Using Vercel CLI
+## Testing
 
 ```bash
-npm install -g vercel
-vercel login
-vercel --prod
+# Run unit/integration tests within the Docker container (recommended - requires Jest setup)
+docker exec -it navi_cfci-frontend-1 npm test
+
+# Run tests locally (requires Jest setup)
+npm test
+
+# Run E2E tests with Cypress within Docker
+docker exec -it navi_cfci-frontend-1 npm run cy:run
+
+# Open Cypress runner locally
+npm run cy:open
 ```
 
-### Docker Deployment (Alternative)
+(See [../docs/testing_strategy.md](../docs/testing_strategy.md) for overall testing info).
 
-The frontend includes a Dockerfile that can be used for deployment to container platforms.
+## Deployment
 
-```bash
-# Build the Docker image
-docker build -t navi-frontend --target production .
-
-# Run the container
-docker run -p 3000:3000 -e NEXT_PUBLIC_API_URL=your-api-url navi-frontend
-```
-
-## Configuration Files
-
-- `vercel.json`: Configuration for Vercel deployment
-- `next.config.ts`: Next.js configuration
-- `Dockerfile`: For containerized deployment (primarily for local development)
-
-## Notes
-
-The frontend is designed for hybrid deployment:
-- For local development: Use Docker Compose with the backend services
-- For production: Deploy to Vercel while backend services are on Google Cloud Run
+This application is typically deployed to **Vercel**.
+Refer to the central [Deployment Guide](../docs/deployment_guide.md) for detailed instructions.
