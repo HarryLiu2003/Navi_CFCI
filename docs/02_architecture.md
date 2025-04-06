@@ -15,7 +15,7 @@ The system employs a hybrid deployment model:
 
 ```mermaid
 graph LR
-    User[User Browser] --> FE["Frontend<br>(Next.js on Vercel)"];
+    User[User Browser] --> FE([Frontend<br>(Next.js on Vercel)]);
     FE -->|HTTPS API Call<br>(JWS Auth)| APIGW([API Gateway<br>(FastAPI on Cloud Run - Public)]);
     
     subgraph Google Cloud Run (us-central1)
@@ -38,7 +38,7 @@ graph LR
     style IA fill:#FCE5CD,stroke:#333,stroke-width:2px
     style DBService fill:#FCE5CD,stroke:#333,stroke-width:2px
     style S1 fill:#FCE5CD,stroke:#333,stroke-width:2px
-    style Postgres fill:#CFE2F3,stroke:#333,stroke-width:2px
+    style PG fill:#CFE2F3,stroke:#333,stroke-width:2px
     style Gemini fill:#CFE2F3,stroke:#333,stroke-width:2px
     style OpenAI fill:#CFE2F3,stroke:#333,stroke-width:2px
 
@@ -93,20 +93,20 @@ Docker Compose simulates the production environment by creating a network where 
 
 ```mermaid
 graph TD
-    User[User Browser] -->|"http://localhost:3000"| FE["Frontend<br>Container"];
-    FE -->|"http://api_gateway:8000"| APIGW([API Gateway<br>Container]);
+    User["User Browser"] -->|"http://localhost:3000"| FE["Frontend<br>Container"]
+    FE -->|"http://api_gateway:8000"| APIGW["API Gateway<br>Container"]
     
-    subgraph Docker Network
-      APIGW -->|"http://interview_analysis:8001"| IA([Interview Analysis<br>Container]);
-      APIGW -->|"http://database:5001"| DBService([Database Service<br>Container]);
-      APIGW -->|"http://sprint1_deprecated:8002"| S1([Sprint1 Deprecated<br>Container]);
-      IA -->|"http://database:5001"| DBService;
+    subgraph "Docker Network"
+      APIGW -->|"http://interview_analysis:8001"| IA["Interview Analysis<br>Container"]
+      APIGW -->|"http://database:5001"| DBService["Database Service<br>Container"]
+      APIGW -->|"http://sprint1_deprecated:8002"| S1["Sprint1 Deprecated<br>Container"]
+      IA -->|"http://database:5001"| DBService
     end
 
-    subgraph External Services
-      DBService -->|DATABASE_URL| PG([Supabase<br>PostgreSQL]);
-      IA --> |GEMINI_API_KEY| Gemini(Google Gemini API);
-      S1 --> |OPENAI_API_KEY| OpenAI(OpenAI API);
+    subgraph "External Services"
+      DBService -->|"DATABASE_URL"| Postgres[("Supabase<br>PostgreSQL")]
+      IA --> |"GEMINI_API_KEY"| Gemini["Google Gemini API"]
+      S1 --> |"OPENAI_API_KEY"| OpenAI["OpenAI API"]
     end
 
     style FE fill:#D9EAD3,stroke:#333,stroke-width:2px
@@ -114,7 +114,7 @@ graph TD
     style IA fill:#FCE5CD,stroke:#333,stroke-width:2px
     style DBService fill:#FCE5CD,stroke:#333,stroke-width:2px
     style S1 fill:#FCE5CD,stroke:#333,stroke-width:2px
-    style PG fill:#CFE2F3,stroke:#333,stroke-width:2px
+    style Postgres fill:#CFE2F3,stroke:#333,stroke-width:2px
     style Gemini fill:#CFE2F3,stroke:#333,stroke-width:2px
     style OpenAI fill:#CFE2F3,stroke:#333,stroke-width:2px
 ```
