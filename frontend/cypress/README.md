@@ -2,6 +2,8 @@
 
 This directory contains end-to-end tests for the Navi CFCI frontend application using Cypress.
 
+(For the overall project testing strategy, see [../../docs/testing_strategy.md](../../docs/testing_strategy.md)).
+
 ## Table of Contents
 - [Test Structure](#test-structure)
 - [Running Tests](#running-tests)

@@ -72,18 +72,34 @@ export default function Home() {
 
   const fetchInterviews = async () => {
     setIsLoadingInterviews(true)
+    console.log("[page.tsx] fetchInterviews started");
     try {
       const response = await getInterviews(5, 0) // Get the 5 most recent interviews
-      if (response.status === 'success' && response.data.interviews) {
+      
+      console.log("[page.tsx] Response received from getInterviews:", JSON.stringify(response, null, 2));
+
+      if (response && response.status === 'success' && response.data && Array.isArray(response.data.interviews)) {
+        console.log(`[page.tsx] Successfully fetched ${response.data.interviews.length} interviews.`);
         setInterviews(response.data.interviews)
       } else {
-        console.error('Failed to fetch interviews:', response)
+        console.error('[page.tsx] Failed to fetch interviews or data structure is incorrect:', response);
+        if (!response) {
+           console.error('[page.tsx] Reason: Response object was null or undefined.');
+        } else if (response.status !== 'success') {
+           console.error(`[page.tsx] Reason: Response status was not 'success' (was '${response.status}'). Message: ${response.message}`);
+        } else if (!response.data) {
+           console.error('[page.tsx] Reason: response.data is missing.');
+        } else if (!Array.isArray(response.data.interviews)) {
+            console.error('[page.tsx] Reason: response.data.interviews is not an array.');
+        }        
+        setInterviews([])
       }
     } catch (error) {
-      console.error('Error fetching interviews:', error)
-      // Don't show a toast here as it might be confusing when the app first loads
+      console.error('[page.tsx] Error fetching interviews:', error);
+      setInterviews([])
     } finally {
       setIsLoadingInterviews(false)
+      console.log("[page.tsx] fetchInterviews finished");
     }
   }
 
@@ -131,6 +147,7 @@ export default function Home() {
         router.push(`/interview-analysis/${result.data.storage.id}`)
       } else {
         // Fallback to the main interview analysis page if ID is not available
+        console.error("[page.tsx] Analysis successful but storage.id missing. Response data:", JSON.stringify(result, null, 2));
         router.push('/interview-analysis')
       }
       

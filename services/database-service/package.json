@@ -9,8 +9,8 @@
     "generate": "prisma generate",
     "migrate:dev": "prisma migrate dev",
     "migrate:deploy": "prisma migrate deploy",
-    "dev": "PORT=5001 ts-node src/api/server.ts",
-    "start": "PORT=5001 node dist/api/server.js"
+    "dev": "ts-node src/api/server.ts",
+    "start": "node dist/api/server.js"
   },
   "keywords": [],
   "author": "",

@@ -2,6 +2,8 @@
 
 This directory contains the test suite for the Sprint1 Deprecated service, organized according to best practices for Python testing.
 
+(For the overall project testing strategy, see [../../docs/testing_strategy.md](../../docs/testing_strategy.md)).
+
 ## Test Structure
 
 Tests are organized in the following directories:

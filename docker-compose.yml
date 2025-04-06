@@ -3,86 +3,81 @@
 # The database service connects to Supabase instead of using a local PostgreSQL database
 
 services:
-  database:
+  database-service:
     build:
-      context: ./services/database
+      context: ./services/database-service
       target: development  # Use development target by default
+    container_name: navi_cfci-database-service
     ports:
       - "5001:5001"
     env_file:
-      - ./services/database/.env    # Contains Supabase connection string
+      - ./services/database-service/.env    # Contains Supabase connection string
+    environment:
+      - NODE_ENV=development # Explicitly set NODE_ENV for entrypoint.sh logic
     volumes:
-      - ./services/database/src:/app/src  # Mount only source code for hot-reloading
-      - ./services/database/prisma:/app/prisma  # Mount prisma directory
-      - ./services/database/package.json:/app/package.json  # Mount package.json
-      - ./services/database/tsconfig.json:/app/tsconfig.json  # Mount tsconfig.json
-      - ./services/database/.env:/app/.env  # Mount .env file directly
+      - ./services/database-service/src:/app/src  # Mount only source code for hot-reloading
+      - ./services/database-service/prisma:/app/prisma  # Mount prisma directory
+      - ./services/database-service/package.json:/app/package.json  # Mount package.json
+      - ./services/database-service/tsconfig.json:/app/tsconfig.json  # Mount tsconfig.json
+      - ./services/database-service/.env:/app/.env  # Mount .env file directly
       # Exclude the dist directory to keep the built files
+    # Migration and dev server start are now handled by entrypoint.sh, triggered by default.
 
   api_gateway:
-    build: 
+    build:
       context: ./services/api_gateway
-      target: development  # Use development target by default
+      target: development
+    container_name: navi_cfci-api_gateway
+    volumes:
+      - ./services/api_gateway:/app
+      - /app/node_modules
     ports:
       - "8000:8000"
-    env_file:
-      - ./services/api_gateway/.env
     depends_on:
       - interview_analysis
+      - database-service
       - sprint1_deprecated
-    volumes:
-      - ./services/api_gateway:/app  # Mount code for hot-reloading
-      - api_gateway_logs:/app/logs
+    env_file:
+      - ./services/api_gateway/.env
 
   interview_analysis:
-    build: 
+    build:
       context: ./services/interview_analysis
-      target: development  # Use development target by default
+      target: development
+    container_name: navi_cfci-interview_analysis
+    volumes:
+      - ./services/interview_analysis:/app
+      - /app/node_modules
     ports:
       - "8001:8001"
     env_file:
       - ./services/interview_analysis/.env
-    volumes:
-      - ./services/interview_analysis:/app  # Mount code for hot-reloading
-      - interview_analysis_logs:/app/logs
-    environment:
-      - DATABASE_API_URL=http://database:5001
-    depends_on:
-      - database
-    command: >
-      uvicorn app.main:app --host 0.0.0.0 --port 8001 --reload
 
   sprint1_deprecated:
     build:
       context: ./services/sprint1_deprecated
-      target: development  # Use development target by default
+      target: development
+    container_name: navi_cfci-sprint1_deprecated
+    volumes:
+      - ./services/sprint1_deprecated:/app
+      - /app/node_modules
     ports:
       - "8002:8002"
     env_file:
       - ./services/sprint1_deprecated/.env
-    volumes:
-      - ./services/sprint1_deprecated:/app  # Mount code for hot-reloading
-      - sprint1_deprecated_logs:/app/logs
-    command: >
-      bash -c "python post_install.py && uvicorn app.main:app --host 0.0.0.0 --port 8002 --reload"
 
   frontend:
     build:
       context: ./frontend
-      target: development  # Use development target by default
+      target: development
+    container_name: navi_cfci-frontend
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+      - /app/.next
     ports:
       - "3000:3000"
     env_file:
       - ./frontend/.env
-    environment:
-      - DATABASE_API_URL=http://database:5001
-    volumes:
-      - ./frontend:/app  # Mount code for hot-reloading
     depends_on:
       - api_gateway
-      - database
-
-volumes:
-  api_gateway_logs:
-  interview_analysis_logs:
-  sprint1_deprecated_logs: 

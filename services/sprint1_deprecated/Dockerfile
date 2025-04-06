@@ -28,8 +28,8 @@ COPY post_install.py .
 ENV PYTHONPATH=/app
 ENV PORT=8002
 
-# Expose the port
-EXPOSE ${PORT}
+# Expose the port for development
+EXPOSE 8002
 
 # Start the application with hot reload
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8002", "--reload"]
@@ -37,16 +37,18 @@ CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8002", "--reload
 # Production stage
 FROM base AS production
 
+# Install production dependencies explicitly
+RUN pip install --no-cache-dir gunicorn
+
 # Copy application code and post_install script
 COPY app/ ./app/
 COPY post_install.py .
 
 # Set environment variables
 ENV PYTHONPATH=/app
-ENV PORT=8002
 
-# Expose the port
-EXPOSE ${PORT}
+# Expose Cloud Run port
+EXPOSE 8080
 
-# Start the application
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8002"] 
+# Start with gunicorn as the production server
+CMD ["gunicorn", "--bind", "0.0.0.0:8080", "--workers", "2", "--worker-class", "uvicorn.workers.UvicornWorker", "app.main:app", "--timeout", "120", "--access-logfile", "-", "--error-logfile", "-"] 

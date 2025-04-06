@@ -1,52 +1,63 @@
 # Sprint1 Deprecated Service
 
-This service provides legacy functionality for preprocessing, summarization, and keyword extraction from interview transcripts.
+This service provides legacy functionality for preprocessing, summarization, and keyword extraction from interview transcripts, likely using older models like OpenAI GPT-4.
 
-## Setup
+**Note:** This service is considered deprecated and new development should focus on the `interview_analysis` service which uses Google Gemini.
 
-1. Install dependencies:
-```bash
-pip install -r requirements.txt
-```
+## Core Responsibilities
 
-2. Run the post-installation script to download required models and data:
-```bash
-python post_install.py
-```
+*   Preprocesses VTT files into structured text chunks.
+*   Generates summaries of transcripts.
+*   Extracts keywords and themes.
 
-This will install:
-- SpaCy English language model (`en_core_web_sm`)
-- NLTK data (punkt, stopwords)
+(See [../../docs/architecture.md](../../docs/architecture.md) for how this service fits into the overall system).
 
 ## API Endpoints
 
-### Preprocessing
+*   `POST /api/sprint1_deprecated/preprocess`
+*   `POST /api/sprint1_deprecated/summarize`
+*   `POST /api/sprint1_deprecated/keywords`
 
-**Endpoint**: `/api/sprint1_deprecated/preprocess`
+(These accept VTT files via form data).
 
-Processes VTT transcript files into clean, structured text chunks.
+## Environment Variables (.env)
 
-### Summarization
+Create `.env` from `.env.example`.
 
-**Endpoint**: `/api/sprint1_deprecated/summarize`
+*   `OPENAI_API_KEY`: Required if using OpenAI models.
+*   `LOG_LEVEL`: `INFO` or `DEBUG`.
+*   `NODE_ENV`: `development` or `production`.
 
-Generates concise summaries of interview transcripts using OpenAI's models.
+(See [../../docs/deployment_guide.md](../../docs/deployment_guide.md) for production environment variables).
 
-### Keyword Extraction
+## Local Development & Testing
 
-**Endpoint**: `/api/sprint1_deprecated/keywords`
+### Running with Docker Compose (Recommended)
 
-Extracts key points, themes, and insights from interview transcripts using a combination of NLP techniques and AI.
-
-## Environment Variables
-
-Required environment variables (see `.env.example`):
-- `OPENAI_API_KEY`: Your OpenAI API key
-- `OPENAI_API_URL`: OpenAI API URL (usually https://api.openai.com/v1)
-
-## Local Development
-
-Run the service:
+Run the full stack from the project root:
 ```bash
+docker compose up
+```
+This service will be available internally at `http://sprint1_deprecated:8002`.
+
+### Running Standalone (Alternative)
+
+```bash
+# From this directory (services/sprint1_deprecated)
+pip install -r requirements.txt
+python post_install.py # Download NLP models
+# Ensure OPENAI_API_KEY is set in .env if needed
 uvicorn app.main:app --reload --port 8002
 ``` 
+
+### Running Tests
+
+```bash
+# Run tests within the Docker container (recommended)
+docker exec -it navi_cfci-sprint1_deprecated-1 pytest
+
+# Run tests locally
+pytest
+```
+
+(See [../../docs/testing_strategy.md](../../docs/testing_strategy.md) for overall testing info). 

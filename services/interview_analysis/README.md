@@ -1,211 +1,69 @@
 # Interview Analysis Service
 
-The Interview Analysis Service is a key component of the Navi CFCI platform, responsible for processing and analyzing interview transcripts to identify problem areas, insights, and improvement opportunities.
+This service provides the core AI-powered analysis of user interview transcripts (VTT format) for the Navi CFCI platform, using Google's Gemini models.
 
-## Features
+## Core Responsibilities
 
-1. VTT transcript file processing
-2. Interview analysis using Google's Gemini API
-3. Problem area identification and categorization
-4. Storage of analysis results in the centralized database
+*   Receives VTT file uploads via API.
+*   Parses and processes VTT content.
+*   Uses a configured Gemini pipeline (`app/services/analysis/gemini_pipeline/`) to:
+    *   Identify problem areas.
+    *   Extract relevant transcript excerpts.
+    *   Generate analysis synthesis.
+*   Stores the complete analysis result (including metadata and transcript chunks) by calling the **Database Service**.
 
-## Service Architecture
-
-This service follows a clean architecture approach with clear separation of concerns:
-
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                         Client Request                          │
-└───────────────────────────────┬─────────────────────────────────┘
-                                │
-                                ▼
-┌─────────────────────────────────────────────────────────────────┐
-│ API Layer (app/api/)                                            │
-│                                                                 │
-│  ┌─────────────────┐         ┌───────────────────────┐          │
-│  │    routes.py    │◄────────┤    dependencies.py    │          │
-│  └────────┬────────┘         └───────────────────────┘          │
-└──────────┬──────────────────────────────────────────────────────┘
-           │
-           ▼
-┌─────────────────────────────────────────────────────────────────┐
-│ Domain Layer (app/domain/)                                      │
-│                                                                 │
-│  ┌─────────────────┐         ┌───────────────────────┐          │
-│  │   workflows.py  │◄────────┤       models.py       │          │
-│  └────────┬────────┘         └───────────────────────┘          │
-└──────────┬──────────────────────────────────────────────────────┘
-           │
-           ▼
-┌─────────────────────────────────────────────────────────────────┐
-│ Services Layer (app/services/)                                  │
-│                                                                 │
-│  ┌─────────────────────────┐    ┌──────────────────────────┐    │
-│  │ Analysis                │    │ Storage                  │    │
-│  │  ┌──────────────┐      │    │  ┌─────────────────┐     │    │
-│  │  │  analyzer.py │      │    │  │  repository.py  │     │    │
-│  │  └──────┬───────┘      │    │  └────────┬────────┘     │    │
-│  │         │              │    │           │               │    │
-│  │  ┌──────▼───────┐      │    │           │               │    │
-│  │  │ gemini_pipeline/ │      │    │           │               │    │
-│  │  └──────────────┘      │    │           │               │    │
-│  └──────────┬─────────────┘    └───────────┬───────────────┘    │
-└─────────────┬───────────────────────────────┬──────────────────-┘
-              │                               │
-              ▼                               ▼
-┌─────────────────────────┐      ┌───────────────────────────┐
-│    External LLM API     │      │       Database API        │
-└─────────────────────────┘      └───────────────────────────┘
-```
-
-### Service Layer Organization
-
-- **API Layer** (`app/api/`): Handles HTTP requests and responses
-  - `routes.py`: API endpoint definitions
-  - `dependencies.py`: Dependency injection configuration
-
-- **Domain Layer** (`app/domain/`): Core business entities and workflows
-  - `models.py`: Domain entities using Pydantic
-  - `workflows.py`: Business process orchestration
-
-- **Services Layer** (`app/services/`): Implementation of business functionalities
-  - `analysis/`: Transcript analysis services
-    - `analyzer.py`: Main analysis implementation
-    - `gemini_pipeline/`: Gemini API pipeline implementation for analysis
-  - `storage/`: Data storage services
-    - `repository.py`: Database access implementation
-
-- **Utils** (`app/utils/`): Cross-cutting concerns
-  - `api_responses.py`: Standardized API response formatting
-  - `errors/`: Custom error classes with proper status codes
-
-### Error Handling
-
-The service implements a comprehensive error handling approach:
-- `InterviewAnalysisError`: Base exception for all service errors
-- `FileProcessingError`: For issues with uploaded files
-- `AnalysisError`: For failures during analysis
-- `StorageError`: For database storage issues
-- `ConfigurationError`: For service configuration problems
-
-All errors are mapped to appropriate HTTP status codes and returned in a consistent format.
-
-## Setup and Configuration
-
-### Environment Variables
-
-Required environment variables:
-
-- `GEMINI_API_KEY`: API key for Google's Gemini model access (required)
-- `DATABASE_API_URL`: URL for the database service API (defaults to http://localhost:5001)
-- Additional logging variables can be configured via standard Python logging mechanisms
-
-Example:
-```
-GEMINI_API_KEY=your-gemini-api-key
-DATABASE_API_URL=http://database:5001
-```
-
-### Installation
-
-1. Navigate to the service directory
-2. Install dependencies: `pip install -r requirements.txt`
-
-## Running the Service
-
-### Development Mode
-
-```bash
-uvicorn app.main:app --reload --port 8001
-```
-
-### Production Mode
-
-```bash
-uvicorn app.main:app --port 8001 --workers 4
-```
+(See [../../docs/architecture.md](../../docs/architecture.md) for how this service fits into the overall system).
 
 ## API Endpoints
 
-### Analyze Transcript
+*   **`POST /api/interviews`**: 
+    *   Accepts `multipart/form-data` with a `file` (VTT) and optional metadata fields (`project_id`, `interviewer`, `interview_date`, `userId`).
+    *   Performs analysis and stores results via Database Service.
+    *   Returns a JSON object containing the analysis data and stored interview ID (or error).
 
-- **URL**: `/api/interview_analysis/analyze`
-- **Method**: `POST`
-- **Body**: Form data with:
-  - `file`: VTT transcript file
-  - `project_id` (optional): Project identifier
-  - `interviewer` (optional): Name of interviewer
-  - `interview_date` (optional): Date of interview (ISO format)
-  - `userId` (optional): User ID of the authenticated user
-- **Response**: JSON with standardized structure:
-  - `status`: "success" or "error"
-  - `message`: Success/error message
-  - `data`: When successful, contains the analysis result with:
-    - `problem_areas`: List of identified problems
-    - `transcript`: List of transcript chunks
-    - `synthesis`: Summary of findings
-    - `metadata`: Analysis metadata
-    - `storage`: Storage information
+## Environment Variables (.env)
 
-## Service Request Flow
+Create `.env` from `.env.example`. Key variables:
 
-Below is a step-by-step illustration of how a typical analyze request flows through the system:
+*   `GEMINI_API_KEY`: **Required.** Your API key for Google Gemini.
+*   `DATABASE_API_URL`: URL of the Database Service (e.g., `http://database:5001` locally, Cloud Run URL in production).
+*   `LOG_LEVEL`: `INFO` or `DEBUG`.
+*   `NODE_ENV`: `development` or `production`.
 
+(See [../../docs/deployment_guide.md](../../docs/deployment_guide.md) for production environment variables and secret management).
+
+## Local Development & Testing
+
+### Running with Docker Compose (Recommended)
+
+Run the full stack from the project root:
+```bash
+docker compose up
 ```
-┌──────────┐    1. HTTP POST     ┌────────────┐
-│  Client  │────/interview_anal─▶│  routes.py │
-└──────────┘    ysis/analyze     └──────┬─────┘
-                                        │
-                                        │ 2. Dependency Injection
-                                        ▼
-                                 ┌────────────────┐
-                                 │ dependencies.py│
-                                 └────────┬───────┘
-                                          │
-                                          │ 3. Creates services
-                                          ▼
-     ┌────────────────────────────────────────────────────┐
-     │                 InterviewWorkflow                  │
-     └─────────────────────┬──────────────┬──────────────┘
-                           │              │
-               4. Analyze  │              │ 5. Store
-                           ▼              ▼
-           ┌────────────────────┐  ┌────────────────────┐
-           │ TranscriptAnalyzer │  │ InterviewRepository│
-           └─────────┬──────────┘  └──────────┬─────────┘
-                     │                        │
-                     ▼                        ▼
-          ┌──────────────────┐      ┌──────────────────┐
-          │   Gemini API     │      │   Database API   │
-          └──────────────────┘      └──────────────────┘
-                     │                        │
-                     └───────────┬────────────┘
-                                 │
-                     6. Return   │
-           ┌──────────────────────────────────┐
-           │ Standardized API Response Format │
-           └──────────────────────────────────┘
-                           │
-                           ▼
-                   ┌──────────────┐
-                   │    Client    │
-                   └──────────────┘
+This service will be available internally at `http://interview_analysis:8001`.
+
+### Running Standalone (Alternative)
+
+Requires other services (like Database Service) to be accessible.
+
+```bash
+# From this directory (services/interview_analysis)
+pip install -r requirements.txt
+# Ensure GEMINI_API_KEY and DATABASE_API_URL are set in .env
+uvicorn app.main:app --reload --port 8001
 ```
 
-### Request Flow Steps:
+### Running Tests
 
-1. **API Request**: Client sends a POST request with VTT file to `/api/interview_analysis/analyze`
-2. **Dependency Injection**: FastAPI injects the required services via dependencies.py
-3. **Workflow Orchestration**: InterviewWorkflow coordinates the analysis process
-4. **Transcript Analysis**: TranscriptAnalyzer processes the VTT file using LLM chains
-5. **Data Storage**: Analysis results are stored via InterviewRepository
-6. **Response**: A standardized JSON response is returned to the client via the APIResponse utility
+```bash
+# Run tests within the Docker container (recommended)
+docker exec -it navi_cfci-interview_analysis-1 pytest
 
-## Development Guidelines
+# Run tests with coverage
+docker exec -it navi_cfci-interview_analysis-1 pytest --cov=app
 
-- Follow PEP 8 style guidelines for Python code
-- Write unit tests for all new functionality
-- Document all public methods and classes
-- Use dependency injection for service instantiation
-- Follow the established error handling patterns
-- Keep business logic in the domain layer 
+# Run tests locally
+pytest
+```
+
+(See [../../docs/testing_strategy.md](../../docs/testing_strategy.md) for overall testing info). 

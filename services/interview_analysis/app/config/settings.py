@@ -1,4 +1,5 @@
 import os
+from typing import List
 from pydantic_settings import BaseSettings
 
 class Settings(BaseSettings):
@@ -12,13 +13,16 @@ class Settings(BaseSettings):
     GEMINI_MODEL: str = "gemini-2.0-flash"
     
     # CORS Configuration
-    CORS_ORIGINS: list = ["http://localhost:3000"]
+    # Get CORS origins from environment variable
+    CORS_ORIGINS: str = os.getenv("CORS_ORIGINS", "http://localhost:3000")
     
     # Database Configuration
     DATABASE_API_URL: str = os.getenv("DATABASE_API_URL", "http://localhost:5001")
     
     # Logging Configuration
     LOG_LEVEL: str = os.getenv("LOG_LEVEL", "INFO")
+    # Environment Setting
+    NODE_ENV: str = os.getenv("NODE_ENV", "development")
     
     class Config:
         env_file = ".env"

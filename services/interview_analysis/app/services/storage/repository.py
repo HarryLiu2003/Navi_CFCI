@@ -6,6 +6,7 @@ import os
 import httpx
 from typing import Dict, Any, Optional
 from ...utils.errors import StorageError
+from ...utils.cloud_auth import call_authenticated_service
 
 # Set up logging
 logger = logging.getLogger(__name__)
@@ -60,75 +61,80 @@ class InterviewRepository:
                     interview_data["userId"] = metadata["userId"]
             
             logger.info(f"Storing interview with title: {interview_data['title']}")
+            logger.debug(f"Interview data: {interview_data}")
             
-            # Send to database service
-            async with httpx.AsyncClient(timeout=30.0) as client:
-                response = await client.post(f"{self.api_url}/interviews", json=interview_data)
-                response.raise_for_status()
+            # Use authenticated service call (works in both production and development)
+            try:
+                # Log URL for debugging
+                endpoint_url = f"{self.api_url}/interviews"
+                logger.info(f"Calling database service at: {endpoint_url}")
                 
-                result = response.json()
-                if result.get("status") != "success":
+                # Make the API call
+                result = await call_authenticated_service(
+                    service_url=endpoint_url, 
+                    method="POST", 
+                    json_data=interview_data
+                )
+                
+                # Check if the result is an error response from call_authenticated_service
+                if isinstance(result, dict) and result.get("status") == "error":
+                    error_msg = result.get("message", "Unknown error from service call")
+                    logger.error(f"Error from call_authenticated_service: {error_msg}")
+                    raise StorageError(f"Service call error: {error_msg}")
+                
+                # Check if the result is a success response from the database service
+                if isinstance(result, dict) and result.get("status") != "success":
                     error_msg = result.get("message", "Unknown error")
                     logger.error(f"Database service returned error: {error_msg}")
                     raise StorageError(f"Failed to store interview: {error_msg}")
                 
+                # Get the stored interview data
                 stored_interview = result.get("data")
                 
                 if not stored_interview:
                     logger.error("No data returned after interview insertion")
+                    logger.error(f"Full response: {result}")
                     raise StorageError("No data returned after interview insertion")
                     
                 logger.info(f"Successfully stored interview with ID: {stored_interview.get('id')}")
                 return stored_interview
+                    
+            except StorageError:
+                # Re-raise storage errors
+                raise
+            except Exception as e:
+                logger.error(f"Error storing interview: {str(e)}", exc_info=True)
+                raise StorageError(f"Failed to store interview: {str(e)}")
                 
-        except httpx.HTTPStatusError as e:
-            logger.error(f"HTTP error storing interview: {e.response.status_code} - {e.response.text}")
-            raise StorageError(f"Failed to store interview: {e.response.status_code} HTTP error")
-            
-        except httpx.RequestError as e:
-            logger.error(f"Request error storing interview: {str(e)}")
-            raise StorageError(f"Failed to connect to database service: {str(e)}")
-            
         except StorageError:
             # Re-raise storage errors
             raise
             
         except Exception as e:
-            logger.error(f"Error storing interview: {str(e)}", exc_info=True)
-            raise StorageError(f"Failed to store interview: {str(e)}")
+            logger.error(f"Error preparing interview data: {str(e)}", exc_info=True)
+            raise StorageError(f"Failed to prepare interview data: {str(e)}")
     
     def _extract_title(self, analysis_result: Dict[str, Any], metadata: Optional[Dict[str, Any]]) -> str:
         """
-        Extract a title for the interview, using metadata or generating one from analysis.
+        Extract a title for the interview from the analysis or metadata.
         
         Args:
             analysis_result: The analysis result
-            metadata: Metadata that might contain a title
+            metadata: Additional metadata
             
         Returns:
-            A title for the interview
+            A string title for the interview
         """
-        # If metadata contains a title, use it
-        if metadata and "title" in metadata and metadata["title"]:
+        # First try to use title from metadata
+        if metadata and metadata.get("title"):
             return metadata["title"]
         
-        # Otherwise, try to generate a title from the analysis
-        try:
-            # If we have problem areas, use the first one's title
-            if analysis_result.get("problem_areas") and len(analysis_result["problem_areas"]) > 0:
-                first_problem = analysis_result["problem_areas"][0]
-                return f"Interview about {first_problem['title']}"
-                
-            # If we have synthesis, use a substring of it
-            if analysis_result.get("synthesis") and isinstance(analysis_result["synthesis"], dict):
-                if "background" in analysis_result["synthesis"] and analysis_result["synthesis"]["background"]:
-                    background = analysis_result["synthesis"]["background"]
-                    # Use the first 50 characters as a title
-                    return background[:50] + ("..." if len(background) > 50 else "")
-            
-            # Fallback to generic title
-            return "Interview Analysis"
-            
-        except Exception as e:
-            logger.warning(f"Error generating title from analysis: {str(e)}")
-            return "Interview Analysis" 
+        # Next try to create a title from problem areas
+        problem_areas = analysis_result.get("problem_areas", [])
+        if problem_areas and len(problem_areas) > 0:
+            first_problem_title = problem_areas[0].get("title", "")
+            if first_problem_title:
+                return f"Interview about {first_problem_title}"
+        
+        # Finally use a generic title
+        return "Untitled Interview" 
