@@ -23,7 +23,7 @@ The platform uses a microservices architecture deployed in a hybrid model:
 *   **Database:** PostgreSQL managed via Prisma, hosted on Supabase.
 *   **Local Development:** Fully containerized using Docker Compose.
 
-(See [docs/architecture.md](docs/architecture.md) for more details)
+(See [docs/architecture.md](docs/02_architecture.md) for more details)
 
 ## Quick Start (Local Development via Docker)
 
@@ -33,7 +33,7 @@ This is the recommended way to run the entire application locally.
 
 *   Docker & Docker Compose
 *   Git
-*   Access credentials (see [Setup](#setup) below)
+*   Access credentials (see details below)
 
 **Steps:**
 
