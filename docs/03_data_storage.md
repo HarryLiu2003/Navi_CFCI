@@ -70,6 +70,14 @@ This document details the data storage strategy for the Navi CFCI platform, focu
 | `expires`    | DateTime| Session expiry time    |                           |
 | `user`       | User    | Relation to User       | `@relation(..., onDelete: Cascade)` |
 
+**Note on Session Strategy:**
+
+*   Currently, this application uses the `CredentialsProvider` for authentication.
+*   NextAuth.js v4 requires the `session: { strategy: "jwt" }` configuration when using `CredentialsProvider`.
+*   As a result, active user sessions are managed via encrypted JSON Web Tokens (JWTs) stored in client-side cookies, **not** by storing session records in this `sessions` table.
+*   The `Session` model and table are kept in the schema primarily for compatibility with the `@next-auth/prisma-adapter` (which expects it) and for future flexibility.
+*   **If OAuth providers (e.g., Google, GitHub) are added in the future:** You will likely need to revisit the session strategy. OAuth typically works best with the `database` session strategy, which *would* utilize this `sessions` table to link OAuth accounts to users and manage sessions server-side. This would involve removing `session: { strategy: "jwt" }` from the NextAuth options.
+
 ### `Interview` (`interviews` table)
 
 | Field             | Type     | Description                    | Notes                     |

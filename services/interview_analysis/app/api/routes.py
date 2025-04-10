@@ -57,10 +57,10 @@ async def analyze_interview(
                 - storage: Storage information
     """
     try:
-        # Check if the file is a VTT file
-        if not file.filename.endswith('.vtt'):
+        # Check if the file is a VTT or TXT file
+        if not (file.filename.endswith('.vtt') or file.filename.endswith('.txt')):
             logger.warning(f"Invalid file format: {file.filename}")
-            raise FileProcessingError("Invalid file format. Only .vtt files are accepted")
+            raise FileProcessingError("Invalid file format. Only .vtt or .txt files are accepted")
         
         # Read the file content
         content = await file.read()
@@ -86,7 +86,7 @@ async def analyze_interview(
         }
         
         # Process the interview through the workflow
-        analysis_result = await workflow.process_interview(content, metadata)
+        analysis_result = await workflow.process_interview(content, metadata, file.filename)
         
         return APIResponse.success(
             message="Interview analysis completed successfully",

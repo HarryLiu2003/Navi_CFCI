@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState, useRef } from 'react'
+import { useEffect, useState, useRef, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -17,10 +17,11 @@ import {
   Search,
   Info,
   AlertCircle,
-  Lightbulb
+  Lightbulb,
+  Loader2
 } from "lucide-react"
 import Link from "next/link"
-import { getInterviewById } from '@/lib/api'
+import { getInterviewById, updateInterview } from '@/lib/api'
 import { toast } from 'sonner'
 import { use } from 'react'
 import { ScrollArea } from "@/components/ui/scroll-area"
@@ -54,6 +55,14 @@ export default function InterviewAnalysisDetail({ params }: PageProps) {
   const [interview, setInterview] = useState<any>(null)
   const resolvedParams = use(params)
   
+  // State for inline title editing
+  const [currentTitle, setCurrentTitle] = useState("");
+  const [originalTitle, setOriginalTitle] = useState("");
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveError, setSaveError] = useState(false);
+  const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const titleRef = useRef<HTMLHeadingElement>(null); // Ref for the h1 element
+  
   // View mode state: 'tabs' or 'split'
   const [viewMode, setViewMode] = useState<'tabs' | 'split'>('tabs')
   
@@ -81,6 +90,13 @@ export default function InterviewAnalysisDetail({ params }: PageProps) {
         
         if (response.status === "success" && response.data) {
           setInterview(response.data)
+          const initialTitle = response.data?.title || "Interview Analysis";
+          setCurrentTitle(initialTitle);
+          setOriginalTitle(initialTitle);
+          // Set the content of the h1 initially if using contentEditable
+          if (titleRef.current) {
+            titleRef.current.textContent = initialTitle;
+          }
           // Expand the first problem area by default
           if (response.data.analysis_data?.problem_areas?.length > 0) {
             setExpandedProblemIds([response.data.analysis_data.problem_areas[0].problem_id])
@@ -98,6 +114,93 @@ export default function InterviewAnalysisDetail({ params }: PageProps) {
 
     fetchInterview()
   }, [resolvedParams.id])
+
+  // --- Title Editing Logic (contentEditable version) ---
+
+  // Debounced save function (updated UX)
+  const debouncedSave = useCallback((newTitle: string) => {
+    if (saveTimeoutRef.current) {
+      clearTimeout(saveTimeoutRef.current);
+    }
+    saveTimeoutRef.current = setTimeout(async () => {
+      const trimmedTitle = newTitle.trim();
+      
+      if (trimmedTitle === originalTitle.trim()) {
+        console.log("[page.tsx] Title unchanged (after trim), skipping save.");
+        if (titleRef.current) titleRef.current.textContent = originalTitle;
+        setCurrentTitle(originalTitle);
+        setSaveError(false);
+        return;
+      }
+      if (!trimmedTitle) {
+         console.log("[page.tsx] Title is empty, reverting and skipping save.");
+         if (titleRef.current) titleRef.current.textContent = originalTitle;
+         setCurrentTitle(originalTitle);
+         setSaveError(false);
+         return;
+      }
+      if (!resolvedParams.id) {
+          console.error("Cannot save: Interview ID is missing.");
+          return;
+      }
+
+      setIsSaving(true);
+      setSaveError(false);
+      console.log(`[page.tsx] Saving title: ${trimmedTitle}`);
+
+      try {
+        const result = await updateInterview(resolvedParams.id, { title: trimmedTitle });
+        if (result.status === 'success') {
+          setOriginalTitle(trimmedTitle); 
+          setCurrentTitle(trimmedTitle); 
+          if (titleRef.current) titleRef.current.textContent = trimmedTitle; 
+          console.log("[page.tsx] Title saved successfully.");
+        } else {
+          if (titleRef.current) titleRef.current.textContent = originalTitle;
+          setCurrentTitle(originalTitle);
+          setSaveError(true);
+          console.error("[page.tsx] Failed to save title:", result);
+        }
+      } catch (error) {
+        if (titleRef.current) titleRef.current.textContent = originalTitle;
+        setCurrentTitle(originalTitle);
+        setSaveError(true);
+        console.error("[page.tsx] Error saving title:", error);
+      } finally {
+        setIsSaving(false);
+      }
+    }, 1000); 
+  }, [resolvedParams.id, originalTitle]);
+
+  // Update state on input, extracting plain text
+  const handleTitleInput = (event: React.FormEvent<HTMLHeadingElement>) => {
+    if (saveError) setSaveError(false);
+    const newText = event.currentTarget.innerText || "";
+    setCurrentTitle(newText);
+  };
+
+  // Handle clicking away (blur)
+  const handleTitleBlur = (event: React.FocusEvent<HTMLHeadingElement>) => {
+    const finalTitle = event.currentTarget.innerText || "";
+    debouncedSave(finalTitle);
+  };
+
+  // Handle pressing Enter/Escape keys
+  const handleTitleKeyDown = (event: React.KeyboardEvent<HTMLHeadingElement>) => {
+    if (event.key === 'Enter') {
+      event.preventDefault(); 
+      event.currentTarget.blur(); 
+    }
+    if (event.key === 'Escape') {
+        event.preventDefault();
+        if (titleRef.current) titleRef.current.textContent = originalTitle;
+        setCurrentTitle(originalTitle);
+        setSaveError(false);
+        event.currentTarget.blur(); 
+    }
+  };
+
+  // --- End Title Editing Logic ---
 
   // Function to format date to a human-readable format
   const formatDate = (dateString: string) => {
@@ -408,13 +511,52 @@ export default function InterviewAnalysisDetail({ params }: PageProps) {
       {/* Summary section - spacious and clean */}
       <div className="px-4 md:px-8 pt-5 pb-4 flex-shrink-0">
         <div className="max-w-7xl mx-auto">
-          <div className="mb-2">
-            <h1 className="text-lg font-semibold mb-2">{interview.title || "Interview Analysis"}</h1>
-            <p className="text-sm text-muted-foreground mb-4">
-              {interview.interviewer ? `Interviewer: ${interview.interviewer}` : ""}
-              {interview.created_at ? ` • ${formatDate(interview.created_at)}` : ""}
-            </p>
+          <div className="mb-2 flex items-center gap-2"> 
+            {/* New Wrapper Div */} 
+            <div 
+              className="flex-1 flex items-center gap-2 relative rounded-sm transition-colors duration-150 ease-in-out focus-within:bg-muted/60"
+            >
+              {/* --- EDITABLE TITLE (contentEditable) START --- */}
+              <h1 
+                ref={titleRef} 
+                contentEditable={!isSaving} 
+                suppressContentEditableWarning={true} 
+                onInput={handleTitleInput} 
+                onBlur={handleTitleBlur} 
+                onKeyDown={handleTitleKeyDown} 
+                // Styling: Remove flex-1 and focus background from h1 itself
+                className={`w-auto font-sans text-lg font-semibold leading-snug px-1 
+                  ${isSaving ? 'cursor-not-allowed' : 'cursor-text'} 
+                  outline-none`} // Use outline-none as focus is handled by parent
+              >
+                {/* Initial content is set via useEffect/ref */} 
+              </h1>
+              {/* --- EDITABLE TITLE END --- */}
+              
+              {/* Saving Spinner (now inside wrapper) */} 
+              {isSaving && (
+                <Loader2 className="h-4 w-4 animate-spin text-muted-foreground flex-shrink-0" />
+              )}
+              
+              {/* Save Error Indicator (now inside wrapper) */} 
+              {!isSaving && saveError && (
+                <TooltipProvider delayDuration={100}>
+                  <Tooltip>
+                    <TooltipTrigger className="flex-shrink-0">
+                      <AlertCircle className="h-4 w-4 text-destructive" />
+                    </TooltipTrigger>
+                    <TooltipContent sideOffset={4} side="top">
+                      <p className="text-xs">Failed to save title. Click to edit.</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              )}
+            </div> {/* End New Wrapper Div */}
           </div>
+          <p className="text-sm text-muted-foreground mb-4">
+            {interview.interviewer ? `Interviewer: ${interview.interviewer}` : ""}
+            {interview.created_at ? ` • ${formatDate(interview.created_at)}` : ""}
+          </p>
           <p className="text-sm leading-relaxed mb-4 text-foreground/90">
             {typeof synthesis === 'string' ? synthesis : synthesis.background}
           </p>

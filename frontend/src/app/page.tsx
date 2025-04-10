@@ -105,11 +105,12 @@ export default function Home() {
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
-    if (file && file.name.endsWith(".vtt")) {
+    if (file && (file.name.endsWith(".vtt") || file.name.endsWith(".txt"))) {
       setSelectedFile(file)
     } else {
-      alert("Please select a .vtt file")
+      alert("Please select a .vtt or .txt file")
       event.target.value = ""
+      setSelectedFile(null)
     }
   }
 
@@ -232,17 +233,17 @@ export default function Home() {
                 </DialogHeader>
                 <form onSubmit={handleSubmit} className="space-y-4">
                   <div className="space-y-2">
-                    <Label htmlFor="file">VTT Transcript File</Label>
+                    <Label htmlFor="file">Transcript File</Label>
                     <Input
                       id="file"
                       type="file"
-                      accept=".vtt"
+                      accept=".vtt,.txt"
                       onChange={handleFileChange}
                       disabled={isAnalyzing}
                       required
                     />
                     <p className="text-sm text-muted-foreground">
-                      Upload a VTT format transcript file for analysis.
+                      Upload a VTT or TXT format transcript file for analysis.
                     </p>
                   </div>
                   <div className="space-y-2">

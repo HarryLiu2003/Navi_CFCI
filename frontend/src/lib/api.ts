@@ -336,4 +336,42 @@ export async function getInterviewById(id: string): Promise<InterviewDetailRespo
     }
     throw new Error('Failed to fetch interview');
   }
+}
+
+// Update a specific interview by ID
+export async function updateInterview(id: string, data: { title: string }): Promise<{ status: string, message?: string, data?: Interview }> {
+  console.log(`[lib/api] updateInterview called for ID: ${id}`);
+  try {
+    const apiUrl = `/api/interviews/${id}`;
+    console.log(`[lib/api] Sending PUT request to internal API route: ${apiUrl}`);
+
+    const response = await fetch(apiUrl, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json'
+      },
+      body: JSON.stringify(data),
+      credentials: 'include', // Send cookies to the internal API route
+    });
+    
+    console.log(`[lib/api] Response status from ${apiUrl}: ${response.status}`);
+    
+    const responseData = await response.json();
+
+    if (!response.ok) {
+      const errorMessage = responseData.message || responseData.error || 'Unknown error';
+      console.error(`[lib/api] Error updating interview ${id} (${response.status}): ${JSON.stringify(responseData)}`);
+      throw new Error(`Failed to update interview (${response.status}): ${errorMessage}`);
+    }
+
+    console.log(`[lib/api] Successfully updated interview ${id}.`);
+    return responseData; // Assuming the backend returns the updated interview or a success message
+  } catch (error) {
+    console.error(`[lib/api] Catch block error in updateInterview for ${id}:`, error);
+    if (error instanceof Error) {
+      throw error;
+    }
+    throw new Error('Failed to update interview');
+  }
 } 

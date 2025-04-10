@@ -26,12 +26,13 @@ class TranscriptAnalyzer:
         logger.info("Initializing TranscriptAnalyzer")
         self.analysis_pipeline = create_analysis_pipeline()
     
-    async def analyze_transcript(self, file_content: bytes) -> Dict[str, Any]:
+    async def analyze_transcript(self, file_content: bytes, filename: str) -> Dict[str, Any]:
         """
         Analyze a transcript file to extract insights.
         
         Args:
             file_content: Raw bytes of the transcript file
+            filename: The original filename (e.g., 'interview.vtt' or 'transcript.txt')
             
         Returns:
             Dict containing structured analysis results
@@ -44,11 +45,18 @@ class TranscriptAnalyzer:
         try:
             start_time = time.time()
             
-            # Step 1: Parse the transcript
-            logger.info("Parsing transcript from bytes")
+            # Step 1: Parse the transcript based on file extension
+            logger.info(f"Parsing transcript from bytes using filename: {filename}")
             text = file_content.decode("utf-8")
-            chunks = self._parse_vtt_lines(text)
             
+            if filename.lower().endswith('.vtt'):
+                chunks = self._parse_vtt(text)
+            elif filename.lower().endswith('.txt'):
+                chunks = self._parse_txt(text)
+            else:
+                # Should ideally not happen due to API validation, but good practice
+                raise FileProcessingError(f"Unsupported file extension for parsing: {filename}")
+
             if not chunks:
                 logger.error("No valid chunks found in transcript")
                 raise FileProcessingError("No valid content found in transcript file")
@@ -88,36 +96,120 @@ class TranscriptAnalyzer:
             logger.error(f"Error in transcript analysis: {str(e)}", exc_info=True)
             raise AnalysisError(f"Transcript analysis failed: {str(e)}")
     
-    def _process_transcript(self, file_path: str) -> str:
+    def _parse_vtt(self, vtt_content: str) -> List[Dict[str, Any]]:
         """
-        Process a transcript file and prepare it for analysis.
+        Parse standard VTT content, handling cue identifiers.
+        Args: vtt_content: String content of VTT file
+        Returns: List of dictionaries with speaker and text information
+        """
+        logger.info("Parsing using VTT logic")
+        lines = vtt_content.strip().split("\n")
+        chunks = []
+        chunk_number = 0
+        current_text = []
+        in_cue_block = False 
+
+        for line in lines:
+            line = line.strip()
+
+            if "WEBVTT" in line: continue # Ignore header
+
+            if "-->" in line:
+                if in_cue_block and current_text: # Finalize previous cue block
+                    chunk_number += 1
+                    chunks.append({"number": chunk_number, "text": " ".join(current_text).strip()})
+                current_text = []
+                in_cue_block = True 
+                continue 
+
+            if in_cue_block:
+                if not line: # Empty line ends cue block
+                    if current_text:
+                        chunk_number += 1
+                        chunks.append({"number": chunk_number, "text": " ".join(current_text).strip()})
+                    current_text = []
+                    in_cue_block = False
+                    continue
+
+                # Ignore cue identifier (digit only, first line in block)
+                if line.isdigit() and not current_text:
+                    continue 
+                else:
+                    current_text.append(line)
+
+        if in_cue_block and current_text: # Capture last cue
+            chunk_number += 1
+            chunks.append({"number": chunk_number, "text": " ".join(current_text).strip()})
+
+        return self._post_process_chunks(chunks)
+
+
+    def _parse_txt(self, txt_content: str) -> List[Dict[str, Any]]:
+        """
+        Parse TXT content assuming VTT-like structure but potentially missing header/identifiers.
+        Args: txt_content: String content of the TXT file
+        Returns: List of dictionaries with speaker and text information
+        """
+        logger.info("Parsing using TXT logic")
+        lines = txt_content.strip().split("\n")
+        chunks = []
+        chunk_number = 0
+        current_text = []
+        in_cue_block = False 
+
+        for line in lines:
+            line = line.strip()
+
+            # Ignore WEBVTT if present, but don't require it
+            if "WEBVTT" in line: continue 
+
+            if "-->" in line:
+                if in_cue_block and current_text: # Finalize previous cue block
+                    chunk_number += 1
+                    chunks.append({"number": chunk_number, "text": " ".join(current_text).strip()})
+                current_text = []
+                in_cue_block = True 
+                continue 
+
+            if in_cue_block:
+                if not line: # Empty line can end cue block
+                    if current_text:
+                        chunk_number += 1
+                        chunks.append({"number": chunk_number, "text": " ".join(current_text).strip()})
+                    current_text = []
+                    in_cue_block = False # Assume next non-empty line might be timestamp
+                    continue
+                
+                # Unlike VTT, we don't explicitly ignore numeric lines here
+                current_text.append(line)
+
+        if in_cue_block and current_text: # Capture last cue
+            chunk_number += 1
+            chunks.append({"number": chunk_number, "text": " ".join(current_text).strip()})
         
-        Args:
-            file_path: Path to the transcript file
-            
-        Returns:
-            Formatted transcript text ready for analysis
-            
-        Raises:
-            FileProcessingError: If file cannot be read or processed
-        """
-        try:
-            # Read the file contents
-            with open(file_path, 'r', encoding='utf-8') as file:
-                text = file.read()
-            
-            # Parse into chunks
-            chunks = self._parse_vtt_lines(text)
-            
-            if not chunks:
-                raise FileProcessingError("No valid content found in transcript file")
-            
-            # Format for analysis
-            return self._format_chunks_for_analysis(chunks)
-            
-        except Exception as e:
-            logger.error(f"Failed to process transcript file: {str(e)}")
-            raise FileProcessingError(f"Could not process transcript file: {str(e)}")
+        return self._post_process_chunks(chunks)
+
+    def _post_process_chunks(self, chunks: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """Shared logic to extract speaker from parsed chunks."""
+        processed_chunks = []
+        for chunk in chunks:
+            text = chunk["text"]
+            if ": " in text:
+                speaker, actual_text = text.split(": ", 1)
+                processed_chunks.append({
+                    "number": chunk["number"],
+                    "speaker": speaker.strip(),
+                    "text": actual_text.strip()
+                })
+            else:
+                processed_chunks.append({
+                    "number": chunk["number"],
+                    "speaker": "Unknown", # Assign Unknown if no ': ' separator
+                    "text": text
+                })
+        
+        logger.info(f"Successfully post-processed {len(processed_chunks)} chunks")
+        return processed_chunks
     
     def _add_metadata(self, result: Dict[str, Any]) -> Dict[str, Any]:
         """
@@ -147,85 +239,6 @@ class TranscriptAnalyzer:
         result["metadata"]["timestamp"] = time.time()
         
         return result
-    
-    def _parse_vtt_lines(self, vtt_content: str) -> List[Dict[str, Any]]:
-        """
-        Parse VTT content line by line to extract structured chunks with speaker identification.
-        
-        Args:
-            vtt_content: String content of VTT file
-            
-        Returns:
-            List of dictionaries with speaker and text information
-            
-        Raises:
-            FileProcessingError: If parsing fails or content is invalid
-        """
-        # Split content into lines
-        lines = vtt_content.strip().split("\n")
-        
-        chunks = []
-        chunk_number = 0
-        current_text = []
-        processing_text = False
-        
-        for line in lines:
-            line = line.strip()
-            
-            # Skip empty lines and header
-            if not line or "WEBVTT" in line:
-                continue
-                
-            # Timestamp line marks the start of a text segment
-            if "-->" in line:
-                # If we were processing text, save it as a chunk before starting a new one
-                if processing_text and current_text:
-                    chunk_number += 1
-                    joined_text = " ".join(current_text).strip()
-                    
-                    chunks.append({
-                        "number": chunk_number,
-                        "text": joined_text
-                    })
-                    current_text = []
-                
-                processing_text = True
-                continue
-            
-            # If we're processing text and line is not a number (could be cue identifier)
-            if processing_text and not line.isdigit():
-                current_text.append(line)
-        
-        # Don't forget the last chunk
-        if processing_text and current_text:
-            chunk_number += 1
-            joined_text = " ".join(current_text).strip()
-            
-            chunks.append({
-                "number": chunk_number,
-                "text": joined_text
-            })
-        
-        # Post-process chunks to extract speaker information
-        processed_chunks = []
-        for chunk in chunks:
-            text = chunk["text"]
-            if ": " in text:
-                speaker, actual_text = text.split(": ", 1)
-                processed_chunks.append({
-                    "number": chunk["number"],
-                    "speaker": speaker.strip(),
-                    "text": actual_text.strip()
-                })
-            else:
-                processed_chunks.append({
-                    "number": chunk["number"],
-                    "speaker": "Unknown",
-                    "text": text
-                })
-        
-        logger.info(f"Successfully extracted {len(processed_chunks)} chunks from VTT file")
-        return processed_chunks
     
     def _format_chunks_for_analysis(self, chunks: List[Dict[str, Any]]) -> str:
         """

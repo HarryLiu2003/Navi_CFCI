@@ -29,7 +29,8 @@ class InterviewWorkflow:
     async def process_interview(
         self, 
         file_content: bytes,
-        metadata: Dict[str, Any]
+        metadata: Dict[str, Any],
+        filename: str
     ) -> Dict[str, Any]:
         """
         Process an interview from file content to stored analysis.
@@ -37,14 +38,15 @@ class InterviewWorkflow:
         Args:
             file_content: Raw bytes of the transcript file
             metadata: Additional metadata about the interview
+            filename: Original name of the uploaded file
             
         Returns:
             Complete analysis result with storage information
         """
-        logger.info("Starting interview analysis workflow")
+        logger.info(f"Starting interview analysis workflow for file: {filename}")
         
-        # Step 1: Analyze the transcript
-        analysis_result = await self.analyzer.analyze_transcript(file_content)
+        # Step 1: Analyze the transcript, passing the filename
+        analysis_result = await self.analyzer.analyze_transcript(file_content, filename)
         
         # Step 2: Store the results
         try:

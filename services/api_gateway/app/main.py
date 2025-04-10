@@ -571,6 +571,73 @@ async def get_interview_details(
         logger.error(f"Error processing get_interview_details request: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Gateway error: {str(e)}")
 
+@app.put("/api/interviews/{interview_id}",
+        summary="Update interview details",
+        description="Updates details (e.g., title) of a specific interview by ID for the authenticated user.")
+async def update_interview_details(
+    interview_id: str,
+    request: Request,
+    update_data: Dict[str, Any] = None, # Use default body handling
+    user_payload: Dict[str, Any] = Depends(verify_token)
+):
+    """Proxy interview update request to database service with authentication."""
+    try:
+        # Get user ID from the validated token payload
+        user_id = get_user_id_from_payload(user_payload)
+        if not user_id:
+            logger.error("update_interview_details: Validated token payload is missing user ID!")
+            raise HTTPException(status_code=500, detail="Internal authentication processing error")
+        
+        logger.info(f"Attempting to update interview ID: {interview_id} for User ID: {user_id}")
+        
+        # Parse body (FastAPI does this automatically if type hint is present)
+        # Make sure we actually got data in the request
+        body_data = await request.json()
+        if not body_data or not isinstance(body_data, dict):
+            raise HTTPException(status_code=400, detail="Invalid request body")
+            
+        # We only care about the title for now, but pass the whole body to backend
+        if "title" not in body_data:
+             logger.warning(f"Update request for interview {interview_id} does not contain 'title' field.")
+             # Let the database service handle validation if other fields are allowed
+             # Or raise HTTPException(status_code=400, detail="Missing 'title' field") if only title is allowed
+
+        # Build the request parameters for the database service (userId for auth check)
+        params = {"userId": user_id}
+        
+        # Forward to database service with authentication
+        endpoint_url = f"{DATABASE_SERVICE_URL}/interviews/{interview_id}"
+        logger.info(f"Calling database service (PUT) at: {endpoint_url} with params: {params}")
+        logger.debug(f"Update data being sent: {body_data}")
+        
+        response_data = await call_authenticated_service(
+            service_url=endpoint_url,
+            method="PUT",
+            json_data=body_data, # Send the parsed body data
+            params=params
+        )
+        
+        # Handle potential errors returned by call_authenticated_service or the database service
+        if response_data.get("status") == "error":
+            error_message = response_data.get("message", "Unknown error")
+            logger.error(f"Error from database service during update for {interview_id}: {error_message}")
+            status_code = 500 # Default error status
+            # Check for specific DB service errors if needed (e.g., 404, 403)
+            if "not found" in error_message.lower():
+                status_code = 404
+            elif "not authorized" in error_message.lower():
+                status_code = 403
+            raise HTTPException(status_code=status_code, detail=f"Database service error: {error_message}")
+        
+        logger.info(f"Successfully updated interview {interview_id}")
+        return response_data
+        
+    except HTTPException as http_exc: # Re-raise specific HTTP exceptions
+        raise http_exc
+    except Exception as e:
+        logger.error(f"Error processing update_interview_details request: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Gateway error: {str(e)}")
+
 # Additional database service endpoints can be added as needed
 # POST, PUT, DELETE for interviews, etc. 
 

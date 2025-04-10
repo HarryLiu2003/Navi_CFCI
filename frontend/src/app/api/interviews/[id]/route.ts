@@ -168,4 +168,109 @@ export async function GET(
     logError('Unexpected error in GET handler:', error);
     return NextResponse.json({ status: 'error', message: error.message || 'Internal server error fetching interview details' }, { status: 500 });
   }
+}
+
+export async function PUT(request: NextRequest, { params }: { params: { id: string } }) {
+  const interviewId = params.id;
+  log(`PUT request received for ID: ${interviewId}`);
+  try {
+    // 1. Initial Session Check (Same as GET)
+    const session = await getServerSession(authOptions);
+    if (!session || !session.user || !session.user.id) {
+      logError("No valid NextAuth session found.");
+      return NextResponse.json({ status: 'error', message: 'Authentication required' }, { status: 401 });
+    }
+    const currentUserId = session.user.id;
+
+    // 2. Get Decoded Token Payload (Same as GET)
+    let decodedTokenPayload: any = null;
+    try {
+      decodedTokenPayload = await getToken({
+        req: request as any,
+        secret: process.env.NEXTAUTH_SECRET,
+        secureCookie: process.env.NODE_ENV === "production"
+      });
+    } catch (tokenError) {
+      logError("Error calling getToken:", tokenError);
+    }
+    if (!decodedTokenPayload || !decodedTokenPayload.sub || decodedTokenPayload.sub !== currentUserId) {
+      logError("Failed to retrieve valid token payload or mismatch with session.", decodedTokenPayload);
+      return NextResponse.json({ status: 'error', message: 'Invalid authentication payload' }, { status: 500 });
+    }
+
+    // 3. Manually Sign a NEW JWS Token for API Gateway (Same as GET)
+    if (!signingKey) {
+      logError("Cannot proceed: Signing key not available.");
+      return NextResponse.json({ status: 'error', message: 'Internal server configuration error' }, { status: 500 });
+    }
+    let signedApiToken: string;
+    try {
+      const claimsToSign = {
+        sub: decodedTokenPayload.sub,
+        name: decodedTokenPayload.name,
+        email: decodedTokenPayload.email,
+        iat: Math.floor(Date.now() / 1000),
+        exp: Math.floor(Date.now() / 1000) + (5 * 60), // 5 min expiry
+      };
+      signedApiToken = await new jose.SignJWT(claimsToSign)
+        .setProtectedHeader({ alg: 'HS256' })
+        .sign(signingKey);
+    } catch (signingError) {
+      logError("Failed to manually sign JWS token:", signingError);
+      return NextResponse.json({ status: 'error', message: 'Failed to prepare authentication token' }, { status: 500 });
+    }
+
+    // 4. Get Update Data from Request Body
+    let updateData: any;
+    try {
+      updateData = await request.json();
+      if (!updateData || typeof updateData.title !== 'string') {
+          logError("Invalid update data received. Expected JSON with 'title'.", updateData);
+          return NextResponse.json({ status: 'error', message: 'Invalid request body' }, { status: 400 });
+      }
+    } catch (parseError) {
+        logError("Failed to parse request body as JSON.", parseError);
+        return NextResponse.json({ status: 'error', message: 'Invalid JSON body' }, { status: 400 });
+    }
+
+    // 5. Prepare Request to API Gateway
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${signedApiToken}`
+    };
+    const apiUrl = `${gatewayUrl}/api/interviews/${interviewId}`;
+    log(`Forwarding PUT request to API Gateway: ${apiUrl}`);
+
+    // 6. Make the fetch call
+    try {
+      const response = await fetch(apiUrl, {
+        method: 'PUT',
+        headers,
+        body: JSON.stringify({ title: updateData.title }), // Only forward title for now
+        credentials: 'include',
+        cache: 'no-store'
+      });
+
+      const responseStatus = response.status;
+      const responseData = await response.json();
+      log(`Received response status from API Gateway: ${responseStatus}`);
+
+      if (!response.ok) {
+        logError(`API Gateway error (${responseStatus}):`, responseData);
+        // Forward the status code and error message from the gateway
+        return NextResponse.json(responseData, { status: responseStatus });
+      }
+
+      log("Successfully received PUT response from API Gateway.");
+      return NextResponse.json(responseData);
+
+    } catch (fetchError: any) {
+      logError(`Error fetching from API Gateway during PUT: ${fetchError.message}`);
+      return NextResponse.json({ status: 'error', message: 'Failed to connect to update service' }, { status: 502 }); // Bad Gateway
+    }
+
+  } catch (error: any) {
+    logError('Unexpected error in PUT handler:', error);
+    return NextResponse.json({ status: 'error', message: error.message || 'Internal server error updating interview' }, { status: 500 });
+  }
 } 
