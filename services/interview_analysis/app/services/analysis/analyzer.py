@@ -45,28 +45,45 @@ class TranscriptAnalyzer:
         try:
             start_time = time.time()
             
-            # Step 1: Parse the transcript based on file extension
+            # Step 1: Decode file content
             logger.info(f"Parsing transcript from bytes using filename: {filename}")
             text = file_content.decode("utf-8")
             
-            if filename.lower().endswith('.vtt'):
-                chunks = self._parse_vtt(text)
-            elif filename.lower().endswith('.txt'):
-                chunks = self._parse_txt(text)
-            else:
-                # Should ideally not happen due to API validation, but good practice
-                raise FileProcessingError(f"Unsupported file extension for parsing: {filename}")
+            # --- REMOVED RULE-BASED EXTRACTION FROM RAW TEXT --- 
 
-            if not chunks:
-                logger.error("No valid chunks found in transcript")
+            # Step 2: Parse the transcript based on file extension into initial chunks
+            raw_chunks: List[Dict[str, Any]] = []
+            if filename.lower().endswith('.vtt'):
+                raw_chunks = self._parse_vtt(text) # _parse_vtt now calls _post_process_chunks internally
+            elif filename.lower().endswith('.txt'):
+                raw_chunks = self._parse_txt(text) # _parse_txt now calls _post_process_chunks internally
+            else:
+                raise FileProcessingError(f"Unsupported file extension: {filename}")
+
+            # The variable 'raw_chunks' now holds the result from _post_process_chunks
+            processed_chunks = raw_chunks 
+
+            if not processed_chunks:
+                logger.error("No valid chunks found in transcript after post-processing")
                 raise FileProcessingError("No valid content found in transcript file")
             
-            logger.info(f"Extracted {len(chunks)} chunks from transcript")
+            logger.info(f"Successfully processed {len(processed_chunks)} chunks")
+
+            # --- BEGIN PARTICIPANT EXTRACTION FROM PROCESSED CHUNKS --- 
+            unique_speakers = set()
+            for chunk in processed_chunks:
+                speaker = chunk.get("speaker")
+                if speaker and speaker != "Unknown":
+                    unique_speakers.add(speaker)
             
-            # Step 2: Format transcript for analysis
-            formatted_transcript = self._format_chunks_for_analysis(chunks)
+            extracted_participants = sorted(list(unique_speakers))
+            logger.info(f"Extracted unique participants from chunks: {extracted_participants}")
+            # --- END PARTICIPANT EXTRACTION FROM PROCESSED CHUNKS --- 
             
-            # Step 3: Run the analysis pipeline
+            # Step 3: Format transcript for LLM analysis
+            formatted_transcript = self._format_chunks_for_analysis(processed_chunks)
+            
+            # Step 4: Run the analysis pipeline (for synthesis, problems, etc.)
             logger.info("Starting analysis with Gemini pipeline")
             try:
                 if not self.analysis_pipeline:
@@ -80,14 +97,15 @@ class TranscriptAnalyzer:
                 logger.error(f"Error in analysis pipeline: {str(e)}")
                 raise AnalysisError(f"Analysis failed: {str(e)}")
             
-            # Step 4: Prepare the complete result
-            result = self._process_synthesis_result(result, chunks)
+            # Step 5: Process results and OVERRIDE participants
+            # Pass the chunk-derived participants to the processing function
+            processed_result = self._process_synthesis_result(result, processed_chunks, extracted_participants)
             
             # Log completion time
             duration = time.time() - start_time
             logger.info(f"Completed transcript analysis in {duration:.2f} seconds")
             
-            return result
+            return processed_result
                         
         except (FileProcessingError, AnalysisError, ConfigurationError):
             # Re-raise known error types
@@ -260,16 +278,10 @@ class TranscriptAnalyzer:
     
     def _process_synthesis_result(self, 
                                  result: Dict[str, Any], 
-                                 chunks: List[Dict[str, Any]]) -> Dict[str, Any]:
+                                 chunks: List[Dict[str, Any]],
+                                 extracted_participants: List[str]) -> Dict[str, Any]:
         """
-        Process and enrich the synthesis result with transcript details.
-        
-        Args:
-            result: Raw synthesis result from the Gemini pipeline
-            chunks: Transcript chunks for reference
-            
-        Returns:
-            Processed and enriched analysis result
+        Process analysis result, enrich with transcript, OVERRIDE participants.
         """
         # Create a mapping of chunk numbers to chunks for easy lookup
         chunk_map = {chunk["number"]: chunk for chunk in chunks}
@@ -302,22 +314,38 @@ class TranscriptAnalyzer:
                             if "quote" not in excerpt:
                                 excerpt["quote"] = chunk["text"]
         
-        # Ensure metadata fields exist
+        # Ensure metadata fields exist (though Pydantic model should handle this)
         if "metadata" not in result:
             result["metadata"] = {}
             
-        # Add basic metadata
-        result["metadata"]["transcript_length"] = len(chunks)
+        # Add basic metadata (potentially redundant if included in LLM response)
+        result["metadata"]["transcript_length"] = len(chunks) 
         
-        # Count problem areas
-        problem_areas_count = len(result.get("problem_areas", []))
-        result["metadata"]["problem_areas_count"] = problem_areas_count
-        
-        # Count total excerpts
-        excerpts_count = 0
-        for problem_area in result.get("problem_areas", []):
-            excerpts_count += len(problem_area.get("excerpts", []))
+        # Add counts if not already present in metadata from LLM
+        if "problem_areas_count" not in result["metadata"]:
+            result["metadata"]["problem_areas_count"] = len(result.get("problem_areas", []))
             
-        result["metadata"]["excerpts_count"] = excerpts_count
+        if "excerpts_count" not in result["metadata"]:
+            excerpts_count = 0
+            for problem_area in result.get("problem_areas", []):
+                excerpts_count += len(problem_area.get("excerpts", []))
+            result["metadata"]["excerpts_count"] = excerpts_count
+        
+        # --- OVERRIDE PARTICIPANTS --- 
+        # Use the list derived from processed chunks
+        result["participants"] = extracted_participants
+        logger.info(f"Final participants list set to: {extracted_participants}")
+
+        # Remove interviewer/interviewee fields derived from LLM if they exist,
+        # as they are now potentially inconsistent with the rule-based list.
+        # Keep the main 'speakers' dict for backward compatibility if needed elsewhere, 
+        # but mark it as potentially inaccurate.
+        result.pop("interviewer", None)
+        result.pop("interviewee", None)
+        result["speakers"] = {
+            "interviewer": None, 
+            "interviewee": None, 
+            "_source": "Participants extracted via rule-based logic, speaker roles not inferred."
+        }
         
         return result 

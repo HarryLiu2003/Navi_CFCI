@@ -23,6 +23,7 @@ async def analyze_interview(
     file: UploadFile = File(..., description="VTT file containing the interview transcript"),
     project_id: Optional[str] = Form(None, description="Project ID to associate with the interview"),
     interviewer: Optional[str] = Form(None, description="Name of the interviewer"),
+    interviewee: Optional[str] = Form(None, description="Name of the interviewee"),
     interview_date: Optional[str] = Form(None, description="Date of the interview (ISO format)"),
     userId: Optional[str] = Form(None, description="User ID of the authenticated user"),
     workflow: InterviewWorkflow = Depends(get_interview_workflow)
@@ -34,6 +35,7 @@ async def analyze_interview(
     - Extracts relevant excerpts supporting each problem area
     - Generates a comprehensive analysis of the findings
     - Stores the results in the database
+    - Identifies the interviewer and interviewee when possible
     
     The VTT file should contain timestamped interview segments with speakers identified.
     
@@ -41,6 +43,7 @@ async def analyze_interview(
         file: VTT file containing the interview transcript
         project_id: Optional project ID to associate with the interview
         interviewer: Optional name of the interviewer
+        interviewee: Optional name of the interviewee
         interview_date: Optional date of the interview
         userId: Optional user ID for the authenticated user
         workflow: Interview workflow service injected via dependency
@@ -55,6 +58,7 @@ async def analyze_interview(
                 - synthesis: Summary of findings
                 - metadata: Analysis metadata
                 - storage: Storage information
+                - speakers: Identified interviewer and interviewee
     """
     try:
         # Check if the file is a VTT or TXT file
@@ -80,6 +84,7 @@ async def analyze_interview(
         metadata = {
             "project_id": project_id,
             "interviewer": interviewer,
+            "interviewee": interviewee,
             "interview_date": interview_date,
             "title": f"Interview - {file.filename}",
             "userId": userId

@@ -1,11 +1,14 @@
 import express, { Request, Response } from 'express';
 import cors from 'cors';
 import { InterviewRepository } from '../repositories/interviewRepository';
+import { ProjectRepository } from '../repositories/projectRepository';
 import { json } from 'body-parser';
+import { Prisma } from '@prisma/client';
 
 // Initialize Express app
 const app = express();
 const interviewRepository = new InterviewRepository();
+const projectRepository = new ProjectRepository();
 
 // Configure CORS based on environment
 const isProduction = process.env.NODE_ENV === 'production';
@@ -64,6 +67,131 @@ app.get('/', (req: Request, res: Response) => {
     timestamp: new Date().toISOString()
   });
 });
+
+// -------------------------------
+// Project Endpoints
+// -------------------------------
+
+// GET projects for a user (NEW Endpoint)
+app.get('/projects', async (req: Request, res: Response) => {
+  try {
+    const limit = Math.min(parseInt(req.query.limit as string) || 50, 100); // Default 50, max 100
+    const offset = Math.max(parseInt(req.query.offset as string) || 0, 0);
+    const userId = req.query.userId as string;
+
+    // Validate userId is provided (required to fetch user's projects)
+    if (!userId) {
+      return res.status(400).json({
+        status: 'error',
+        message: 'Missing required query parameter: userId',
+      });
+    }
+
+    console.log(`[DB Service] Fetching projects for user: ${userId}, Limit: ${limit}, Offset: ${offset}`);
+
+    // Define the where clause for filtering by ownerId
+    const where = { ownerId: userId };
+
+    // Get projects and count in parallel
+    const [projects, total] = await Promise.all([
+      projectRepository.findMany({
+        take: limit,
+        skip: offset,
+        where: where,
+        orderBy: { name: 'asc' } // Order by project name alphabetically
+      }),
+      projectRepository.count({ where: where })
+    ]);
+
+    console.log(`[DB Service] Found ${projects.length} projects, Total: ${total}`);
+
+    res.json({
+      status: 'success',
+      message: 'Projects retrieved successfully',
+      data: { 
+        projects,
+        total,
+        limit,
+        offset,
+        hasMore: offset + projects.length < total
+      }
+    });
+
+  } catch (error: any) {
+    console.error('[DB Service] Error retrieving projects:', error);
+    res.status(500).json({
+      status: 'error',
+      message: 'Failed to retrieve projects',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+});
+
+// Create a new project (Changed endpoint from /internal/projects to /projects)
+app.post('/projects', async (req: Request, res: Response) => {
+  try {
+    const { name, description, ownerId } = req.body;
+
+    // Validate required fields
+    if (!name || !ownerId) {
+      return res.status(400).json({
+        status: 'error',
+        message: 'Missing required fields: name and ownerId are required.',
+      });
+    }
+    
+    console.log(`[DB Service] Attempting to create project: Name=${name}, Owner=${ownerId}`);
+
+    // Construct data in the format expected by ProjectRepository.create
+    const projectData = {
+      name: name,
+      description: description,
+      owner: {
+        connect: { id: ownerId }
+      }
+    };
+
+    const project = await projectRepository.create(projectData);
+    console.log(`[DB Service] Project created successfully: ID=${project.id}`);
+
+    res.status(201).json({
+      status: 'success',
+      message: 'Project created successfully',
+      data: project
+    });
+
+  } catch (error: any) {
+    console.error('[DB Service] Error creating project:', error);
+    // Check if it's the specific 'Owner not found' error from the repository
+    if (error.message.includes('Related owner user not found')) {
+      console.warn(`[DB Service] Failed to create project: Owner user '${req.body.ownerId}' not found.`);
+      return res.status(400).json({
+        status: 'error',
+        message: `Failed to create project: Owner user with ID '${req.body.ownerId}' not found.`,
+      });
+    }
+    // Prisma Unique constraint failed?
+    if (error.code === 'P2002') { // Check Prisma error code for unique constraint
+       console.warn(`[DB Service] Failed to create project: Name '${req.body.name}' likely already exists for owner '${req.body.ownerId}'.`);
+       return res.status(409).json({ // 409 Conflict
+         status: 'error',
+         message: `Project with name "${req.body.name}" already exists for this user.`,
+       });
+    }
+    // Generic error
+    res.status(500).json({
+      status: 'error',
+      message: 'Failed to create project',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+});
+
+// --- Add PUT /projects/:id and DELETE /projects/:id later if needed ---
+
+// -------------------------------
+// Interview Endpoints
+// -------------------------------
 
 // Get all interviews with pagination
 app.get('/interviews', async (req: Request, res: Response) => {
@@ -146,8 +274,9 @@ app.get('/interviews/:id', async (req: Request, res: Response) => {
 // Create a new interview
 app.post('/interviews', async (req: Request, res: Response) => {
   try {
-    // Validate required fields
-    const { title, problem_count, transcript_length, analysis_data, userId } = req.body;
+    console.log("[POST /interviews] Received request body:", JSON.stringify(req.body, null, 2));
+    
+    const { title, problem_count, transcript_length, analysis_data, userId, project_id } = req.body;
     
     if (!title || problem_count === undefined || transcript_length === undefined || !analysis_data) {
       return res.status(400).json({
@@ -157,22 +286,58 @@ app.post('/interviews', async (req: Request, res: Response) => {
       });
     }
     
-    // Create the interview with the provided data
-    const interviewData = {
-      ...req.body,
-      // If userId is provided in the body or query, use it
-      userId: userId || req.query.userId as string || undefined
+    let participantsString: string | null = null;
+    if (analysis_data?.participants && Array.isArray(analysis_data.participants)) {
+      participantsString = analysis_data.participants.join(', ');
+      console.log(`[POST /interviews] Extracted participants string: "${participantsString}"`);
+    } else {
+      console.log("[POST /interviews] No participants found or invalid format in analysis_data.");
+    }
+
+    const effectiveUserId = userId || req.query.userId as string || undefined;
+    
+    const interviewData: Prisma.InterviewCreateInput = {
+      title: title,
+      problem_count: problem_count,
+      transcript_length: transcript_length,
+      analysis_data: analysis_data || Prisma.JsonNull,
+      participants: participantsString,
+      user: effectiveUserId ? { connect: { id: effectiveUserId } } : undefined,
+      project: project_id ? { connect: { id: project_id } } : undefined,
     };
+
+    console.log("[POST /interviews] Data prepared for interview repository:", JSON.stringify(interviewData, null, 2));
     
+    // Create the interview first
     const interview = await interviewRepository.create(interviewData);
-    
+    console.log(`[POST /interviews] Interview created successfully: ID=${interview.id}`);
+
+    // --- BEGIN PROJECT UPDATE --- 
+    // If a project_id was provided with the interview, update its timestamp
+    if (project_id) {
+      try {
+        console.log(`[POST /interviews] Interview assigned to project ${project_id}. Attempting to update project timestamp.`);
+        // Explicitly update the project's updatedAt field
+        await projectRepository.update(project_id, { updatedAt: new Date() }); 
+        console.log(`[POST /interviews] Successfully updated project ${project_id} updatedAt timestamp.`);
+      } catch (projectUpdateError: any) {
+        // Log a warning but don't fail the request - interview creation was successful
+        console.warn(`[POST /interviews] WARNING: Failed to update project ${project_id} timestamp after creating interview ${interview.id}. Error: ${projectUpdateError.message}`);
+      }
+    } else {
+      console.log(`[POST /interviews] Interview ${interview.id} created without project assignment. Skipping project update.`);
+    }
+    // --- END PROJECT UPDATE --- 
+
+    // Return success response for the interview creation
     res.status(201).json({
       status: 'success',
       message: 'Interview created successfully',
-      data: interview
+      data: interview // Return the created interview data
     });
+
   } catch (error: any) {
-    console.error('Error creating interview:', error);
+    console.error('[POST /interviews] Error during interview creation or project update:', error);
     res.status(500).json({
       status: 'error',
       message: 'Failed to create interview',
@@ -278,4 +443,4 @@ console.log(`Using PORT=${PORT} (default: 5001 for local, 8080 for Cloud Run)`);
 
 app.listen(PORT, () => {
   console.log(`Database API server running on port ${PORT}`);
-}); 
+});

@@ -15,11 +15,11 @@ model Interview {
   problem_count    Int
   transcript_length Int
   analysis_data    Json
-  project_id       String?
-  interviewer      String?
-  interview_date   DateTime?
+  project_id       String?   @map("project_id")
+  participants     String?
   user             User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
   userId           String?
+  project          Project?  @relation(fields: [project_id], references: [id], onDelete: SetNull)
 
   @@map("interviews")
 }
@@ -41,8 +41,21 @@ model User {
   password      String
   sessions      Session[]
   interviews    Interview[]
+  ownedProjects Project[]
 
   @@map("users")
+}
+
+model Project {
+  id          String      @id @default(uuid())
+  name        String
+  description String?
+  updatedAt   DateTime    @updatedAt
+  interviews  Interview[]
+  ownerId     String
+  owner       User        @relation(fields: [ownerId], references: [id])
+
+  @@map("projects")
 }
 
 // Note: VerificationToken is required for password reset functionality

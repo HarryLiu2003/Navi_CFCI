@@ -18,7 +18,10 @@ import {
   Info,
   AlertCircle,
   Lightbulb,
-  Loader2
+  Loader2,
+  Users, 
+  Mic, 
+  CalendarDays
 } from "lucide-react"
 import Link from "next/link"
 import { getInterviewById, updateInterview } from '@/lib/api'
@@ -554,8 +557,33 @@ export default function InterviewAnalysisDetail({ params }: PageProps) {
             </div> {/* End New Wrapper Div */}
           </div>
           <p className="text-sm text-muted-foreground mb-4">
-            {interview.interviewer ? `Interviewer: ${interview.interviewer}` : ""}
-            {interview.created_at ? ` • ${formatDate(interview.created_at)}` : ""}
+            {/* Display Participants if available */}
+            {interview.participants && (
+              <span className="inline-flex items-center mr-2">
+                <Users className="h-3.5 w-3.5 mr-1" />
+                {interview.participants}
+              </span>
+            )}
+            {/* Display Interviewer if available (removed bullet point logic) */}
+            {/* {interview.interviewer && interview.participants && (
+              <span className="mr-2"> • </span> 
+            )} */}
+            {interview.interviewer && (
+              <span className="inline-flex items-center mr-2"> 
+                 <Mic className="h-3.5 w-3.5 mr-1" /> 
+                Interviewer: {interview.interviewer}
+              </span>
+            )}
+            {/* Display Date (removed bullet point logic) */}
+            {/* {(interview.participants || interview.interviewer) && interview.created_at && (
+               <span className="mr-2"> • </span> 
+            )} */}
+            {interview.created_at && (
+              <span className="inline-flex items-center">
+                <CalendarDays className="h-3.5 w-3.5 mr-1" />
+                {formatDate(interview.created_at)}
+              </span>
+            )}
           </p>
           <p className="text-sm leading-relaxed mb-4 text-foreground/90">
             {typeof synthesis === 'string' ? synthesis : synthesis.background}

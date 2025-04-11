@@ -87,9 +87,13 @@ export interface Interview {
   problem_count: number;
   transcript_length: number;
   analysis_data: any;
-  project_id?: string;
-  interviewer?: string;
-  interview_date?: string;
+  project_id: string | null;
+  participants?: string | null;
+  userId?: string | null;
+  project?: {
+    id: string;
+    name: string;
+  } | null;
 }
 
 export interface InterviewsResponse {
@@ -175,15 +179,34 @@ async function apiRequest<T>(
 }
 
 // API Client Functions
-export async function analyzeTranscript(file: File, userId?: string): Promise<AnalysisResponse> {
+export async function analyzeTranscript(
+  file: File, 
+  userId?: string, 
+  projectId?: string,
+  interviewer?: string,
+  interviewee?: string,
+  interview_date?: string
+): Promise<AnalysisResponse> {
   // Prepare FormData
   const formData = new FormData();
   formData.append('file', file);
   if (userId) {
-      formData.append('userId', userId); // Still good practice to pass original userId if available
+      formData.append('userId', userId);
+  }
+  if (projectId) {
+    formData.append('projectId', projectId);
+  }
+  if (interviewer) {
+    formData.append('interviewer', interviewer);
+  }
+  if (interviewee) {
+    formData.append('interviewee', interviewee);
+  }
+  if (interview_date) {
+    formData.append('interview_date', interview_date);
   }
 
-  console.log("[lib/api] analyzeTranscript called");
+  console.log(`[lib/api] analyzeTranscript called with projectId: ${projectId}, interviewer: ${interviewer}, interviewee: ${interviewee}`);
   try {
     // Call the *internal* Next.js API route, not the gateway directly
     const response = await fetch(`/api/analyze-transcript`, { 
@@ -338,6 +361,39 @@ export async function getInterviewById(id: string): Promise<InterviewDetailRespo
   }
 }
 
+// Define a type for the expected success response when creating a project
+// This should match the `data` part of the response from the backend
+export interface Project {
+  id: string;
+  name: string;
+  description: string | null;
+  ownerId: string;
+  updatedAt?: string; // Add updatedAt (optional if needed)
+  owner?: { // Add owner object
+    name: string | null; // Include owner's name
+  };
+  _count?: { // Add _count object
+    interviews: number; // Include interview count
+  };
+  // Add other fields like created_at if they are returned
+}
+
+// Add this new interface for the GetProjects response
+export interface ProjectsResponse {
+  status: string;
+  message?: string;
+  data: {
+    projects: Project[];
+    total: number;
+  };
+}
+
+export interface CreateProjectResponse {
+  status: string;
+  message?: string;
+  data?: Project; // The created project data
+}
+
 // Update a specific interview by ID
 export async function updateInterview(id: string, data: { title: string }): Promise<{ status: string, message?: string, data?: Interview }> {
   console.log(`[lib/api] updateInterview called for ID: ${id}`);
@@ -373,5 +429,101 @@ export async function updateInterview(id: string, data: { title: string }): Prom
       throw error;
     }
     throw new Error('Failed to update interview');
+  }
+}
+
+// Create a new project
+export async function createProject(name: string, description?: string): Promise<CreateProjectResponse> {
+  console.log(`[lib/api] createProject called with name: "${name}"`);
+  try {
+    const apiUrl = `/api/projects`; // Internal Next.js API route
+    console.log(`[lib/api] Sending POST request to internal API route: ${apiUrl}`);
+
+    const payload = {
+      name,
+      description: description || undefined, // Send undefined if description is empty/null
+    };
+
+    const response = await fetch(apiUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json'
+      },
+      body: JSON.stringify(payload),
+      credentials: 'include', // Send cookies to the internal API route
+    });
+
+    console.log(`[lib/api] Response status from ${apiUrl}: ${response.status}`);
+
+    const responseData: CreateProjectResponse = await response.json();
+
+    if (!response.ok || responseData.status !== 'success') {
+      // Use message from responseData if available
+      const errorMessage = responseData.message || 'Unknown error creating project';
+      console.error(`[lib/api] Error creating project (${response.status}): ${JSON.stringify(responseData)}`);
+      throw new Error(`Failed to create project (${response.status}): ${errorMessage}`);
+    }
+
+    console.log(`[lib/api] Successfully created project:`, responseData.data);
+    return responseData;
+
+  } catch (error) {
+    console.error(`[lib/api] Catch block error in createProject:`, error);
+    if (error instanceof Error) {
+      // Re-throw the specific error message
+      throw error;
+    }
+    // Throw a generic error if it wasn't an Error instance
+    throw new Error('Failed to create project due to an unexpected error');
+  }
+}
+
+// Get projects from the API
+export async function getProjects(limit: number = 50, offset: number = 0): Promise<ProjectsResponse> {
+  console.log("[lib/api] getProjects called");
+  try {
+    const params = new URLSearchParams({
+      limit: limit.toString(),
+      offset: offset.toString()
+    });
+    
+    // Assume internal Next.js API route `/api/projects` handles authentication
+    const apiUrl = `/api/projects?${params}`;
+    console.log(`[lib/api] Fetching from internal API route: ${apiUrl}`);
+
+    const response = await fetch(apiUrl, {
+      method: 'GET',
+      headers: {
+        'Accept': 'application/json'
+      },
+      credentials: 'include', 
+      cache: 'no-store' // Ensure fresh data for project lists usually
+    });
+    
+    console.log(`[lib/api] Response status from ${apiUrl}: ${response.status}`);
+
+    if (!response.ok) {
+      let errorDetail: string;
+      const responseText = await response.text();
+      try {
+        const errorJson = JSON.parse(responseText);
+        errorDetail = JSON.stringify(errorJson);
+      } catch {
+        errorDetail = responseText;
+      }
+      console.error(`[lib/api] Error fetching projects (${response.status}): ${errorDetail}`);
+      throw new Error(`Failed to fetch projects (${response.status}): ${errorDetail}`);
+    }
+
+    const data = await response.json();
+    console.log("[lib/api] Successfully fetched and parsed projects.");
+    return data;
+  } catch (error) {
+    console.error("[lib/api] Catch block error in getProjects:", error);
+    if (error instanceof Error) {
+      throw error;
+    }
+    throw new Error('Failed to fetch projects');
   }
 } 

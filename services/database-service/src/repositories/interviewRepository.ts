@@ -41,7 +41,10 @@ export class InterviewRepository {
         skip,
         take,
         where,
-        orderBy: orderBy || { created_at: 'desc' }
+        orderBy: orderBy || { created_at: 'desc' },
+        include: {
+          project: true
+        }
       })
     } catch (error) {
       console.error('Error finding interviews:', error)

@@ -44,6 +44,7 @@ class AnalysisResult(BaseModel):
     problem_areas: List[ProblemArea] = Field(..., description="Identified problem areas")
     synthesis: Union[str, Dict[str, Any]] = Field(..., description="Overall synthesis of findings")
     metadata: Dict[str, Any] = Field(default_factory=dict, description="Additional metadata")
+    participants: Optional[List[str]] = Field(None, description="List of identified participant names")
     
     @field_validator('problem_areas')
     @classmethod

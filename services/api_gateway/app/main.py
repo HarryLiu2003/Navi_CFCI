@@ -1,4 +1,4 @@
-from fastapi import FastAPI, UploadFile, File, HTTPException, Request, Form, Depends
+from fastapi import FastAPI, UploadFile, File, HTTPException, Request, Form, Depends, Body
 from fastapi.middleware.cors import CORSMiddleware
 import httpx
 import os
@@ -9,6 +9,7 @@ import uuid
 from typing import Optional, List, Dict, Any
 from io import BytesIO
 from dotenv import load_dotenv
+from pydantic import BaseModel, Field
 
 # Import auth middleware
 from .middleware.auth import verify_token, get_optional_user, get_user_id_from_payload
@@ -378,10 +379,8 @@ async def root():
          description="Upload a VTT file to analyze an interview transcript and extract key insights.",
          include_in_schema=False)
 async def analyze_interview(
+    request: Request,
     file: UploadFile = File(...),
-    project_id: Optional[str] = Form(None),
-    interviewer: Optional[str] = Form(None),
-    interview_date: Optional[str] = Form(None),
     user_payload: Dict[str, Any] = Depends(verify_token)
 ):
     """Forward analyze transcript request to interview analysis service."""
@@ -389,27 +388,36 @@ async def analyze_interview(
         # Read file content
         file_content = await file.read()
         
-        # Prepare files and form data for httpx
+        # Prepare files for httpx
         files = {"file": (file.filename, file_content, file.content_type)}
         
-        # Prepare form data
-        form_data = {}
+        # Manually parse other form data from the request
+        form_values = await request.form()
+        project_id = form_values.get("projectId")
+        interviewer = form_values.get("interviewer")
+        interview_date = form_values.get("interview_date")
+        # Note: userId is also in form_values but we prioritize the validated token one
+
+        # Prepare form data dictionary to forward
+        form_data_to_forward = {}
         if project_id:
-            form_data["project_id"] = project_id
+            form_data_to_forward["project_id"] = project_id
         if interviewer:
-            form_data["interviewer"] = interviewer
+            form_data_to_forward["interviewer"] = interviewer
         if interview_date:
-            form_data["interview_date"] = interview_date
+            form_data_to_forward["interview_date"] = interview_date
         
-        # Use userId from the validated token payload
+        # Use userId from the validated token payload (more secure)
         token_user_id = get_user_id_from_payload(user_payload)
         if not token_user_id:
-             # This case should technically not happen if verify_token requires 'sub'
              logger.error("analyze_interview: Validated token payload is missing user ID!")
              raise HTTPException(status_code=500, detail="Internal authentication error")
         
-        form_data["userId"] = token_user_id
+        form_data_to_forward["userId"] = token_user_id
         logger.info(f"Using authenticated user ID: {token_user_id}")
+        
+        # Log the data being forwarded
+        logger.info(f"Forwarding form data to analysis service: {form_data_to_forward}")
         
         # Forward to interview analysis service with authentication
         endpoint_url = f"{INTERVIEW_ANALYSIS_URL}/api/interview_analysis/analyze"
@@ -420,7 +428,7 @@ async def analyze_interview(
             service_url=endpoint_url,
             method="POST",
             files=files,
-            data=form_data
+            data=form_data_to_forward
         )
         
         # Check if response contains an error
@@ -755,4 +763,129 @@ async def preprocess_transcript(file: UploadFile = File(...)):
         return response.json()
     except Exception as e:
         logger.error(f"Error forwarding to preprocess service: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Gateway error: {str(e)}") 
+        raise HTTPException(status_code=500, detail=f"Gateway error: {str(e)}")
+
+# ==============================================================================
+# PROJECT ENDPOINTS (DATABASE SERVICE FORWARDING)
+# ==============================================================================
+
+@app.get("/api/projects",
+        summary="Get projects for the authenticated user",
+        description="Retrieves a paginated list of projects owned by the authenticated user.",
+        response_model=Dict[str, Any], # Define expected response structure if known
+        )
+async def get_projects(
+    request: Request,
+    limit: Optional[int] = 50, # Default limit matches frontend call
+    offset: Optional[int] = 0,
+    user_payload: Dict[str, Any] = Depends(verify_token)
+):
+    """Proxy projects list request to database service with authentication."""
+    logger.info(f"get_projects: Handler invoked. Limit={limit}, Offset={offset}")
+    try:
+        user_id = get_user_id_from_payload(user_payload)
+        logger.info(f"get_projects: User ID extracted: {user_id}")
+        
+        if not user_id:
+            # This should technically not happen if verify_token works
+            logger.error("get_projects: Validated token payload is missing user ID!")
+            raise HTTPException(status_code=500, detail="Internal authentication processing error")
+        
+        logger.info(f"Fetching projects for user: {user_id} with limit: {limit}, offset: {offset}")
+        
+        # Build the request URL with parameters for the database service
+        params = {
+            "limit": str(limit),
+            "offset": str(offset),
+            "userId": user_id
+        }
+        
+        # Forward to database service using the authenticated helper
+        endpoint_url = f"{DATABASE_SERVICE_URL}/projects"
+        logger.info(f"Calling database service (GET) at: {endpoint_url} with params: {params}")
+        
+        response_data = await call_authenticated_service(
+            service_url=endpoint_url,
+            method="GET",
+            params=params
+        )
+        
+        # Check for errors returned by the helper or the database service
+        if response_data.get("status") == "error":
+            error_message = response_data.get("message", "Unknown error")
+            logger.error(f"Error from database service when getting projects: {error_message}")
+            # Determine status code based on error if possible, default 500
+            status_code = 500 
+            # Example: if "database connection failed" in error_message.lower(): status_code = 503
+            raise HTTPException(status_code=status_code, detail=f"Database service error: {error_message}")
+        
+        logger.debug(f"Successfully received projects data: {response_data}")
+        return response_data
+        
+    except HTTPException as http_exc: # Re-raise specific HTTP exceptions
+        raise http_exc 
+    except Exception as e:
+        logger.error(f"Error processing get_projects request: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Gateway error: {str(e)}")
+
+# Existing POST handler for creating projects
+class CreateProjectRequest(BaseModel):
+    name: str = Field(..., min_length=1, description="The name of the project.")
+    description: Optional[str] = Field(None, description="An optional one-line description for the project.")
+
+@app.post("/api/projects",
+         summary="Create a new project",
+         description="Creates a new project associated with the authenticated user.",
+         response_model=Dict[str, Any], # Define expected response structure if known
+         status_code=201 # Set default success status code
+        )
+async def create_project(
+    request_body: CreateProjectRequest = Body(...),
+    user_payload: Dict[str, Any] = Depends(verify_token)
+):
+    """Proxy project creation request to database service with authentication."""
+    logger.info(f"create_project: Handler invoked.")
+    try:
+        user_id = get_user_id_from_payload(user_payload)
+        logger.info(f"create_project: User ID extracted: {user_id}")
+
+        if not user_id:
+            logger.error("create_project: Validated token payload is missing user ID!")
+            raise HTTPException(status_code=500, detail="Internal authentication processing error")
+
+        # Prepare data to send to the database service
+        project_data = {
+            "name": request_body.name,
+            "description": request_body.description,
+            "ownerId": user_id # Add the ownerId from the token
+        }
+
+        # Forward to database service using the authenticated helper
+        endpoint_url = f"{DATABASE_SERVICE_URL}/projects"
+        logger.info(f"Calling database service (POST) at: {endpoint_url}")
+        logger.debug(f"Project data being sent: {project_data}")
+
+        response_data = await call_authenticated_service(
+            service_url=endpoint_url,
+            method="POST",
+            json_data=project_data
+        )
+
+        # Check for errors returned by the helper or the database service
+        if response_data.get("status") == "error":
+            error_message = response_data.get("message", "Unknown error")
+            logger.error(f"Error from database service during project creation: {error_message}")
+            status_code = 500 # Default error status
+            # Example: if "already exists" in error_message.lower(): status_code = 409 (Conflict)
+            raise HTTPException(status_code=status_code, detail=f"Database service error: {error_message}")
+
+        logger.info(f"Successfully created project via database service.")
+        return response_data
+
+    except HTTPException as http_exc: # Re-raise specific HTTP exceptions
+        raise http_exc
+    except Exception as e:
+        logger.error(f"Error processing create_project request: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Gateway error: {str(e)}")
+
+# --- Add other project endpoints (GET, PUT, DELETE) later as needed --- 
