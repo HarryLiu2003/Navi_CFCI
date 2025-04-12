@@ -161,13 +161,11 @@ export PROJECT_ID="$(gcloud config get-value project)"
 export REGION="us-central1" # Or your preferred region
 
 # 1. Database Service (No public access)
-# Note: The directory name was changed from 'database' to 'database-service' for consistency.
 cd services/database-service
 gcloud builds submit --config=cloudbuild.yaml --project $PROJECT_ID
 # Wait for deployment to complete before proceeding.
 
 # 2. Interview Analysis Service (Depends on Database Service URL)
-# Get the deployed Database Service URL
 DATABASE_URL=$(gcloud run services describe database-service --platform managed --region $REGION --format='value(status.url)' --project $PROJECT_ID)
 
 cd ../interview_analysis
@@ -177,11 +175,9 @@ gcloud builds submit --config=cloudbuild.yaml \\
 # Wait for deployment to complete before proceeding.
 
 # 3. API Gateway (Needs URLs of other services & CORS Origin)
-# Get the deployed URLs
 INTERVIEW_URL=$(gcloud run services describe interview-analysis --platform managed --region $REGION --format='value(status.url)' --project $PROJECT_ID)
-DATABASE_SVC_URL=$(gcloud run services describe database-service --platform managed --region $REGION --format='value(status.url)' --project $PROJECT_ID) # Renamed variable for clarity
+DATABASE_SVC_URL=$(gcloud run services describe database-service --platform managed --region $REGION --format='value(status.url)' --project $PROJECT_ID)
 
-# Define your Vercel Production URL (replace placeholder)
 VERCEL_PROD_URL="https://your-project-name.vercel.app" # Or your custom domain
 
 cd ../api_gateway
@@ -189,7 +185,6 @@ gcloud builds submit --config=cloudbuild.yaml \\
   --substitutions=_SERVICE_INTERVIEW_ANALYSIS=$INTERVIEW_URL,_SERVICE_DATABASE=$DATABASE_SVC_URL,_CORS_ORIGINS=$VERCEL_PROD_URL \\
   --project $PROJECT_ID
 
-# Note the final API Gateway URL
 API_GATEWAY_URL=$(gcloud run services describe api-gateway --platform managed --region $REGION --format='value(status.url)' --project $PROJECT_ID)
 echo "API Gateway Deployed URL: ${API_GATEWAY_URL}"
 
@@ -208,7 +203,7 @@ Ensure the following Environment Variables are set in your Vercel project settin
 *   `NEXTAUTH_URL`: Your **primary production frontend URL** (e.g., `https://your-domain.com` or `https://your-project.vercel.app`). **Must match** the URL provided for `_CORS_ORIGINS` during the API Gateway deployment.
 *   `NEXT_PUBLIC_API_URL`: The **API Gateway URL** obtained from the previous deployment step (e.g., `https://api-gateway-....run.app`).
 *   `NODE_ENV`: Set to `production`.
-*   `DATABASE_URL`: The database connection string (link to `database-connection-string` secret). This is needed by the NextAuth Prisma Adapter to manage users and sessions in the database.
+*   `DATABASE_URL`: The **Transaction Pooler** database connection string (link to `database-connection-string` secret). Required by NextAuth Prisma Adapter.
 
 ### Deploy Command:
 
@@ -246,7 +241,7 @@ Consider setting up GitHub Actions (or similar) to automate testing and deployme
 
 Refer to the `.env.example` file in each service/frontend directory for specific variables. Key variables for production include:
 
-*   **Frontend (Vercel):** `NEXTAUTH_SECRET` (from Secret Mgr), `NEXTAUTH_URL` (Primary Prod URL), `NEXT_PUBLIC_API_URL` (API Gateway URL), `NODE_ENV=production`.
+*   **Frontend (Vercel):** `NEXTAUTH_SECRET` (from Secret Mgr), `NEXTAUTH_URL` (Primary Prod URL), `NEXT_PUBLIC_API_URL` (API Gateway URL), `NODE_ENV=production`, `DATABASE_URL` (Transaction Pooler from Secret Mgr).
 *   **API Gateway (Cloud Run):** `JWT_SECRET` (from Secret Mgr), `SERVICE_DATABASE`, `SERVICE_INTERVIEW_ANALYSIS` (Cloud Run URLs injected via build), `CORS_ORIGINS` (Vercel URL injected via build), `NODE_ENV=production`, `DEBUG=false`, `ENABLE_DEV_AUTH=false`.
 *   **Interview Analysis (Cloud Run):** `GEMINI_API_KEY` (from Secret Mgr), `DATABASE_API_URL` (Cloud Run URL injected via build), `NODE_ENV=production`.
-*   **Database Service (Cloud Run):** `DATABASE_URL` (from Secret Mgr `database-connection-string`), `MIGRATE_DATABASE_URL` (from Secret Mgr `migrate-database-connection-string`), `NODE_ENV=production`.
+*   **Database Service (Cloud Run):** `DATABASE_URL` (Transaction Pooler from Secret Mgr `database-connection-string`), `MIGRATE_DATABASE_URL` (Session Pooler from Secret Mgr `migrate-database-connection-string`), `NODE_ENV=production`.

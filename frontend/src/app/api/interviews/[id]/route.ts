@@ -28,9 +28,10 @@ if (jwtSecret) {
 
 export async function GET(
   request: NextRequest,
-  context: { params: { id: string } }
+  { params }: { params: { id: string } }
 ) {
-  // log("GET request received"); // Can remove
+  const interviewId = params.id;
+  log(`GET request received for ID: ${interviewId}`);
   try {
     // 1. Initial Session Check
     const session = await getServerSession(authOptions);
@@ -41,13 +42,11 @@ export async function GET(
     // log(`Session validated for user: ${session.user.id}`); // Can remove
 
     // 2. Get Interview ID from Path
-    const params = await context.params;
-    const { id } = params;
-    if (!id) {
+    if (!interviewId) {
        logError("Interview ID is required but missing from context");
       return NextResponse.json({ status: 'error', message: 'Interview ID is required' }, { status: 400 });
     }
-    // log(`Target Interview ID: ${id}`); // Can remove
+    // log(`Target Interview ID: ${interviewId}`); // Can remove
 
     // 3. Get DECODED Token Payload
     let decodedTokenPayload: any = null;
@@ -97,7 +96,7 @@ export async function GET(
     };
     // log("Headers prepared for API Gateway:", { Authorization: `Bearer ${signedApiToken.substring(0, 15)}...` }); // Can remove
 
-    const apiUrl = `${gatewayUrl}/api/interviews/${id}`;
+    const apiUrl = `${gatewayUrl}/api/interviews/${interviewId}`;
     log(`Forwarding request to API Gateway: ${apiUrl}`); // Keep this one
 
     // 6. Make the fetch call (with retry logic)
@@ -160,7 +159,7 @@ export async function GET(
       }
     }
     
-    const finalErrorMessage = `Failed to fetch interview details for ${id} after ${MAX_RETRIES} attempts. Last error: ${lastError?.message || 'Unknown error'}`;
+    const finalErrorMessage = `Failed to fetch interview details for ${interviewId} after ${MAX_RETRIES} attempts. Last error: ${lastError?.message || 'Unknown error'}`;
     logError(finalErrorMessage);
     return NextResponse.json({ status: 'error', message: finalErrorMessage }, { status: 500 });
 
@@ -170,7 +169,10 @@ export async function GET(
   }
 }
 
-export async function PUT(request: NextRequest, { params }: { params: { id: string } }) {
+export async function PUT(
+  request: NextRequest, 
+  { params }: { params: { id: string } }
+) {
   const interviewId = params.id;
   log(`PUT request received for ID: ${interviewId}`);
   try {
@@ -224,9 +226,11 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
     let updateData: any;
     try {
       updateData = await request.json();
-      if (!updateData || typeof updateData.title !== 'string') {
-          logError("Invalid update data received. Expected JSON with 'title'.", updateData);
-          return NextResponse.json({ status: 'error', message: 'Invalid request body' }, { status: 400 });
+      // Basic validation: ensure it's an object. Specific field validation
+      // will be handled by the API Gateway and Database Service.
+      if (!updateData || typeof updateData !== 'object') {
+        logError("Invalid update data received. Expected JSON object.", updateData);
+        return NextResponse.json({ status: 'error', message: 'Invalid request body' }, { status: 400 });
       }
     } catch (parseError) {
         logError("Failed to parse request body as JSON.", parseError);
@@ -246,7 +250,7 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
       const response = await fetch(apiUrl, {
         method: 'PUT',
         headers,
-        body: JSON.stringify({ title: updateData.title }), // Only forward title for now
+        body: JSON.stringify(updateData), // Forward the entire updateData object
         credentials: 'include',
         cache: 'no-store'
       });
@@ -272,5 +276,107 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
   } catch (error: any) {
     logError('Unexpected error in PUT handler:', error);
     return NextResponse.json({ status: 'error', message: error.message || 'Internal server error updating interview' }, { status: 500 });
+  }
+}
+
+export async function DELETE(
+  request: NextRequest, 
+  { params }: { params: { id: string } }
+) {
+  const interviewId = params.id;
+  log(`DELETE request received for ID: ${interviewId}`);
+
+  // 1. Verify session first 
+  const session = await getServerSession(authOptions);
+  if (!session || !session.user || !session.user.id) {
+    logError("No valid NextAuth session found.");
+    return NextResponse.json({ status: 'error', message: 'Authentication required' }, { status: 401 });
+  }
+  const currentUserId = session.user.id;
+
+  // 2. Get DECODED Token Payload (For signing API token)
+  let decodedTokenPayload: any = null;
+  try {
+    decodedTokenPayload = await getToken({
+      req: request as any,
+      secret: process.env.NEXTAUTH_SECRET,
+      secureCookie: process.env.NODE_ENV === "production"
+    });
+  } catch (tokenError) {
+    logError("Error calling getToken:", tokenError);
+  }
+  if (!decodedTokenPayload || !decodedTokenPayload.sub || decodedTokenPayload.sub !== currentUserId) {
+    logError("Failed to retrieve valid token payload or mismatch with session.", decodedTokenPayload);
+    return NextResponse.json({ status: 'error', message: 'Invalid authentication payload' }, { status: 500 });
+  }
+
+  // 3. Manually Sign a *NEW* JWS Token for API Gateway
+  if (!signingKey) {
+      logError("Cannot proceed: Signing key not available.");
+      return NextResponse.json({ status: 'error', message: 'Internal server configuration error' }, { status: 500 });
+  }
+  let signedApiToken: string;
+  try {
+    const claimsToSign = { 
+        sub: decodedTokenPayload.sub, 
+        name: decodedTokenPayload.name,
+        email: decodedTokenPayload.email,
+        iat: Math.floor(Date.now() / 1000),
+        exp: Math.floor(Date.now() / 1000) + (5 * 60), // 5 min expiry
+    };
+    signedApiToken = await new jose.SignJWT(claimsToSign)
+      .setProtectedHeader({ alg: 'HS256' })
+      .sign(signingKey);
+  } catch (signingError) {
+      logError("Failed to manually sign JWS token:", signingError);
+      return NextResponse.json({ status: 'error', message: 'Failed to prepare authentication token' }, { status: 500 });
+  }
+
+  // 4. Prepare Request to API Gateway
+  const headers: Record<string, string> = {
+    'Authorization': `Bearer ${signedApiToken}`
+  };
+  // Add userId as query param for authorization check in the backend service
+  const apiUrl = `${gatewayUrl}/api/interviews/${interviewId}?userId=${currentUserId}`;
+  log(`Forwarding DELETE request to API Gateway: ${apiUrl}`);
+
+  // 5. Make the fetch call
+  try {
+    const response = await fetch(apiUrl, {
+      method: 'DELETE',
+      headers,
+      credentials: 'include',
+      cache: 'no-store'
+    });
+
+    const responseStatus = response.status;
+    
+    // For DELETE, 200 OK or 204 No Content are typical success responses
+    if (response.ok) { 
+      log("Successfully received DELETE success response from API Gateway.");
+      // Try to parse JSON in case the backend sends back the deleted object
+      try {
+        const data = await response.json();
+        return NextResponse.json(data, { status: responseStatus });
+      } catch {
+        // If no body or non-JSON body, just return status
+        return new NextResponse(null, { status: responseStatus });
+      }
+    } else {
+      // Handle specific errors like 404 Not Found or 403 Forbidden
+      let errorDetail = 'Failed to delete interview';
+      try {
+          const errorJson = await response.json();
+          errorDetail = errorJson.message || errorJson.detail || JSON.stringify(errorJson);
+      } catch {
+          errorDetail = response.statusText;
+      }
+      logError(`API Gateway error (${responseStatus}) during DELETE: ${errorDetail}`);
+      return NextResponse.json({ status: 'error', message: errorDetail }, { status: responseStatus });
+    }
+
+  } catch (fetchError: any) {
+    logError(`Error fetching from API Gateway during DELETE: ${fetchError.message}`);
+    return NextResponse.json({ status: 'error', message: 'Failed to connect to delete service' }, { status: 502 }); // Bad Gateway
   }
 } 

@@ -1,23 +1,26 @@
 {
-  "name": "navi-cfci",
-  "version": "0.1.0",
-  "description": "Microservices platform for analyzing interview transcripts",
+  "name": "navi-cfci-monorepo-root",
+  "version": "1.0.0",
+  "private": true,
   "scripts": {
-    "start": "docker compose up",
+    "dev": "docker compose up",
+    "build:docker": "docker compose build",
     "stop": "docker compose down",
-    "build": "docker compose build",
-    "sync-schema": "cp services/database/prisma/schema.prisma frontend/prisma/schema.prisma && cd frontend && npx prisma generate",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "logs": "docker compose logs -f",
+    "logs:fe": "docker compose logs -f frontend",
+    "logs:gw": "docker compose logs -f api_gateway",
+    "logs:db": "docker compose logs -f database-service",
+    "logs:ia": "docker compose logs -f interview_analysis",
+    
+    "prisma:sync": "echo \"Syncing Prisma schema and generating clients...\" && cp services/database-service/prisma/schema.prisma frontend/prisma/schema.prisma && echo \"Schema copied to frontend.\" && echo \"Generating client for database-service...\" && docker compose run --rm --entrypoint \"\" database-service npm run prisma:generate && echo \"Generating client for frontend...\" && (cd frontend && npx prisma generate && cd ..) && echo \"Prisma sync complete.\"",
+    
+    "prisma:migrate:dev": "npm run prisma:sync && echo \"Running migrate dev for database-service... Will prompt for migration name.\" && docker compose run --rm --entrypoint \"\" database-service sh -c 'DATABASE_URL=$MIGRATE_DATABASE_URL npm run prisma:migrate:dev'",
+
+    "prisma:migrate:deploy": "docker compose run --rm database-service sh -c 'DATABASE_URL=$MIGRATE_DATABASE_URL npm run prisma:migrate:deploy'",
+    "prisma:migrate:reset": "docker compose run --rm database-service sh -c 'DATABASE_URL=$MIGRATE_DATABASE_URL npm run prisma:migrate:reset'"
   },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/yourusername/navi-cfci.git"
-  },
-  "keywords": [
-    "interview",
-    "analysis",
-    "microservices"
-  ],
-  "author": "",
-  "license": "MIT"
+  "workspaces": [
+    "frontend",
+    "services/*"
+  ]
 }

@@ -20,6 +20,7 @@ model Interview {
   user             User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
   userId           String?
   project          Project?  @relation(fields: [project_id], references: [id], onDelete: SetNull)
+  personas         Persona[]
 
   @@map("interviews")
 }
@@ -42,6 +43,7 @@ model User {
   sessions      Session[]
   interviews    Interview[]
   ownedProjects Project[]
+  personas      Persona[]
 
   @@map("users")
 }
@@ -56,6 +58,20 @@ model Project {
   owner       User        @relation(fields: [ownerId], references: [id])
 
   @@map("projects")
+}
+
+model Persona {
+  id          String      @id @default(uuid())
+  name        String      // Name of the persona
+  color       String      // Identifier for chosen color (e.g., "blue", "green") - Now Required
+
+  userId      String      // Foreign key to the User who owns this persona
+  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  interviews  Interview[] // Many-to-many relation with Interviews
+
+  @@unique([userId, name]) // Ensure persona names are unique per user
+  @@map("personas")
 }
 
 // Note: VerificationToken is required for password reset functionality

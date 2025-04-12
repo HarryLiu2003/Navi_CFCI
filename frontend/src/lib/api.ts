@@ -79,6 +79,14 @@ export interface PreprocessResponse {
   };
 }
 
+// --- NEW Frontend Persona Type ---
+export interface Persona {
+  id: string;
+  name: string;
+  color: string; // Stored Tailwind classes
+  userId?: string; // Optional, depending if backend sends it
+}
+
 // Interview storage types
 export interface Interview {
   id: string;
@@ -94,6 +102,7 @@ export interface Interview {
     id: string;
     name: string;
   } | null;
+  personas?: Persona[]; 
 }
 
 export interface InterviewsResponse {
@@ -108,9 +117,14 @@ export interface InterviewsResponse {
 export interface InterviewDetailResponse {
   status: string;
   message: string;
-  data: Interview & {
-    analysis_data: any;
-  };
+  data: Interview; 
+}
+
+// --- UPDATED Response Type for /api/personas ---
+export interface PersonasResponse {
+  status: string;
+  message?: string;
+  data: Persona[]; 
 }
 
 // API Configuration
@@ -394,45 +408,130 @@ export interface CreateProjectResponse {
   data?: Project; // The created project data
 }
 
-// Update a specific interview by ID
-export async function updateInterview(id: string, data: { title: string }): Promise<{ status: string, message?: string, data?: Interview }> {
-  console.log(`[lib/api] updateInterview called for ID: ${id}`);
+// --- UPDATED API Function --- 
+// Function to get all unique personas for the user
+export async function getAllPersonas(): Promise<PersonasResponse> {
+  const url = `/api/personas`; // Use internal API route
+  
+  console.log(`[lib/api] getAllPersonas calling internal route: ${url}`);
+  
   try {
-    const apiUrl = `/api/interviews/${id}`;
-    console.log(`[lib/api] Sending PUT request to internal API route: ${apiUrl}`);
-
-    const response = await fetch(apiUrl, {
-      method: 'PUT',
+    const response = await fetch(url, {
+      method: 'GET',
       headers: {
         'Content-Type': 'application/json',
-        'Accept': 'application/json'
       },
-      body: JSON.stringify(data),
-      credentials: 'include', // Send cookies to the internal API route
+      credentials: 'include', 
     });
-    
-    console.log(`[lib/api] Response status from ${apiUrl}: ${response.status}`);
-    
-    const responseData = await response.json();
 
     if (!response.ok) {
-      const errorMessage = responseData.message || responseData.error || 'Unknown error';
-      console.error(`[lib/api] Error updating interview ${id} (${response.status}): ${JSON.stringify(responseData)}`);
-      throw new Error(`Failed to update interview (${response.status}): ${errorMessage}`);
+      let errorDetail = 'Failed to fetch personas';
+      try {
+        const errorJson = await response.json();
+        errorDetail = errorJson.message || errorJson.detail || JSON.stringify(errorJson);
+      } catch { 
+         errorDetail = response.statusText;
+      }
+      console.error(`[lib/api] Error fetching personas (${response.status}): ${errorDetail}`);
+      return { status: 'error', message: `API Error (${response.status}): ${errorDetail}`, data: [] };
     }
 
-    console.log(`[lib/api] Successfully updated interview ${id}.`);
-    return responseData; // Assuming the backend returns the updated interview or a success message
+    const data = await response.json();
+    console.log(`[lib/api] Successfully received personas:`, data);
+    // Type assertion might be needed if backend response isn't strictly typed
+    return data as PersonasResponse; 
+
   } catch (error) {
-    console.error(`[lib/api] Catch block error in updateInterview for ${id}:`, error);
-    if (error instanceof Error) {
-      throw error;
-    }
-    throw new Error('Failed to update interview');
+    console.error('[lib/api] Catch block error in getAllPersonas:', error);
+    const message = error instanceof Error ? error.message : 'An unknown error occurred';
+    return { status: 'error', message, data: [] };
   }
 }
 
-// Create a new project
+// --- NEW API Function ---
+// Function to create a new persona
+export async function createPersona(name: string, color: string): Promise<{ status: string, message?: string, data?: Persona }> {
+  // Call a dedicated internal route for creation
+  const url = `/api/create-persona`; 
+  console.log(`[lib/api] createPersona calling internal route: POST ${url}`);
+  
+  try {
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      // Body needs userId (from session), name, and color
+      body: JSON.stringify({ name, color }), // Include color
+      credentials: 'include', 
+    });
+
+    const result = await response.json();
+
+    if (!response.ok || result.status !== 'success') {
+      const errorMessage = result.message || 'Failed to create persona';
+      console.error(`[lib/api] Error creating persona (${response.status}): ${JSON.stringify(result)}`);
+      throw new Error(errorMessage);
+    }
+
+    console.log(`[lib/api] Successfully created persona:`, result.data);
+    return result;
+
+  } catch (error) {
+    console.error('[lib/api] Catch block error creating persona:', error);
+    const message = error instanceof Error ? error.message : 'An unknown error occurred';
+    // Return structure consistent with other functions on error
+    return { status: 'error', message }; 
+  }
+}
+
+// --- MODIFIED API Function --- 
+// Update interview title, project association, OR persona links
+export async function updateInterview(
+  id: string, 
+  data: { 
+    title?: string; 
+    project_id?: string | null; 
+    personaIds?: string[]; 
+  }
+): Promise<{ status: string, message?: string, data?: Interview }> {
+  const url = `/api/interviews/${id}`; // Use internal API route
+  
+  console.log(`[lib/api] updateInterview calling internal route: ${url} with data:`, data);
+
+  try {
+    const response = await fetch(url, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(data),
+      credentials: 'include', 
+    });
+
+    if (!response.ok) {
+      let errorDetail = 'Failed to update interview';
+      try {
+        const errorJson = await response.json();
+        errorDetail = errorJson.message || errorJson.detail || JSON.stringify(errorJson);
+      } catch {
+        errorDetail = response.statusText;
+      }
+      console.error(`[lib/api] Error updating interview ${id} (${response.status}): ${errorDetail}`);
+      return { status: 'error', message: `API Error (${response.status}): ${errorDetail}` };
+    }
+
+    const result = await response.json();
+    console.log(`[lib/api] Successfully updated interview ${id}:`, result);
+    return result; 
+
+  } catch (error) {
+    console.error(`[lib/api] Catch block error updating interview ${id}:`, error);
+    const message = error instanceof Error ? error.message : 'An unknown error occurred';
+    return { status: 'error', message };
+  }
+}
+
 export async function createProject(name: string, description?: string): Promise<CreateProjectResponse> {
   console.log(`[lib/api] createProject called with name: "${name}"`);
   try {
@@ -526,4 +625,66 @@ export async function getProjects(limit: number = 50, offset: number = 0): Promi
     }
     throw new Error('Failed to fetch projects');
   }
+}
+
+/**
+ * Represents the structure of persona suggestions returned by the API.
+ */
+export interface PersonaSuggestionResponse {
+  existing_persona_ids: string[];
+  suggested_new_personas: string[]; // Currently just names, could be objects later
+}
+
+/**
+ * Calls the backend API to get AI-suggested personas for an interview.
+ * 
+ * @param interviewId The ID of the interview to get suggestions for.
+ * @returns A promise resolving to the persona suggestions.
+ * @throws If the API call fails or returns an error status.
+ */
+export async function suggestPersonas(interviewId: string): Promise<PersonaSuggestionResponse> {
+  if (!interviewId) {
+    throw new Error("Interview ID is required to suggest personas.");
+  }
+
+  console.log(`[API] Suggesting personas for interview: ${interviewId}`);
+  
+  // TODO: Add proper authentication headers if required by the backend
+  // const headers = getAuthHeaders(); // Example
+
+  const response = await fetch(`/api/personas/${interviewId}/suggest_personas`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      // ...headers // Include auth headers if needed
+      // Placeholder for user ID if needed via headers and not context/token
+      // 'X-User-ID': 'get-current-user-id-somehow' 
+    },
+    // No body is needed as per the current backend endpoint definition
+  });
+
+  // Handle non-JSON responses gracefully
+  let responseBody;
+  try {
+    responseBody = await response.json();
+  } catch (error: any) {
+    console.error(`[API] Error parsing JSON response for interview ${interviewId}:`, error);
+    throw new Error(`Failed to parse response from server: ${error.message}`);
+  }
+
+  if (!response.ok || responseBody.status !== 'success') {
+    const errorMessage = responseBody?.message || `API Error: ${response.status} ${response.statusText}`;
+    console.error(`[API] Failed to suggest personas for interview ${interviewId}:`, errorMessage, responseBody);
+    throw new Error(errorMessage);
+  }
+
+  console.log(`[API] Successfully received persona suggestions for interview ${interviewId}:`, responseBody.data);
+  
+  // Validate the structure of the data slightly
+  if (!responseBody.data || !Array.isArray(responseBody.data.existing_persona_ids) || !Array.isArray(responseBody.data.suggested_new_personas)) {
+     console.error("[API] Invalid suggestion data structure received:", responseBody.data);
+     throw new Error("Received invalid data structure for persona suggestions.");
+  }
+  
+  return responseBody.data as PersonaSuggestionResponse;
 } 

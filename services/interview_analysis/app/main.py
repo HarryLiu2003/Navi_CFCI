@@ -2,6 +2,7 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from .api.routes import router as analysis_router
+from .api.persona_routes import router as persona_router
 from .config.logging_config import setup_logging
 from .config.settings import settings
 import logging
@@ -131,8 +132,9 @@ async def global_exception_handler(request: Request, exc: Exception):
     )
 
 # Include routers
-app.include_router(analysis_router, prefix="/api/interview_analysis")
-logger.info("API router included successfully")
+app.include_router(analysis_router, prefix="/api/interview_analysis", tags=["Analysis"])
+app.include_router(persona_router, prefix="/api/personas", tags=["Personas"])
+logger.info("API routers included successfully")
 
 @app.get("/",
         summary="Interview Analysis Service Information",

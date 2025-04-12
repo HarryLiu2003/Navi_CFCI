@@ -111,7 +111,7 @@ export async function GET(request: NextRequest) {
       try {
         // log(`Attempt ${retryCount + 1} to fetch from API Gateway...`); // Can be removed
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 10000);
+        const timeoutId = setTimeout(() => controller.abort(), 30000); // Increased timeout to 30 seconds
 
         const response = await fetch(apiUrl, {
           method: 'GET',

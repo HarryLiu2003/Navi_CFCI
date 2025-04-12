@@ -24,10 +24,14 @@ export function getPrismaClient(): PrismaClient {
         throw new Error('DATABASE_URL environment variable is not set')
       }
 
-      // Add PgBouncer parameters if they're not already present
-      const finalDbUrl = dbUrl.includes('?') 
-        ? `${dbUrl}&pgbouncer=true&prepared_statements=false`
-        : `${dbUrl}?pgbouncer=true&prepared_statements=false`
+      // Add required parameters programmatically
+      const url = new URL(dbUrl);
+      url.searchParams.set('pgbouncer', 'true');
+      url.searchParams.set('prepared_statements', 'false');
+      url.searchParams.set('pool_timeout', '30');
+      const finalDbUrl = url.toString();
+
+      console.log(`[DB Service Client] Final DB URL for Prisma: ${finalDbUrl.replace(/\:\/\/(.*?)@/, '://*****@')}`);
 
       // Create a new instance only if one doesn't exist
       prismaInstance = new PrismaClient({

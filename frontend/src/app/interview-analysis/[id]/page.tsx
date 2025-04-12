@@ -5,8 +5,9 @@ import { useRouter } from 'next/navigation'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
+import { Label } from "@/components/ui/label"
 import { 
   ChevronLeft, 
   Copy, 
@@ -21,16 +22,39 @@ import {
   Loader2,
   Users, 
   Mic, 
-  CalendarDays
+  CalendarDays,
+  Bell,
+  Settings,
+  User,
+  LogOut,
+  ChevronsUpDown,
+  Plus,
+  Check,
 } from "lucide-react"
 import Link from "next/link"
-import { getInterviewById, updateInterview } from '@/lib/api'
+import { getInterviewById, updateInterview, getAllPersonas, getProjects } from '@/lib/api'
 import { toast } from 'sonner'
 import { use } from 'react'
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Separator } from "@/components/ui/separator"
 import { Input } from "@/components/ui/input"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
+import { 
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import { useSession, signOut } from "next-auth/react"
+import { cn } from "@/lib/utils"
+import { PersonaTaggingModal } from '@/components/dialogs/PersonaTaggingModal'
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { ChangeProjectModal } from '@/components/dialogs/ChangeProjectModal'
+import { Interview, Persona } from '@/lib/api'
+import { getPersonaColorById } from '@/lib/constants'
 
 // Define category colors for consistency
 const categoryColors = {
@@ -58,10 +82,11 @@ export default function InterviewAnalysisDetail({ params }: PageProps) {
   const [interview, setInterview] = useState<any>(null)
   const resolvedParams = use(params)
   
+  const { data: session, status } = useSession();
+  
   // State for inline title editing
   const [currentTitle, setCurrentTitle] = useState("");
   const [originalTitle, setOriginalTitle] = useState("");
-  const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState(false);
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const titleRef = useRef<HTMLHeadingElement>(null); // Ref for the h1 element
@@ -82,41 +107,110 @@ export default function InterviewAnalysisDetail({ params }: PageProps) {
   // For search functionality
   const [searchQuery, setSearchQuery] = useState("")
   const [isSearching, setIsSearching] = useState(false)
+  
+  // State for Persona Modal
+  const [showPersonaModal, setShowPersonaModal] = useState(false);
+  const [allPersonas, setAllPersonas] = useState<Persona[]>([]);
+  const [isLoadingPersonas, setIsLoadingPersonas] = useState(false);
+  const [personasError, setPersonasError] = useState<string | null>(null);
+
+  // Project assignment state
+  const [projects, setProjects] = useState<any[]>([]);
+  const [isLoadingProjects, setIsLoadingProjects] = useState(false);
+  const [isProjectDropdownOpen, setIsProjectDropdownOpen] = useState(false);
+  const [isChangingProject, setIsChangingProject] = useState(false);
+
+  // Add this near other state definitions
+  const [isConfigExpanded, setIsConfigExpanded] = useState(false);
+
+  // Rename state for clarity
+  const [showChangeProjectModal, setShowChangeProjectModal] = useState(false);
+
+  // New state for hovering over tags
+  const [hoveredPersona, setHoveredPersona] = useState<string | null>(null);
 
   useEffect(() => {
-    const fetchInterview = async () => {
-      try {
-        setIsLoading(true)
-        setError(null)
-        
-        const response = await getInterviewById(resolvedParams.id)
-        
-        if (response.status === "success" && response.data) {
-          setInterview(response.data)
-          const initialTitle = response.data?.title || "Interview Analysis";
-          setCurrentTitle(initialTitle);
-          setOriginalTitle(initialTitle);
-          // Set the content of the h1 initially if using contentEditable
-          if (titleRef.current) {
-            titleRef.current.textContent = initialTitle;
-          }
-          // Expand the first problem area by default
-          if (response.data.analysis_data?.problem_areas?.length > 0) {
-            setExpandedProblemIds([response.data.analysis_data.problem_areas[0].problem_id])
-          }
-        } else {
-          setError("Failed to load interview data")
-        }
-      } catch (error) {
-        console.error("Error fetching interview:", error)
-        setError(error instanceof Error ? error.message : "An unknown error occurred")
-      } finally {
-        setIsLoading(false)
-      }
+    if (status === "unauthenticated") {
+      router.push("/auth/signin");
+      return; 
     }
 
-    fetchInterview()
-  }, [resolvedParams.id])
+    if (status === "authenticated") {
+      const fetchInterviewAndData = async () => {
+        try {
+          setIsLoading(true)
+          setError(null)
+          setPersonasError(null)
+          
+          // Fetch interview and projects data in parallel
+          const [interviewResponse, projectsResponse] = await Promise.all([
+            getInterviewById(resolvedParams.id),
+            getProjects(100, 0)
+          ]);
+          
+          let fetchedInterview: any = null;
+          
+          // Handle interview data
+          if (interviewResponse.status === "success" && interviewResponse.data) {
+            fetchedInterview = interviewResponse.data;
+            setInterview(fetchedInterview);
+            const initialTitle = fetchedInterview?.title || "Interview Analysis";
+            setCurrentTitle(initialTitle);
+            setOriginalTitle(initialTitle);
+            if (fetchedInterview.analysis_data?.problem_areas?.length > 0) {
+              setExpandedProblemIds([fetchedInterview.analysis_data.problem_areas[0].problem_id])
+            }
+          } else {
+            setError(interviewResponse.message || "Failed to load interview data")
+          }
+
+          // Handle projects data
+          if (projectsResponse.status === 'success') {
+            setProjects(projectsResponse.data?.projects || []);
+          }
+
+          // --- Check sessionStorage flag --- 
+          const flagInterviewId = sessionStorage.getItem('showPersonaModalForInterview');
+          let shouldShowModal = false;
+          
+          if (flagInterviewId && flagInterviewId === resolvedParams.id && fetchedInterview) {
+            sessionStorage.removeItem('showPersonaModalForInterview'); 
+            const needsPersonaTagging = !fetchedInterview.personas || fetchedInterview.personas.length === 0;
+            if (needsPersonaTagging) {
+              shouldShowModal = true;
+            }
+          }
+          
+          // Fetch personas if needed
+          if (shouldShowModal) {
+            setIsLoadingPersonas(true);
+            try {
+              const personasResponse = await getAllPersonas();
+              if (personasResponse.status === 'success') {
+                setAllPersonas(personasResponse.data || []);
+                setShowPersonaModal(true);
+              } else {
+                setPersonasError(personasResponse.message || 'Failed to fetch personas for tagging.');
+                toast.error(personasResponse.message || 'Could not load personas for tagging.');
+              }
+            } catch (personaFetchError: any) {
+              const message = personaFetchError.message || 'Error fetching personas.';
+              setPersonasError(message);
+              toast.error(`Error loading personas: ${message}`);
+            } finally {
+              setIsLoadingPersonas(false);
+            }
+          }
+        } catch (fetchError) {
+          console.error("Error fetching data:", fetchError)
+          setError(fetchError instanceof Error ? fetchError.message : "An unknown error occurred")
+        } finally {
+          setIsLoading(false)
+        }
+      }
+      fetchInterviewAndData()
+    }
+  }, [resolvedParams.id, status, router])
 
   // --- Title Editing Logic (contentEditable version) ---
 
@@ -130,14 +224,12 @@ export default function InterviewAnalysisDetail({ params }: PageProps) {
       
       if (trimmedTitle === originalTitle.trim()) {
         console.log("[page.tsx] Title unchanged (after trim), skipping save.");
-        if (titleRef.current) titleRef.current.textContent = originalTitle;
         setCurrentTitle(originalTitle);
         setSaveError(false);
         return;
       }
       if (!trimmedTitle) {
          console.log("[page.tsx] Title is empty, reverting and skipping save.");
-         if (titleRef.current) titleRef.current.textContent = originalTitle;
          setCurrentTitle(originalTitle);
          setSaveError(false);
          return;
@@ -147,30 +239,24 @@ export default function InterviewAnalysisDetail({ params }: PageProps) {
           return;
       }
 
-      setIsSaving(true);
       setSaveError(false);
       console.log(`[page.tsx] Saving title: ${trimmedTitle}`);
 
       try {
         const result = await updateInterview(resolvedParams.id, { title: trimmedTitle });
         if (result.status === 'success') {
-          setOriginalTitle(trimmedTitle); 
-          setCurrentTitle(trimmedTitle); 
-          if (titleRef.current) titleRef.current.textContent = trimmedTitle; 
+          setOriginalTitle(trimmedTitle);
+          setCurrentTitle(trimmedTitle);
           console.log("[page.tsx] Title saved successfully.");
         } else {
-          if (titleRef.current) titleRef.current.textContent = originalTitle;
           setCurrentTitle(originalTitle);
           setSaveError(true);
           console.error("[page.tsx] Failed to save title:", result);
         }
       } catch (error) {
-        if (titleRef.current) titleRef.current.textContent = originalTitle;
         setCurrentTitle(originalTitle);
         setSaveError(true);
         console.error("[page.tsx] Error saving title:", error);
-      } finally {
-        setIsSaving(false);
       }
     }, 1000); 
   }, [resolvedParams.id, originalTitle]);
@@ -178,28 +264,27 @@ export default function InterviewAnalysisDetail({ params }: PageProps) {
   // Update state on input, extracting plain text
   const handleTitleInput = (event: React.FormEvent<HTMLHeadingElement>) => {
     if (saveError) setSaveError(false);
-    const newText = event.currentTarget.innerText || "";
-    setCurrentTitle(newText);
   };
 
   // Handle clicking away (blur)
   const handleTitleBlur = (event: React.FocusEvent<HTMLHeadingElement>) => {
     const finalTitle = event.currentTarget.innerText || "";
+    setCurrentTitle(finalTitle);
     debouncedSave(finalTitle);
   };
 
   // Handle pressing Enter/Escape keys
   const handleTitleKeyDown = (event: React.KeyboardEvent<HTMLHeadingElement>) => {
     if (event.key === 'Enter') {
-      event.preventDefault(); 
-      event.currentTarget.blur(); 
+      event.preventDefault();
+      event.currentTarget.blur();
     }
     if (event.key === 'Escape') {
         event.preventDefault();
-        if (titleRef.current) titleRef.current.textContent = originalTitle;
-        setCurrentTitle(originalTitle);
+        event.currentTarget.innerText = originalTitle;
         setSaveError(false);
-        event.currentTarget.blur(); 
+        setCurrentTitle(originalTitle);
+        event.currentTarget.blur();
     }
   };
 
@@ -253,7 +338,38 @@ export default function InterviewAnalysisDetail({ params }: PageProps) {
     }, 100)
   }
 
-  if (isLoading) {
+  // --- Helper Functions --- 
+  // Update getInitials for single initial
+  const getInitials = (name?: string | null) => {
+    // Handle null, undefined, empty, or whitespace-only strings
+    if (!name || name.trim().length === 0) return "?"
+    // Take the first character of the trimmed string and uppercase it
+    return name.trim()[0].toUpperCase();
+  }
+
+  // --- Callback for Persona Modal Save ---
+  const handlePersonaSaveSuccess = useCallback((updatedPersonas: Persona[]) => {
+    setInterview((prevInterview: Interview | null) => {
+      if (!prevInterview) return null;
+      return { ...prevInterview, personas: updatedPersonas };
+    });
+  }, []);
+
+  // --- Callback for Change Project Modal Save (NEW) ---
+  const handleProjectChangeSuccess = useCallback((newProjectId: string | undefined) => {
+    setInterview((prevInterview: Interview | null) => {
+        if (!prevInterview) return null;
+        // Find the project object from the fetched list to update the nested data if needed
+        const newProject = projects.find(p => p.id === newProjectId);
+        return {
+            ...prevInterview, 
+            project_id: newProjectId,
+            project: newProject || null // Update the nested project data or set to null
+        };
+    });
+  }, [projects]); // Depend on projects list so newProject is updated correctly
+
+  if (status === "loading" || (isLoading && !interview)) { // Adjusted loading state
     return (
       <div className="container mx-auto p-6 flex items-center justify-center min-h-screen">
         <div className="text-center">
@@ -316,11 +432,11 @@ export default function InterviewAnalysisDetail({ params }: PageProps) {
     <div className="space-y-5 px-4">
       {problemAreas.length > 0 ? (
         problemAreas.map((problem: any, index: number) => (
-          <Card key={problem.problem_id || index} className="border-l-4 border-primary shadow-sm">
+          <Card key={problem.problem_id || index} className="border-l-4 border-primary/70 shadow-sm">
             <CardHeader className="p-4 pb-2">
               <div className="flex justify-between items-center">
-                <CardTitle className="text-base flex items-center">
-                  <span className="bg-primary text-primary-foreground rounded-full w-6 h-6 inline-flex items-center justify-center text-sm mr-2 shadow-sm">
+                <CardTitle className="text-base font-medium text-foreground/90 flex items-center">
+                  <span className="bg-muted text-muted-foreground rounded-md w-6 h-6 inline-flex items-center justify-center text-sm mr-2 shadow-sm">
                     {index + 1}
                   </span>
                   {problem.title}
@@ -338,7 +454,7 @@ export default function InterviewAnalysisDetail({ params }: PageProps) {
                   )}
                 </Button>
               </div>
-              <CardDescription className="mt-2 text-sm leading-relaxed">
+              <CardDescription className="mt-2 text-sm leading-relaxed text-muted-foreground/90">
                 {problem.description}
               </CardDescription>
             </CardHeader>
@@ -349,7 +465,7 @@ export default function InterviewAnalysisDetail({ params }: PageProps) {
                 <h4 className="text-sm font-medium mb-3">Supporting Excerpts</h4>
                 <div className="space-y-4">
                   {problem.excerpts && problem.excerpts.map((excerpt: any, i: number) => (
-                    <Card key={i} className="bg-muted/40 border shadow-sm">
+                    <Card key={i} className="bg-muted/30 border shadow-sm">
                       <CardContent className="p-3">
                         <div className="flex flex-wrap gap-1 mb-2">
                           {excerpt.categories && excerpt.categories.map((category: string, catIdx: number) => (
@@ -408,17 +524,17 @@ export default function InterviewAnalysisDetail({ params }: PageProps) {
             ref={(el) => {
               chunkRefs.current[chunk.chunk_number] = el;
             }}
-            className={`p-3 rounded-md transition-colors ${
-              activeChunk === chunk.chunk_number 
-                ? "bg-yellow-100/80 border border-yellow-300" 
-                : "border border-border/40 hover:bg-muted/30"
+            className={`p-3 rounded-md transition-colors border border-border/40 hover:bg-muted/30 ${
+              activeChunk === chunk.chunk_number ? "bg-yellow-100/80 !border-yellow-300" : ""
             }`}
             id={`chunk-${chunk.chunk_number}`}
           >
             <div className="flex gap-3 items-start">
               <div className="flex-shrink-0">
-                <Avatar className="h-6 w-6 border shadow-sm">
-                  <AvatarFallback className="text-xs">{chunk.speaker?.[0] || '?'}</AvatarFallback>
+                <Avatar className="h-6 w-6 border border-border/40">
+                  <AvatarFallback className="text-xs bg-primary/10 text-primary">
+                    {chunk.speaker?.[0] || '?'}
+                  </AvatarFallback>
                 </Avatar>
               </div>
               <div className="flex-1 min-w-0">
@@ -428,7 +544,7 @@ export default function InterviewAnalysisDetail({ params }: PageProps) {
                     {chunk.chunk_number}
                   </Badge>
                 </div>
-                <p className="text-sm leading-relaxed text-foreground/80">{chunk.text}</p>
+                <p className="text-sm leading-relaxed text-foreground/90">{chunk.text}</p>
               </div>
             </div>
           </div>
@@ -447,326 +563,407 @@ export default function InterviewAnalysisDetail({ params }: PageProps) {
 
   return (
     <div className="flex flex-col h-screen max-h-screen overflow-hidden">
-      {/* Fixed header */}
-      <div className="px-4 md:px-6 py-3 border-b bg-background/95 backdrop-blur-sm sticky top-0 z-10 flex-shrink-0">
-        <div className="flex justify-between items-center max-w-7xl mx-auto">
-          <Button variant="outline" size="sm" className="h-8" asChild>
-            <Link href="/">
+      {/* == Homepage Header START == */}
+      <div className="px-4 md:px-8 py-3.5 border-b border-border/40 bg-background/70 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+        <div className="max-w-7xl mx-auto">
+          {/* Use Grid for more control over header layout */}
+          <div className="grid grid-cols-3 items-center">
+            {/* Left Side: Back Button */}
+            <div className="justify-self-start">
+              <Button variant="outline" size="sm" className="h-8" onClick={() => router.back()}>
               <ChevronLeft className="h-4 w-4 mr-1" />
               Back
-            </Link>
           </Button>
-          
-          <div className="flex items-center gap-2 ml-auto">
-            <TooltipProvider delayDuration={150}>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    variant={viewMode === 'split' ? "default" : "outline"}
-                    size="sm"
-                    className="h-8"
-                    onClick={() => setViewMode('split')}
-                  >
-                    <LayoutGrid className="h-4 w-4" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent sideOffset={4}>
-                  <p>Split View</p>
-                </TooltipContent>
-              </Tooltip>
-
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    variant={viewMode === 'tabs' ? "default" : "outline"}
-                    size="sm"
-                    className="h-8"
-                    onClick={() => setViewMode('tabs')}
-                  >
-                    <Rows className="h-4 w-4" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent sideOffset={4}>
-                  <p>Tab View</p>
-                </TooltipContent>
-              </Tooltip>
-
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="h-8"
-                    onClick={() => copyToClipboard(JSON.stringify(analysis, null, 2))}
-                  >
-                    <Copy className="h-4 w-4" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent sideOffset={4}>
-                  <p>Copy Analysis JSON</p>
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-          </div>
-        </div>
-      </div>
-
-      {/* Summary section - spacious and clean */}
-      <div className="px-4 md:px-8 pt-5 pb-4 flex-shrink-0">
-        <div className="max-w-7xl mx-auto">
-          <div className="mb-2 flex items-center gap-2"> 
-            {/* New Wrapper Div */} 
-            <div 
-              className="flex-1 flex items-center gap-2 relative rounded-sm transition-colors duration-150 ease-in-out focus-within:bg-muted/60"
-            >
-              {/* --- EDITABLE TITLE (contentEditable) START --- */}
-              <h1 
-                ref={titleRef} 
-                contentEditable={!isSaving} 
-                suppressContentEditableWarning={true} 
-                onInput={handleTitleInput} 
-                onBlur={handleTitleBlur} 
-                onKeyDown={handleTitleKeyDown} 
-                // Styling: Remove flex-1 and focus background from h1 itself
-                className={`w-auto font-sans text-lg font-semibold leading-snug px-1 
-                  ${isSaving ? 'cursor-not-allowed' : 'cursor-text'} 
-                  outline-none`} // Use outline-none as focus is handled by parent
-              >
-                {/* Initial content is set via useEffect/ref */} 
-              </h1>
-              {/* --- EDITABLE TITLE END --- */}
-              
-              {/* Saving Spinner (now inside wrapper) */} 
-              {isSaving && (
-                <Loader2 className="h-4 w-4 animate-spin text-muted-foreground flex-shrink-0" />
-              )}
-              
-              {/* Save Error Indicator (now inside wrapper) */} 
-              {!isSaving && saveError && (
-                <TooltipProvider delayDuration={100}>
-                  <Tooltip>
-                    <TooltipTrigger className="flex-shrink-0">
-                      <AlertCircle className="h-4 w-4 text-destructive" />
-                    </TooltipTrigger>
-                    <TooltipContent sideOffset={4} side="top">
-                      <p className="text-xs">Failed to save title. Click to edit.</p>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-              )}
-            </div> {/* End New Wrapper Div */}
-          </div>
-          <p className="text-sm text-muted-foreground mb-4">
-            {/* Display Participants if available */}
-            {interview.participants && (
-              <span className="inline-flex items-center mr-2">
-                <Users className="h-3.5 w-3.5 mr-1" />
-                {interview.participants}
-              </span>
-            )}
-            {/* Display Interviewer if available (removed bullet point logic) */}
-            {/* {interview.interviewer && interview.participants && (
-              <span className="mr-2"> • </span> 
-            )} */}
-            {interview.interviewer && (
-              <span className="inline-flex items-center mr-2"> 
-                 <Mic className="h-3.5 w-3.5 mr-1" /> 
-                Interviewer: {interview.interviewer}
-              </span>
-            )}
-            {/* Display Date (removed bullet point logic) */}
-            {/* {(interview.participants || interview.interviewer) && interview.created_at && (
-               <span className="mr-2"> • </span> 
-            )} */}
-            {interview.created_at && (
-              <span className="inline-flex items-center">
-                <CalendarDays className="h-3.5 w-3.5 mr-1" />
-                {formatDate(interview.created_at)}
-              </span>
-            )}
-          </p>
-          <p className="text-sm leading-relaxed mb-4 text-foreground/90">
-            {typeof synthesis === 'string' ? synthesis : synthesis.background}
-          </p>
-          
-          {typeof synthesis !== 'string' && synthesis.next_steps && synthesis.next_steps.length > 0 && (
-            <div className="mt-2">
-              <p className="text-sm font-medium mb-2">Next Steps:</p>
-              <ul className="text-sm list-disc list-inside space-y-1.5 text-foreground/80">
-                {synthesis.next_steps.map((step: string, index: number) => (
-                  <li key={index} className="leading-relaxed">{step}</li>
-                ))}
-              </ul>
             </div>
-          )}
+            
+            {/* Center: Logo/Title (optional, can leave empty or add breadcrumbs later) */}
+            <div className="justify-self-center">
+              {/* Can add breadcrumbs or keep logo link if desired */}
+              {/* <Link href="/" className="flex items-center gap-2">
+                <h1 className="text-lg font-semibold ...">Navi ProductForce</h1>
+                <Badge variant="outline" ...>Beta</Badge>
+              </Link> */}
+            </div>
+            
+            {/* Right Side: Icons/User Menu */}
+            <div className="flex items-center gap-4 justify-self-end">
+                  <Button
+                variant="ghost" 
+                size="icon" 
+                className="relative h-8 w-8 text-muted-foreground/70 hover:text-foreground"
+                  >
+                <Bell className="h-4 w-4" />
+                  </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="ghost" 
+                    size="sm"
+                    className="flex items-center gap-2 h-8 px-2 text-muted-foreground/80 hover:text-foreground"
+                  >
+                    <Avatar className="h-6 w-6 border border-border/40">
+                      <AvatarFallback className="bg-primary/10 text-primary text-xs">
+                        {getInitials(session?.user?.name)}
+                      </AvatarFallback>
+                    </Avatar>
+                    <span className="hidden md:inline font-medium">{session?.user?.name || "User"}</span>
+                    <ChevronDown className="h-3.5 w-3.5 opacity-50" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-56">
+                  <DropdownMenuLabel className="text-muted-foreground/80">My Account</DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuGroup>
+                    <DropdownMenuItem className="gap-3">
+                      <User className="h-4 w-4" />
+                      <span>Profile</span>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem className="gap-3">
+                      <Settings className="h-4 w-4" />
+                      <span>Settings</span>
+                    </DropdownMenuItem>
+                  </DropdownMenuGroup>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem 
+                    onClick={() => signOut({ callbackUrl: "/auth/signin" })}
+                    className="gap-3 text-red-500 focus:text-red-500"
+                  >
+                    <LogOut className="h-4 w-4" />
+                    <span>Log out</span>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+          </div>
         </div>
       </div>
+      {/* == Homepage Header END == */}
 
-      {/* Main content area */}
-      <div className="flex-1 overflow-hidden px-4 md:px-8 pb-6">
-        <div className="max-w-7xl mx-auto h-full">
-          {viewMode === 'tabs' ? (
-            <Tabs defaultValue={activeTab} value={activeTab} onValueChange={setActiveTab} className="h-full flex flex-col">
-              <div className="flex justify-between items-center mb-3">
-                <div className="flex justify-start">
-                  <TabsList className="w-auto">
-                    <TabsTrigger value="problems">Problem Areas</TabsTrigger>
-                    <TabsTrigger value="transcript">Transcript</TabsTrigger>
-                  </TabsList>
-                </div>
-                
-                {/* Conditional search input for transcript tab */}
-                {activeTab === 'transcript' && (
-                  <div className="flex items-center gap-2">
-                    {isSearching ? (
-                      <div className="relative w-[220px]">
-                        <Input
-                          id="transcript-search"
-                          placeholder="Search transcript..."
-                          className="h-8 text-sm"
-                          value={searchQuery}
-                          onChange={(e) => setSearchQuery(e.target.value)}
-                        />
-                        <Button 
-                          variant="ghost" 
-                          size="sm" 
-                          className="absolute right-0 top-0 h-8 w-8 p-0"
-                          onClick={() => setSearchQuery("")}
-                        >
-                          ×
-                        </Button>
-                      </div>
-                    ) : (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-8 w-8 p-0"
-                        onClick={toggleSearch}
-                      >
-                        <Search className="h-4 w-4" />
-                      </Button>
+      {/* == Main Content Area == */}
+      <div className="flex-1 overflow-hidden">
+        <ScrollArea className="h-full">
+          <div className="px-4 md:px-6 py-6">
+            <div className="max-w-7xl mx-auto space-y-6">
+              {/* Title and Core Info Section */}
+              <div className="space-y-4">
+                {/* Title with Edit */}
+                <div className="flex items-center gap-2"> 
+                  <div className="flex-1 relative">
+                    <h1 
+                      ref={titleRef} 
+                      contentEditable
+                      suppressContentEditableWarning={true} 
+                      onInput={handleTitleInput} 
+                      onBlur={handleTitleBlur} 
+                      onKeyDown={handleTitleKeyDown} 
+                      className="text-xl font-semibold tracking-tight px-1 cursor-text outline-none transition-colors hover:bg-muted/40 rounded-sm"
+                    >
+                      {currentTitle}
+                    </h1>
+                    {saveError && (
+                      <TooltipProvider delayDuration={100}>
+                        <Tooltip>
+                          <TooltipTrigger className="absolute right-0 top-1/2 -translate-y-1/2">
+                            <AlertCircle className="h-4 w-4 text-destructive" />
+                          </TooltipTrigger>
+                          <TooltipContent side="right">
+                            <p className="text-xs">Failed to save title</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
                     )}
                   </div>
-                )}
-              </div>
-              
-              <div className="flex-1 overflow-hidden">
-                <TabsContent value="problems" className="h-full overflow-hidden mt-0 pt-0">
-                  <Card className="h-full">
-                    <CardHeader className="pb-3">
-                      <CardTitle className="text-base">Problem Areas</CardTitle>
-                      <CardDescription>
-                        Key issues identified from the interview
-                      </CardDescription>
-                    </CardHeader>
-                    <CardContent className="p-0 h-[calc(100%-5rem)] overflow-hidden">
-                      <ScrollArea className="h-full">
-                        <div className="pb-4">
-                          {renderProblemAreas()}
+                </div>
+
+                {/* Two-Column Layout for Metadata */}
+                <div className="grid grid-cols-1 md:grid-cols-[4fr,1fr] gap-4">
+                  {/* Left Column: Interview Details */}
+                  <div className="space-y-5">
+                    {/* Basic Interview Info */}
+                    <div className="flex flex-wrap gap-2">
+                      {interview?.participants && (
+                        <div className="flex items-center gap-1.5 bg-muted/40 px-2.5 py-1.5 rounded-md text-sm text-muted-foreground/90">
+                          <Users className="h-3.5 w-3.5" />
+                          <span>{interview.participants}</span>
                         </div>
-                      </ScrollArea>
-                    </CardContent>
-                  </Card>
-                </TabsContent>
-                
-                <TabsContent value="transcript" className="h-full overflow-hidden mt-0 pt-0">
-                  <Card className="h-full flex flex-col">
-                    <CardHeader className="flex-shrink-0 pb-3">
-                      <CardTitle className="text-base">Interview Transcript</CardTitle>
-                      <CardDescription>
-                        Full transcript of the interview conversation
-                        {filteredTranscript.length !== transcript.length && 
-                          ` • Showing ${filteredTranscript.length} of ${transcript.length} chunks`}
-                      </CardDescription>
-                    </CardHeader>
-                    <CardContent className="flex-1 min-h-0 p-0">
-                      <ScrollArea className="h-full">
-                        <div className="pb-3">
-                          {renderTranscript()}
+                      )}
+                      {interview?.interviewer && (
+                        <div className="flex items-center gap-1.5 bg-muted/40 px-2.5 py-1.5 rounded-md text-sm text-muted-foreground/90">
+                          <Mic className="h-3.5 w-3.5" />
+                          <span>{interview.interviewer}</span>
                         </div>
-                      </ScrollArea>
-                    </CardContent>
-                  </Card>
-                </TabsContent>
-              </div>
-            </Tabs>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 h-full">
-              {/* Left column: Transcript */}
-              <Card className="h-full overflow-hidden">
-                <CardHeader className="pb-3">
-                  <div className="flex justify-between items-center">
-                    <div>
-                      <CardTitle className="text-base">Interview Transcript</CardTitle>
-                      <CardDescription>
-                        Full conversation
-                        {filteredTranscript.length !== transcript.length && 
-                          ` • Showing ${filteredTranscript.length} of ${transcript.length}`}
-                      </CardDescription>
+                      )}
+                      {interview?.created_at && (
+                        <div className="flex items-center gap-1.5 bg-muted/40 px-2.5 py-1.5 rounded-md text-sm text-muted-foreground/90">
+                          <CalendarDays className="h-3.5 w-3.5" />
+                          <span>{formatDate(interview.created_at)}</span>
+                        </div>
+                      )}
                     </div>
-                    
-                    <div className="flex items-center gap-2">
-                      {isSearching ? (
-                        <div className="relative w-[180px]">
-                          <Input
-                            id="transcript-search-split"
-                            placeholder="Search transcript..."
-                            className="h-8 text-sm"
-                            value={searchQuery}
-                            onChange={(e) => setSearchQuery(e.target.value)}
-                          />
-                          <Button 
-                            variant="ghost" 
-                            size="sm" 
-                            className="absolute right-0 top-0 h-8 w-8 p-0"
-                            onClick={() => setSearchQuery("")}
-                          >
-                            ×
-                          </Button>
+
+                    {/* Summary with Left Border */}
+                    <div className="prose prose-sm max-w-none border-l-2 border-primary/20 pl-4 py-1">
+                      <div className="text-sm leading-relaxed text-foreground space-y-3">
+                        {typeof synthesis === 'string' ? synthesis : synthesis.background}
+                      </div>
+                      
+                      {/* Next Steps */}
+                      {typeof synthesis !== 'string' && synthesis.next_steps && synthesis.next_steps.length > 0 && (
+                        <div className="mt-6 pt-4 border-t border-border/40">
+                          <h4 className="text-sm font-medium mb-3">Next Steps</h4>
+                          <ul className="space-y-2.5">
+                            {synthesis.next_steps.map((step: string, index: number) => (
+                              <li key={index} className="flex items-start gap-2.5 text-sm">
+                                <div className="rounded-full bg-primary/10 p-1 mt-0.5">
+                                  <Check className="h-3.5 w-3.5 text-primary" />
+                                </div>
+                                <span className="flex-1">{step}</span>
+                              </li>
+                            ))}
+                          </ul>
                         </div>
-                      ) : (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-8 w-8 p-0"
-                          onClick={toggleSearch}
-                        >
-                          <Search className="h-4 w-4" />
-                        </Button>
                       )}
                     </div>
                   </div>
-                </CardHeader>
-                <CardContent className="p-0 h-[calc(100%-5rem)] overflow-hidden">
-                  <ScrollArea className="h-full">
-                    <div className="pb-3">
-                      {renderTranscript()}
-                    </div>
-                  </ScrollArea>
-                </CardContent>
-              </Card>
 
-              {/* Right column: Problem Areas */}
-              <Card className="h-full overflow-hidden">
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-base">Problem Areas</CardTitle>
-                  <CardDescription>
-                    {metadata.problem_areas_count || problemAreas.length} problem areas with{" "}
-                    {metadata.excerpts_count || metadata.excerpts_total_count || 0} supporting excerpts
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="p-0 h-[calc(100%-5rem)] overflow-hidden">
-                  <ScrollArea className="h-full">
-                    <div className="pb-4">
-                      {renderProblemAreas()}
+                  {/* Right Column: Classification */}
+                  <div className="space-y-4">
+                    {/* Project Section */}
+                    <div>
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-sm font-medium text-foreground/90">Project</span>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setShowChangeProjectModal(true)}
+                          className="h-6 px-2 text-xs font-medium text-muted-foreground hover:text-foreground"
+                        >
+                          Edit
+                        </Button>
+                      </div>
+                      <div 
+                        className={cn(
+                          "rounded-sm px-2.5 py-1.5 cursor-pointer transition-colors text-sm border",
+                          interview?.project_id 
+                            ? "bg-muted/40 border-muted/50 text-foreground hover:bg-muted/60" 
+                            : "bg-muted/40 border-muted/50 text-muted-foreground hover:bg-muted/60"
+                        )}
+                        onClick={() => setShowChangeProjectModal(true)}
+                      >
+                        {projects.find(p => p.id === interview?.project_id)?.name || "No project assigned"}
+                      </div>
                     </div>
-                  </ScrollArea>
-                </CardContent>
-              </Card>
-            </div>
-          )}
-        </div>
-      </div>
-    </div>
+
+                    {/* Personas Section - Updated */}
+                    <div>
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-sm font-medium text-foreground/90">Personas</span>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={async () => { // Fetch personas on demand when clicking Edit
+                            setIsLoadingPersonas(true);
+                            setPersonasError(null);
+                            try {
+                                const response = await getAllPersonas();
+                                if (response.status === 'success') {
+                                  setAllPersonas(response.data || []);
+                                  setShowPersonaModal(true);
+                                } else {
+                                  setPersonasError(response.message || 'Failed to load personas');
+                                  toast.error(response.message || 'Failed to load personas');
+                                }
+                            } catch (err: any) {
+                                  setPersonasError(err.message || 'Error fetching personas');
+                                  toast.error(err.message || 'Error fetching personas');
+                            } finally {
+                               setIsLoadingPersonas(false);
+                            }
+                          }}
+                          className="h-6 px-2 text-xs font-medium text-muted-foreground hover:text-foreground"
+                          disabled={isLoadingPersonas}
+                        >
+                          {isLoadingPersonas ? (
+                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                          ) : (
+                            "Edit"
+                          )}
+                        </Button>
+                      </div>
+                      
+                      {/* Use interview.personas array of Persona objects */}
+                      {interview?.personas && interview.personas.length > 0 ? (
+                        <div className="flex flex-wrap gap-1.5">
+                          {/* Map over Persona objects */} 
+                          {interview.personas.map((persona: Persona) => { 
+                            // Get the color info object based on the stored identifier
+                            const colorInfo = getPersonaColorById(persona.color);
+                            return (
+                              <Badge 
+                                key={persona.id} 
+                                className={cn(
+                                  "text-sm py-0.5 px-2 h-6 transition-colors font-normal rounded-sm border", // Base styles
+                                  "max-w-xs", // Keep max-width on the badge itself
+                                  // Non-hovered state classes
+                                  colorInfo.bg, 
+                                  colorInfo.text, 
+                                  colorInfo.border,
+                                  // Explicitly define hover state to match non-hovered state
+                                  `hover:${colorInfo.bg}`, 
+                                  `hover:${colorInfo.text}`
+                                )}
+                              >
+                                {/* Wrap name in span and apply truncation here */}
+                                <span className="whitespace-nowrap overflow-hidden text-ellipsis">
+                                  {persona.name} 
+                                </span>
+                              </Badge>
+                            );
+                          })}
+                        </div>
+                      ) : (
+                        <div 
+                          className="rounded-md px-3 py-2 text-sm text-muted-foreground bg-muted/60 cursor-pointer hover:bg-muted/80 transition-colors"
+                          onClick={() => setShowPersonaModal(true)}
+                        >
+                          No personas assigned
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Tabs Section */}
+              <section>
+                {viewMode === 'tabs' ? (
+                  <Tabs defaultValue={activeTab} value={activeTab} onValueChange={setActiveTab} className="flex flex-col">
+                    <div className="flex justify-between items-center mb-3">
+                      <div className="flex justify-start">
+                        <TabsList className="w-auto">
+                          <TabsTrigger value="problems">Problem Areas</TabsTrigger>
+                          <TabsTrigger value="transcript">Transcript</TabsTrigger>
+                        </TabsList>
+                      </div>
+                    </div>
+                    {/* Adjusted Card Titles and Descriptions */} 
+                    <div className="flex-1 overflow-hidden">
+                      <TabsContent value="problems" className="h-full overflow-hidden mt-0 pt-0">
+                        <Card className="h-full">
+                          <CardHeader className="pb-3">
+                                  {/* Consistent Card Title Style */} 
+                                  <CardTitle className="text-lg font-semibold">Problem Areas</CardTitle> 
+                                  <CardDescription className="text-sm text-muted-foreground/90 mt-1">
+                                Key issues identified from the interview
+                              </CardDescription>
+                          </CardHeader>
+                          <CardContent className="p-0 h-[calc(100%-5rem)] overflow-hidden">
+                            <ScrollArea className="h-full">
+                              <div className="pb-4">
+                                {renderProblemAreas()}
+                              </div>
+                            </ScrollArea>
+                          </CardContent>
+                        </Card>
+                      </TabsContent>
+                      <TabsContent value="transcript" className="h-full overflow-hidden mt-0 pt-0">
+                        <Card className="h-full flex flex-col">
+                          <CardHeader className="flex-shrink-0 pb-3">
+                                  {/* Consistent Card Title Style */} 
+                                  <CardTitle className="text-lg font-semibold">Interview Transcript</CardTitle> 
+                                  <CardDescription className="text-sm text-muted-foreground/90 mt-1">
+                                Full transcript of the interview conversation
+                              </CardDescription>
+                          </CardHeader>
+                          <CardContent className="flex-1 min-h-0 p-0">
+                            <ScrollArea className="h-full">
+                              <div className="pb-3">
+                                {renderTranscript()}
+                              </div>
+                            </ScrollArea>
+                          </CardContent>
+                        </Card>
+                      </TabsContent>
+                    </div>
+                  </Tabs>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 h-full">
+                    {/* Left column: Transcript */}
+                    <Card className="h-full overflow-hidden">
+                      <CardHeader className="pb-3">
+                        <div className="flex justify-between items-center">
+                          <div>
+                                  {/* Consistent Card Title Style */} 
+                                  <CardTitle className="text-lg font-semibold">Interview Transcript</CardTitle> 
+                                  <CardDescription className="text-sm text-muted-foreground/90 mt-1">
+                                Full conversation
+                              </CardDescription>
+                          </div>
+                        </div>
+                      </CardHeader>
+                      <CardContent className="p-0 h-[calc(100%-5rem)] overflow-hidden">
+                        <ScrollArea className="h-full">
+                          <div className="pb-3">
+                            {renderTranscript()}
+                          </div>
+                        </ScrollArea>
+                      </CardContent>
+                    </Card>
+
+                    {/* Right column: Problem Areas */}
+                    <Card className="h-full overflow-hidden">
+                      <CardHeader className="pb-3">
+                              {/* Consistent Card Title Style */} 
+                              <CardTitle className="text-lg font-semibold">Problem Areas</CardTitle> 
+                              <CardDescription className="text-sm text-muted-foreground/90 mt-1">
+                                Key issues identified from the interview
+                        </CardDescription>
+                      </CardHeader>
+                      <CardContent className="p-0 h-[calc(100%-5rem)] overflow-hidden">
+                        <ScrollArea className="h-full">
+                          <div className="pb-4">
+                            {renderProblemAreas()}
+                          </div>
+                        </ScrollArea>
+                      </CardContent>
+                    </Card>
+                  </div>
+                )}
+              </section>
+            </div> {/* End max-w-7xl */} 
+          </div> {/* End padding div */} 
+        </ScrollArea> {/* End main ScrollArea */} 
+      </div> {/* End flex-1 div */} 
+
+      {/* == Persona Tagging Modal == */} 
+      {interview && (
+         <PersonaTaggingModal
+            open={showPersonaModal}
+            onOpenChange={setShowPersonaModal}
+            interviewId={resolvedParams.id}
+            initialPersonas={interview?.personas || []} 
+            allPersonas={allPersonas} 
+            onSaveSuccess={handlePersonaSaveSuccess}
+          />
+      )}
+      {/* Display loading indicator for personas if needed */} 
+      {isLoadingPersonas && (
+          <div className="fixed inset-0 bg-black/30 z-40 flex items-center justify-center">
+              <Loader2 className="h-8 w-8 text-white animate-spin" />
+          </div>
+      )}
+      
+      {/* == Change Project Modal == */}
+      {interview && (
+        <ChangeProjectModal
+          isOpen={showChangeProjectModal}
+          onOpenChange={setShowChangeProjectModal}
+          interviewId={resolvedParams.id}
+          currentProjectId={interview?.project_id}
+          onProjectChanged={handleProjectChangeSuccess}
+        />
+      )}
+      
+    </div> // End root div
   )
 } 

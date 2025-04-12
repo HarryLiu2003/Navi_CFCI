@@ -30,9 +30,11 @@ This document details the data storage strategy for the Navi CFCI platform, focu
 
 ## 3. Prisma Configuration
 
-*   **Schema:** Defined in `services/database/prisma/schema.prisma`. This includes models for `User`, `Session` (for NextAuth), and `Interview`.
-*   **Client Generation:** Run `npx prisma generate` within the `services/database` directory after any schema changes to update the Prisma Client.
-*   **Migrations:** Use `npx prisma migrate dev` (local) or `npx prisma migrate deploy` (production/CI) to apply schema changes to the database.
+*   **Schema:** Defined in `services/database-service/prisma/schema.prisma`. This is the single source of truth.
+    *   **Frontend Copy:** An identical copy must exist at `frontend/prisma/schema.prisma` for the NextAuth Adapter. The root `npm run prisma:sync` or `npm run prisma:migrate:dev` script handles this synchronization.
+*   **Client Generation:** Run `npm run prisma:sync` from the project root after schema changes to generate clients for both `database-service` and `frontend`.
+*   **Migrations:** Use `npm run prisma:migrate:dev` from the project root to generate and apply migrations locally. This script automatically syncs schema/clients, uses the correct `MIGRATE_DATABASE_URL`, and **will prompt you to enter a name for the migration**. Production deployments use `prisma:migrate:deploy` (run automatically by the `database-service` entrypoint, but can be run manually via `npm run prisma:migrate:deploy` from the root).
+*   **Dependencies:** Ensure `prisma` and `@prisma/client` are installed in both `services/database-service` and `frontend` (`package.json`).
 *   **Connection Pooling Parameters:** To ensure compatibility with Supabase PgBouncer (or any pooler), the Prisma Client in `services/database/src/client.ts` programmatically adds `?pgbouncer=true&prepared_statements=false` to the `DATABASE_URL` before creating the client instance. This prevents common pooling errors.
 
 ## 4. Database Service (`services/database`)
@@ -89,15 +91,26 @@ This document details the data storage strategy for the Navi CFCI platform, focu
 | `transcript_length`| Int     | Num transcript chunks        | Required                  |
 | `analysis_data`   | Json     | Full JSON analysis result    | Required (`jsonb`)        |
 | `project_id`      | String?  | Associated project ID          | Optional                  |
+| `participants`    | String?  | Name(s) of participants        | Optional                  |
+| `personas`        | String[] | List of associated persona tags| Optional                  |
 | `interviewer`     | String?  | Name of interviewer            | Optional                  |
 | `interview_date`  | DateTime?| Date of interview              | Optional                  |
 | `userId`          | String?  | Foreign Key to User          | Optional (`onDelete: SetNull`) |
 | `user`            | User?    | Relation to User               |                           |
+| `project`         | Project? | Relation to Project            | Optional (`onDelete: SetNull`) |
 
 ## 6. Schema Management & Migrations
 
-1.  Modify `services/database/prisma/schema.prisma`.
-2.  **Locally:** Run `cd services/database && npx prisma migrate dev --name <migration_name>` to generate SQL migration files and apply changes.
-3.  **Production/CI:** Run `cd services/database && npx prisma migrate deploy` to apply existing migration files.
-4.  Generate the client: `npx prisma generate`.
-5.  If schema changes affect other services (unlikely with API pattern), update relevant types/interfaces.
+*   **Source of Truth:** `services/database-service/prisma/schema.prisma`
+
+1.  **Modify Schema:** Edit `services/database-service/prisma/schema.prisma`.
+2.  **Generate & Apply Migration:** Run from the **project root**:
+    ```bash
+    npm run prisma:migrate:dev
+    ```
+    *(This root script handles schema copying, client generation for both services, running `migrate dev` with the correct DB URL, and will prompt you for a migration name.)*
+3.  **Generate Clients Only:** If you only changed schema comments or need to regenerate clients without migrating:
+    ```bash
+    npm run prisma:sync
+    ```
+4.  Commit the changes in `services/database-service/prisma/` and `frontend/prisma/`.

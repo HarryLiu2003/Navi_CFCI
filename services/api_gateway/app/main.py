@@ -101,13 +101,15 @@ async def call_authenticated_service(
     json_data: Optional[Dict[str, Any]] = None,
     files: Optional[Dict] = None,
     data: Optional[Dict] = None,
-    params: Optional[Dict[str, Any]] = None
+    params: Optional[Dict[str, Any]] = None,
+    headers: Optional[Dict[str, str]] = None
 ) -> Dict[str, Any]:
     """
     Call another Cloud Run service with Google Cloud IAM authentication.
     
     In production, uses Google's metadata server to get an OIDC token.
     In development, makes direct calls without authentication.
+    Allows forwarding custom headers.
     
     Args:
         service_url: URL of the service to call
@@ -116,6 +118,7 @@ async def call_authenticated_service(
         files: Files to upload (for POST requests)
         data: Form data to send (for POST requests with files)
         params: Query parameters
+        headers: Custom headers to forward to the downstream service
         
     Returns:
         The JSON response from the service
@@ -123,9 +126,8 @@ async def call_authenticated_service(
     Raises:
         Exception: If the service call fails
     """
-    # Check if we're running in Cloud Run (production) or locally (development)
-    # K_SERVICE environment variable is automatically set in Cloud Run
     is_production = os.environ.get("K_SERVICE") is not None
+    forward_headers = headers or {} # Initialize with provided headers
     
     if is_production:
         logger.info(f"Making authenticated call to {service_url} (production mode)")
@@ -157,33 +159,29 @@ async def call_authenticated_service(
                 logger.error(f"Error fetching ID token for {target_audience} after {fetch_duration:.4f}s: {str(e)}")
                 # Fallback logic can go here if needed, or just proceed without token
 
-            # Add token to headers if available
-            headers = {}
+            # Add service auth token to headers if available
             if token:
-                headers["Authorization"] = f"Bearer {token}"
-                logger.debug(f"Using fetched authentication token for {target_audience}")
+                forward_headers["Authorization"] = f"Bearer {token}"
+                logger.debug(f"Using fetched Google OIDC token for {target_audience}")
             else:
-                logger.warning(f"Proceeding with call to {target_audience} WITHOUT authentication token.")
+                logger.warning(f"Proceeding with call to {target_audience} WITHOUT Google OIDC token.")
 
-            # Make authenticated request
+            # Make authenticated request with merged headers
             timeout = 60.0
             async with httpx.AsyncClient(timeout=timeout) as client:
-                logger.debug(f"Initiating {method.upper()} request to {service_url}...")
+                logger.debug(f"Initiating {method.upper()} request to {service_url} with headers: {list(forward_headers.keys())}")
                 start_request = time.time()
                 if method.upper() == "GET":
-                    logger.debug(f"Making GET request to {service_url}")
-                    response = await client.get(service_url, headers=headers, params=params)
+                    response = await client.get(service_url, headers=forward_headers, params=params)
                 elif method.upper() == "POST":
-                    logger.debug(f"Making POST request to {service_url}")
                     if files:
-                        response = await client.post(service_url, headers=headers, files=files, data=data, params=params)
+                        response = await client.post(service_url, headers=forward_headers, files=files, data=data, params=params)
                     else:
-                        logger.debug(f"POST with JSON data: {json_data}")
-                        response = await client.post(service_url, headers=headers, json=json_data, params=params)
+                        response = await client.post(service_url, headers=forward_headers, json=json_data, params=params)
                 elif method.upper() == "PUT":
-                    response = await client.put(service_url, headers=headers, json=json_data, params=params)
+                    response = await client.put(service_url, headers=forward_headers, json=json_data, params=params)
                 elif method.upper() == "DELETE":
-                    response = await client.delete(service_url, headers=headers, params=params)
+                    response = await client.delete(service_url, headers=forward_headers, params=params)
                 else:
                     raise ValueError(f"Unsupported HTTP method: {method}")
                 request_duration = time.time() - start_request
@@ -241,20 +239,20 @@ async def call_authenticated_service(
             
             timeout = 30.0  # Default timeout for development
             async with httpx.AsyncClient(timeout=timeout) as client:
+                logger.debug(f"Initiating {method.upper()} request to {service_url} with headers: {list(forward_headers.keys())}")
                 if method.upper() == "GET":
-                    logger.debug(f"Making GET request to {service_url}")
-                    response = await client.get(service_url, params=params)
+                    response = await client.get(service_url, headers=forward_headers, params=params)
                 elif method.upper() == "POST":
                     if files:
                         logger.debug(f"Making POST request with files to {service_url}")
-                        response = await client.post(service_url, files=files, data=data, params=params)
+                        response = await client.post(service_url, headers=forward_headers, files=files, data=data, params=params)
                     else:
                         logger.debug(f"Making POST request with JSON to {service_url}")
-                        response = await client.post(service_url, json=json_data, params=params)
+                        response = await client.post(service_url, headers=forward_headers, json=json_data, params=params)
                 elif method.upper() == "PUT":
-                    response = await client.put(service_url, json=json_data, params=params)
+                    response = await client.put(service_url, headers=forward_headers, json=json_data, params=params)
                 elif method.upper() == "DELETE":
-                    response = await client.delete(service_url, params=params)
+                    response = await client.delete(service_url, headers=forward_headers, params=params)
                 else:
                     raise ValueError(f"Unsupported HTTP method: {method}")
             
@@ -419,6 +417,10 @@ async def analyze_interview(
         # Log the data being forwarded
         logger.info(f"Forwarding form data to analysis service: {form_data_to_forward}")
         
+        # Prepare headers for downstream service
+        forward_headers = {"X-Forwarded-User-ID": token_user_id}
+        logger.debug(f"Forwarding headers to Analysis service: {list(forward_headers.keys())}")
+
         # Forward to interview analysis service with authentication
         endpoint_url = f"{INTERVIEW_ANALYSIS_URL}/api/interview_analysis/analyze"
         logger.info(f"Calling Interview Analysis service at: {endpoint_url}")
@@ -428,7 +430,8 @@ async def analyze_interview(
             service_url=endpoint_url,
             method="POST",
             files=files,
-            data=form_data_to_forward
+            data=form_data_to_forward,
+            headers=forward_headers
         )
         
         # Check if response contains an error
@@ -462,17 +465,299 @@ async def shutdown_event():
          summary="Get authenticated user information",
          description="Returns information about the authenticated user.")
 async def get_authenticated_user(payload: dict = Depends(verify_token)):
-    """
-    Protected endpoint that requires authentication.
-    Returns the authenticated user's information.
-    """
-    return {
-        "userId": get_user_id_from_payload(payload),
-        "isAuthenticated": True,
-        "timestamp": time.time()
-    }
+    logger.info(f"Fetching user info for user ID: {payload.get('sub')}")
+    # Potentially fetch more user details from database service in the future?
+    # For now, just return the payload from the verified token.
+    return {"status": "success", "data": payload}
 
-# Database service endpoints through the API Gateway
+# -------------------------------
+# Personas Endpoint (NEW)
+# -------------------------------
+
+# --- ADD Pydantic Model Definition BEFORE Usage ---
+class CreatePersonaRequest(BaseModel):
+    name: str = Field(..., min_length=1, description="The name for the new persona.")
+    color: str = Field(..., min_length=1, description="The color identifier (e.g., 'blue') for the persona.")
+
+@app.get("/api/personas",
+         summary="Get all unique persona tags for the user",
+         description="Retrieves a list of all unique persona tags owned by the authenticated user.")
+async def get_all_personas(
+    request: Request,
+    user_payload: Dict[str, Any] = Depends(verify_token) # Ensure user is authenticated
+):
+    user_id = get_user_id_from_payload(user_payload)
+    if not user_id:
+        logger.error("get_all_personas: Could not extract user ID from token payload.")
+        raise HTTPException(status_code=401, detail="Could not identify user from token.")
+        
+    logger.info(f"User {user_id} requesting all unique personas")
+    
+    # Prepare headers for downstream service
+    forward_headers = {"X-Forwarded-User-ID": user_id}
+    logger.debug(f"Forwarding headers to DB service: {list(forward_headers.keys())}")
+
+    service_target_url = f"{DATABASE_SERVICE_URL}/personas"
+    params = {"userId": user_id} # DB service expects userId in params for this route
+    
+    try:
+        response = await call_authenticated_service(
+            service_url=service_target_url,
+            method="GET",
+            params=params,
+            headers=forward_headers # Pass headers
+        )
+        
+        if response.get("status") == "success":
+            logger.info(f"Successfully retrieved {len(response.get('data', []))} personas from DB service for user {user_id}")
+            return response # Forward the successful response from DB service
+        else:
+            logger.error(f"Error response from database service while fetching personas: {response}")
+            raise HTTPException(
+                status_code=response.get("statusCode", 500), # Use DB service status code if available
+                detail=response.get("message", "Failed to retrieve personas from database service")
+            )
+            
+    except httpx.RequestError as exc:
+        logger.error(f"HTTP RequestError calling database service for personas: {exc}")
+        raise HTTPException(status_code=503, detail=f"Error communicating with database service: {exc}")
+    except Exception as e:
+        logger.error(f"Unexpected error fetching personas: {e}", exc_info=DEBUG)
+        raise HTTPException(status_code=500, detail="Internal server error fetching personas")
+
+@app.post("/api/personas",
+          summary="Create a new persona",
+          description="Creates a new persona owned by the authenticated user.",
+          status_code=201)
+async def create_persona(
+    request: Request,
+    persona_data: CreatePersonaRequest = Body(...),
+    user_payload: Dict[str, Any] = Depends(verify_token)
+):
+    user_id = get_user_id_from_payload(user_payload)
+    if not user_id:
+        logger.error("create_persona: Could not extract user ID from token payload.")
+        raise HTTPException(status_code=401, detail="Could not identify user from token.")
+        
+    logger.info(f"User {user_id} creating persona: {persona_data.name}")
+    
+    # Prepare data for DB service (it expects userId in the body)
+    db_payload = persona_data.model_dump()
+    db_payload["userId"] = user_id 
+
+    # Prepare headers for downstream service
+    forward_headers = {"X-Forwarded-User-ID": user_id}
+    logger.debug(f"Forwarding headers to DB service: {list(forward_headers.keys())}")
+
+    service_target_url = f"{DATABASE_SERVICE_URL}/personas"
+    try:
+        response = await call_authenticated_service(
+            service_url=service_target_url,
+            method="POST",
+            json_data=db_payload, # Pass payload including userId
+            headers=forward_headers # Pass headers
+        )
+        
+        if response.get("status") == "success":
+            logger.info(f"Successfully created persona '{persona_data.name}' via DB service for user {user_id}")
+            return response # Forward the successful response
+        else:
+            # Handle specific errors from DB service (like 409 conflict)
+            error_message = response.get("message", "Failed to create persona via database service")
+            status_code = response.get("statusCode", 500) 
+            logger.error(f"Error response from database service creating persona ({status_code}): {error_message}")
+            # Forward the status code and message from the DB service
+            raise HTTPException(status_code=status_code, detail=error_message)
+            
+    except httpx.RequestError as exc:
+        logger.error(f"HTTP RequestError calling database service to create persona: {exc}")
+        raise HTTPException(status_code=503, detail=f"Error communicating with database service: {exc}")
+    except Exception as e:
+        logger.error(f"Unexpected error creating persona: {e}", exc_info=DEBUG)
+        raise HTTPException(status_code=500, detail="Internal server error creating persona")
+
+# Pydantic model for PUT request body
+class UpdatePersonaRequest(BaseModel):
+    name: str = Field(..., min_length=1, description="The new name for the persona.")
+    color: str = Field(..., min_length=1, description="The new color identifier (e.g., 'blue') for the persona.")
+
+@app.put("/api/personas/{persona_id}",
+         summary="Update a persona",
+         description="Updates the name of a specific persona owned by the authenticated user.")
+async def update_persona(
+    persona_id: str,
+    request: Request,
+    persona_data: UpdatePersonaRequest = Body(...),
+    user_payload: Dict[str, Any] = Depends(verify_token)
+):
+    user_id = get_user_id_from_payload(user_payload)
+    if not user_id:
+        logger.error("update_persona: Could not extract user ID from token payload.")
+        raise HTTPException(status_code=401, detail="Could not identify user from token.")
+        
+    logger.info(f"User {user_id} updating persona {persona_id}")
+    
+    # Prepare data for DB service (it expects userId in the body)
+    db_payload = persona_data.model_dump()
+    db_payload["userId"] = user_id
+
+    # Prepare headers for downstream service
+    forward_headers = {"X-Forwarded-User-ID": user_id}
+    logger.debug(f"Forwarding headers to DB service: {list(forward_headers.keys())}")
+
+    service_target_url = f"{DATABASE_SERVICE_URL}/personas/{persona_id}"
+    try:
+        response = await call_authenticated_service(
+            service_url=service_target_url,
+            method="PUT",
+            json_data=db_payload,
+            headers=forward_headers # Pass headers
+        )
+        
+        status_code = response.get("statusCode", 500) # Default to 500 if statusCode missing
+        
+        if response.get("status") == "success":
+            logger.info(f"Successfully updated persona '{persona_id}' via DB service for user {user_id}")
+            return response # Forward the successful response
+        else:
+            error_message = response.get("message", "Failed to update persona via database service")
+            logger.error(f"Error response from database service updating persona ({status_code}): {error_message}")
+            # Forward the status code and message from the DB service
+            raise HTTPException(status_code=status_code, detail=error_message)
+            
+    except httpx.RequestError as exc:
+        logger.error(f"HTTP RequestError calling database service to update persona: {exc}")
+        raise HTTPException(status_code=503, detail=f"Error communicating with database service: {exc}")
+    except Exception as e:
+        logger.error(f"Unexpected error updating persona {persona_id}: {e}", exc_info=DEBUG)
+        raise HTTPException(status_code=500, detail="Internal server error updating persona")
+
+@app.delete("/api/personas/{persona_id}",
+            summary="Delete a persona",
+            description="Deletes a specific persona owned by the authenticated user.",
+            status_code=200) # Can also use 204 No Content
+async def delete_persona(
+    persona_id: str,
+    request: Request,
+    user_payload: Dict[str, Any] = Depends(verify_token)
+):
+    user_id = get_user_id_from_payload(user_payload)
+    if not user_id:
+        logger.error("delete_persona: Could not extract user ID from token payload.")
+        raise HTTPException(status_code=401, detail="Could not identify user from token.")
+        
+    logger.info(f"User {user_id} deleting persona {persona_id}")
+    
+    # Prepare headers for downstream service
+    forward_headers = {"X-Forwarded-User-ID": user_id}
+    logger.debug(f"Forwarding headers to DB service: {list(forward_headers.keys())}")
+
+    # DB service expects userId as a query param for DELETE authorization
+    params = {"userId": user_id} 
+
+    service_target_url = f"{DATABASE_SERVICE_URL}/personas/{persona_id}"
+    try:
+        response = await call_authenticated_service(
+            service_url=service_target_url,
+            method="DELETE",
+            params=params,
+            headers=forward_headers # Pass headers
+        )
+        
+        status_code = response.get("statusCode", 500)
+        
+        if response.get("status") == "success":
+            logger.info(f"Successfully deleted persona '{persona_id}' via DB service for user {user_id}")
+            # Optionally return the deleted object from the DB service response, or just success
+            return response # Forward success response (might include deleted object)
+            # Alternatively, return status code 204: return Response(status_code=204)
+        else:
+            error_message = response.get("message", "Failed to delete persona via database service")
+            logger.error(f"Error response from database service deleting persona ({status_code}): {error_message}")
+            raise HTTPException(status_code=status_code, detail=error_message)
+            
+    except httpx.RequestError as exc:
+        logger.error(f"HTTP RequestError calling database service to delete persona: {exc}")
+        raise HTTPException(status_code=503, detail=f"Error communicating with database service: {exc}")
+    except Exception as e:
+        logger.error(f"Unexpected error deleting persona {persona_id}: {e}", exc_info=DEBUG)
+        raise HTTPException(status_code=500, detail="Internal server error deleting persona")
+
+# --- NEW Persona Suggestion Endpoint ---
+@app.post("/api/personas/{interview_id}/suggest_personas",
+          summary="Suggest personas for an interview",
+          description="Triggers AI analysis of an interview to suggest relevant personas.")
+async def suggest_interview_personas(
+    interview_id: str,
+    request: Request, # Needed to potentially get headers if auth changes
+    user_payload: Dict[str, Any] = Depends(verify_token) # Requires authentication
+):
+    """Forwards request to the interview analysis service to get persona suggestions."""
+    logger.info(f"Received request to suggest personas for interview {interview_id}")
+    
+    user_id = get_user_id_from_payload(user_payload)
+    if not user_id:
+        logger.error("suggest_interview_personas: Validated token payload is missing user ID!")
+        raise HTTPException(status_code=500, detail="Internal authentication error")
+
+    # Prepare headers to forward, including the validated user ID
+    forward_headers = {
+        "X-Forwarded-User-ID": user_id
+        # Potentially forward other relevant headers from original request?
+        # e.g., "X-Request-ID": request.headers.get("X-Request-ID", str(uuid.uuid4()))
+    }
+    logger.info(f"Forwarding suggestion request for user {user_id} with headers: {list(forward_headers.keys())}")
+
+    # Construct target URL for the interview analysis service
+    target_url = f"{INTERVIEW_ANALYSIS_URL}/api/personas/{interview_id}/suggest_personas"
+    logger.info(f"Calling Interview Analysis service for suggestions at: {target_url}")
+
+    try:
+        response_data = await call_authenticated_service(
+            service_url=target_url,
+            method="POST",
+            headers=forward_headers # Pass the required header
+            # No body needed for this specific endpoint in the backend
+        )
+        
+        # Check for errors returned by the service call utility or the downstream service
+        if response_data.get("status") == "error":
+            error_message = response_data.get("message", "Unknown error during persona suggestion")
+            status_code = response_data.get("status_code", 500) # Get status code if provided
+            logger.error(f"Error from persona suggestion service: {error_message} (Status: {status_code})")
+            # Map backend status code if available, default to 500
+            effective_status_code = status_code if 400 <= status_code < 600 else 500
+            raise HTTPException(status_code=effective_status_code, detail=f"Persona suggestion service error: {error_message}")
+        
+        # Return successful data
+        return response_data
+    
+    except httpx.TimeoutException:
+        logger.error(f"Timeout calling persona suggestion service at {target_url}")
+        raise HTTPException(status_code=504, detail="Persona suggestion service timeout")
+    except httpx.ConnectError as e:
+        logger.error(f"Connection error to persona suggestion service: {str(e)}")
+        raise HTTPException(status_code=503, detail=f"Cannot connect to persona suggestion service: {str(e)}")
+    except HTTPException as e:
+        # Re-raise HTTPExceptions that might have been raised above
+        raise e
+    except Exception as e:
+        logger.error(f"Unexpected error forwarding persona suggestion request: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Gateway error during suggestion: {str(e)}")
+
+# -------------------------------
+# Pydantic Models (NEW) - REMOVED CreatePersonaRequest from here
+# -------------------------------
+
+# Define a model for the update request body to allow specific fields
+class UpdateInterviewRequest(BaseModel):
+    title: Optional[str] = Field(None, min_length=1, description="The new title for the interview.")
+    project_id: Optional[str] = Field(None, description="The ID of the project to associate the interview with, or null to disassociate.")
+    personaIds: Optional[List[str]] = Field(None, description="A list of persona IDs to associate with the interview.")
+
+# -------------------------------
+# Interview Endpoints
+# -------------------------------
 
 @app.get("/api/interviews",
         summary="Get interviews with pagination",
@@ -483,49 +768,47 @@ async def get_interviews(
     offset: Optional[int] = 0,
     user_payload: Optional[dict] = Depends(get_optional_user)
 ):
-    """Proxy interviews list request to database service with authentication."""
-    logger.info(f"get_interviews: Handler invoked. Limit={limit}, Offset={offset}")
+    user_id = get_user_id_from_payload(user_payload) if user_payload else None
+    logger.info(f"Requesting interviews (User: {user_id or 'Anonymous'}, Limit: {limit}, Offset: {offset})")
+
+    # Prepare headers, include user ID if available
+    forward_headers = {}
+    if user_id:
+        forward_headers["X-Forwarded-User-ID"] = user_id
+        logger.debug(f"Forwarding headers to DB service: {list(forward_headers.keys())}")
+    else:
+        logger.debug("Forwarding request without user ID header (anonymous access).")
+
+    service_target_url = f"{DATABASE_SERVICE_URL}/interviews"
+    # Pass userId as query param as DB service expects it
+    params = {"limit": limit, "offset": offset}
+    if user_id:
+        params["userId"] = user_id
+
     try:
-        user_id = get_user_id_from_payload(user_payload) 
-        logger.info(f"get_interviews: User ID extracted: {user_id}")
-        
-        # Enforce authentication: Raise 401 if no valid user_id was obtained
-        if not user_id:
-            logger.warning("get_interviews: No valid user ID found. Raising 401.")
-            raise HTTPException(status_code=401, detail="Authentication required")
-        
-        logger.info(f"Fetching interviews for user: {user_id} with limit: {limit}, offset: {offset}")
-        
-        # Build the request URL with parameters
-        params = {
-            "limit": str(limit),
-            "offset": str(offset),
-            "userId": user_id
-        }
-        
-        # Forward to database service with authentication
-        endpoint_url = f"{DATABASE_SERVICE_URL}/interviews"
-        logger.info(f"Calling database service at: {endpoint_url} with params: {params}")
-        
-        response_data = await call_authenticated_service(
-            service_url=endpoint_url,
+        response = await call_authenticated_service(
+            service_url=service_target_url,
             method="GET",
-            params=params
+            params=params,
+            headers=forward_headers
         )
         
-        if response_data.get("status") == "error":
-            error_message = response_data.get("message", "Unknown error")
-            logger.error(f"Error from database service when getting interviews: {error_message}")
-            raise HTTPException(status_code=500, detail=f"Database service error: {error_message}")
-        
-        logger.debug(f"Successfully received interviews data: {response_data}")
-        return response_data
-        
-    except HTTPException as http_exc: # Re-raise specific HTTP exceptions
-        raise http_exc 
+        if response.get("status") == "success":
+            logger.info(f"Successfully retrieved interviews from DB service for user {user_id or 'guest'}")
+            return response # Forward the successful response from DB service
+        else:
+            logger.error(f"Error response from database service while fetching interviews: {response}")
+            raise HTTPException(
+                status_code=response.get("statusCode", 500), # Use DB service status code if available
+                detail=response.get("message", "Failed to retrieve interviews from database service")
+            )
+
+    except httpx.RequestError as exc:
+        logger.error(f"HTTP RequestError calling database service for interviews: {exc}")
+        raise HTTPException(status_code=503, detail=f"Error communicating with database service: {exc}")
     except Exception as e:
-        logger.error(f"Error processing get_interviews request: {str(e)}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Gateway error: {str(e)}")
+        logger.error(f"Unexpected error fetching interviews: {e}", exc_info=DEBUG)
+        raise HTTPException(status_code=500, detail="Internal server error fetching interviews")
 
 @app.get("/api/interviews/{interview_id}",
         summary="Get interview details",
@@ -535,116 +818,105 @@ async def get_interview_details(
     request: Request,
     user_payload: Dict[str, Any] = Depends(verify_token)
 ):
-    """Proxy interview details request to database service with authentication."""
+    user_id = get_user_id_from_payload(user_payload)
+    logger.info(f"User {user_id} requesting details for interview {interview_id}")
+    
+    # Prepare headers
+    forward_headers = {"X-Forwarded-User-ID": user_id}
+    logger.debug(f"Forwarding headers to DB service: {list(forward_headers.keys())}")
+
+    # DB service expects userId as query param for auth check
+    params = {"userId": user_id}
+    service_target_url = f"{DATABASE_SERVICE_URL}/interviews/{interview_id}"
+
     try:
-        # Get user ID from the *validated* token payload
-        user_id = get_user_id_from_payload(user_payload)
-        
-        logger.info(f"Attempting to fetch details for interview ID: {interview_id}, User ID: {user_id}")
-        
-        # Check if user_id was successfully extracted (should always be true if verify_token succeeded)
-        if not user_id:
-            logger.error("Validated token payload is missing user ID! This shouldn't happen.")
-            raise HTTPException(status_code=500, detail="Internal authentication processing error")
-            
-        # Build the request parameters
-        params = {"userId": user_id}
-        
-        # Forward to database service with authentication
-        endpoint_url = f"{DATABASE_SERVICE_URL}/interviews/{interview_id}"
-        logger.info(f"Calling database service at: {endpoint_url} with params: {params}")
-        
-        response_data = await call_authenticated_service(
-            service_url=endpoint_url,
+        response = await call_authenticated_service(
+            service_url=service_target_url,
             method="GET",
-            params=params
+            params=params,
+            headers=forward_headers
         )
         
-        if response_data.get("status") == "error":
-            error_message = response_data.get("message", "Unknown error")
-            logger.error(f"Error from database service for interview {interview_id}: {error_message}")
-            status_code = 500
-            if "not found" in error_message.lower():
-                status_code = 404
-            elif "not authorized" in error_message.lower(): # Should userId check prevent this?
-                status_code = 403
-            raise HTTPException(status_code=status_code, detail=f"Database service error: {error_message}")
-        
-        logger.debug(f"Successfully received details for interview {interview_id}: {response_data}")
-        return response_data
-        
-    except HTTPException as http_exc: # Re-raise specific HTTP exceptions
-        raise http_exc
+        if response.get("status") == "success":
+            logger.info(f"Successfully retrieved details for interview {interview_id} from DB service for user {user_id}")
+            return response # Forward the successful response from DB service
+        elif response.get("statusCode") == 404:
+             logger.warning(f"Interview {interview_id} not found in DB service for user {user_id}")
+             raise HTTPException(status_code=404, detail="Interview not found")
+        elif response.get("statusCode") == 403:
+            logger.warning(f"User {user_id} not authorized to view interview {interview_id}")
+            raise HTTPException(status_code=403, detail="Not authorized to view this interview")
+        else:
+            logger.error(f"Error response from database service fetching details for interview {interview_id}: {response}")
+            raise HTTPException(
+                status_code=response.get("statusCode", 500),
+                detail=response.get("message", "Failed to retrieve interview details from database service")
+            )
+
+    except httpx.RequestError as exc:
+        logger.error(f"HTTP RequestError calling database service for interview details {interview_id}: {exc}")
+        raise HTTPException(status_code=503, detail=f"Error communicating with database service: {exc}")
     except Exception as e:
-        logger.error(f"Error processing get_interview_details request: {str(e)}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Gateway error: {str(e)}")
+        logger.error(f"Unexpected error fetching interview details {interview_id}: {e}", exc_info=DEBUG)
+        raise HTTPException(status_code=500, detail="Internal server error fetching interview details")
 
 @app.put("/api/interviews/{interview_id}",
         summary="Update interview details",
-        description="Updates details (e.g., title) of a specific interview by ID for the authenticated user.")
+        description="Updates details (e.g., title, project_id, personas) of a specific interview by ID for the authenticated user.")
 async def update_interview_details(
     interview_id: str,
     request: Request,
-    update_data: Dict[str, Any] = None, # Use default body handling
+    update_data: UpdateInterviewRequest = Body(...), # Use the Pydantic model for validation
     user_payload: Dict[str, Any] = Depends(verify_token)
 ):
-    """Proxy interview update request to database service with authentication."""
-    try:
-        # Get user ID from the validated token payload
-        user_id = get_user_id_from_payload(user_payload)
-        if not user_id:
-            logger.error("update_interview_details: Validated token payload is missing user ID!")
-            raise HTTPException(status_code=500, detail="Internal authentication processing error")
-        
-        logger.info(f"Attempting to update interview ID: {interview_id} for User ID: {user_id}")
-        
-        # Parse body (FastAPI does this automatically if type hint is present)
-        # Make sure we actually got data in the request
-        body_data = await request.json()
-        if not body_data or not isinstance(body_data, dict):
-            raise HTTPException(status_code=400, detail="Invalid request body")
-            
-        # We only care about the title for now, but pass the whole body to backend
-        if "title" not in body_data:
-             logger.warning(f"Update request for interview {interview_id} does not contain 'title' field.")
-             # Let the database service handle validation if other fields are allowed
-             # Or raise HTTPException(status_code=400, detail="Missing 'title' field") if only title is allowed
+    user_id = get_user_id_from_payload(user_payload)
+    logger.info(f"User {user_id} updating interview {interview_id}")
+    
+    # Prepare headers
+    forward_headers = {"X-Forwarded-User-ID": user_id}
+    logger.debug(f"Forwarding headers to DB service: {list(forward_headers.keys())}")
 
-        # Build the request parameters for the database service (userId for auth check)
-        params = {"userId": user_id}
-        
-        # Forward to database service with authentication
-        endpoint_url = f"{DATABASE_SERVICE_URL}/interviews/{interview_id}"
-        logger.info(f"Calling database service (PUT) at: {endpoint_url} with params: {params}")
-        logger.debug(f"Update data being sent: {body_data}")
-        
-        response_data = await call_authenticated_service(
-            service_url=endpoint_url,
+    # Prepare payload for DB service (it doesn't need userId in body here)
+    db_payload = update_data.model_dump(exclude_unset=True) 
+
+    # DB service expects userId as query param for auth check
+    params = {"userId": user_id}
+    service_target_url = f"{DATABASE_SERVICE_URL}/interviews/{interview_id}"
+    
+    try:
+        response = await call_authenticated_service(
+            service_url=service_target_url,
             method="PUT",
-            json_data=body_data, # Send the parsed body data
-            params=params
+            json_data=db_payload,
+            params=params, 
+            headers=forward_headers
         )
         
-        # Handle potential errors returned by call_authenticated_service or the database service
-        if response_data.get("status") == "error":
-            error_message = response_data.get("message", "Unknown error")
-            logger.error(f"Error from database service during update for {interview_id}: {error_message}")
-            status_code = 500 # Default error status
-            # Check for specific DB service errors if needed (e.g., 404, 403)
-            if "not found" in error_message.lower():
-                status_code = 404
-            elif "not authorized" in error_message.lower():
-                status_code = 403
-            raise HTTPException(status_code=status_code, detail=f"Database service error: {error_message}")
-        
-        logger.info(f"Successfully updated interview {interview_id}")
-        return response_data
-        
-    except HTTPException as http_exc: # Re-raise specific HTTP exceptions
-        raise http_exc
+        if response.get("status") == "success":
+            logger.info(f"Successfully updated interview {interview_id} via DB service for user {user_id}")
+            return response # Forward the successful response from DB service
+        elif response.get("statusCode") == 404:
+            logger.warning(f"Update failed: Interview {interview_id} not found in DB service (user {user_id})")
+            raise HTTPException(status_code=404, detail="Interview not found")
+        elif response.get("statusCode") == 400:
+            logger.warning(f"Update failed (400) for interview {interview_id}: {response.get('message')}")
+            raise HTTPException(status_code=400, detail=response.get('message', "Invalid update data"))
+        elif response.get("statusCode") == 403:
+            logger.warning(f"Update failed (403): User {user_id} not authorized to update interview {interview_id}")
+            raise HTTPException(status_code=403, detail="Not authorized to update this interview")
+        else:
+            logger.error(f"Error response from database service updating interview {interview_id}: {response}")
+            raise HTTPException(
+                status_code=response.get("statusCode", 500),
+                detail=response.get("message", "Failed to update interview via database service")
+            )
+
+    except httpx.RequestError as exc:
+        logger.error(f"HTTP RequestError calling database service to update interview {interview_id}: {exc}")
+        raise HTTPException(status_code=503, detail=f"Error communicating with database service: {exc}")
     except Exception as e:
-        logger.error(f"Error processing update_interview_details request: {str(e)}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Gateway error: {str(e)}")
+        logger.error(f"Unexpected error updating interview {interview_id}: {e}", exc_info=DEBUG)
+        raise HTTPException(status_code=500, detail="Internal server error updating interview")
 
 # Additional database service endpoints can be added as needed
 # POST, PUT, DELETE for interviews, etc. 
@@ -781,7 +1053,7 @@ async def get_projects(
     user_payload: Dict[str, Any] = Depends(verify_token)
 ):
     """Proxy projects list request to database service with authentication."""
-    logger.info(f"get_projects: Handler invoked. Limit={limit}, Offset={offset}")
+    logger.info(f"User {user_payload.get('sub')} requesting projects (Limit: {limit}, Offset: {offset})")
     try:
         user_id = get_user_id_from_payload(user_payload)
         logger.info(f"get_projects: User ID extracted: {user_id}")
@@ -793,6 +1065,10 @@ async def get_projects(
         
         logger.info(f"Fetching projects for user: {user_id} with limit: {limit}, offset: {offset}")
         
+        # Prepare headers
+        forward_headers = {"X-Forwarded-User-ID": user_id}
+        logger.debug(f"Forwarding headers to DB service: {list(forward_headers.keys())}")
+
         # Build the request URL with parameters for the database service
         params = {
             "limit": str(limit),
@@ -807,7 +1083,8 @@ async def get_projects(
         response_data = await call_authenticated_service(
             service_url=endpoint_url,
             method="GET",
-            params=params
+            params=params,
+            headers=forward_headers
         )
         
         # Check for errors returned by the helper or the database service
@@ -844,48 +1121,55 @@ async def create_project(
     user_payload: Dict[str, Any] = Depends(verify_token)
 ):
     """Proxy project creation request to database service with authentication."""
-    logger.info(f"create_project: Handler invoked.")
+    user_id = get_user_id_from_payload(user_payload)
+    if not user_id:
+        logger.error("create_project: Validated token payload is missing user ID!")
+        raise HTTPException(status_code=500, detail="Internal authentication error")
+
+    logger.info(f"User {user_id} creating project: {request_body.name}")
+
+    # Prepare payload for DB service (expects ownerId in body)
+    db_payload = request_body.model_dump()
+    db_payload["ownerId"] = user_id
+
+    # Prepare headers
+    forward_headers = {"X-Forwarded-User-ID": user_id}
+    logger.debug(f"Forwarding headers to DB service: {list(forward_headers.keys())}")
+
+    service_target_url = f"{DATABASE_SERVICE_URL}/projects"
+    
     try:
-        user_id = get_user_id_from_payload(user_payload)
-        logger.info(f"create_project: User ID extracted: {user_id}")
-
-        if not user_id:
-            logger.error("create_project: Validated token payload is missing user ID!")
-            raise HTTPException(status_code=500, detail="Internal authentication processing error")
-
-        # Prepare data to send to the database service
-        project_data = {
-            "name": request_body.name,
-            "description": request_body.description,
-            "ownerId": user_id # Add the ownerId from the token
-        }
-
-        # Forward to database service using the authenticated helper
-        endpoint_url = f"{DATABASE_SERVICE_URL}/projects"
-        logger.info(f"Calling database service (POST) at: {endpoint_url}")
-        logger.debug(f"Project data being sent: {project_data}")
-
-        response_data = await call_authenticated_service(
-            service_url=endpoint_url,
+        response = await call_authenticated_service(
+            service_url=service_target_url,
             method="POST",
-            json_data=project_data
+            json_data=db_payload,
+            headers=forward_headers # Ensure headers are passed
         )
+        # Check for errors from the service call utility or the downstream service
+        if isinstance(response, dict) and response.get("status") == "error":
+            error_message = response.get("message", "Unknown error creating project")
+            status_code = response.get("status_code", 500) # Get status code if provided
+            logger.error(f"Error from database service creating project: {error_message} (Status: {status_code})")
+            effective_status_code = status_code if 400 <= status_code < 600 else 500
+            # Handle specific 409 Conflict for duplicate project names
+            if "already exists" in error_message.lower(): 
+                 effective_status_code = 409
+            raise HTTPException(status_code=effective_status_code, detail=f"Database service error: {error_message}")
+        
+        # Return successful data
+        return response
 
-        # Check for errors returned by the helper or the database service
-        if response_data.get("status") == "error":
-            error_message = response_data.get("message", "Unknown error")
-            logger.error(f"Error from database service during project creation: {error_message}")
-            status_code = 500 # Default error status
-            # Example: if "already exists" in error_message.lower(): status_code = 409 (Conflict)
-            raise HTTPException(status_code=status_code, detail=f"Database service error: {error_message}")
-
-        logger.info(f"Successfully created project via database service.")
-        return response_data
-
-    except HTTPException as http_exc: # Re-raise specific HTTP exceptions
-        raise http_exc
+    except httpx.TimeoutException:
+        logger.error(f"Timeout calling database service for project creation")
+        raise HTTPException(status_code=504, detail="Database service timeout")
+    except httpx.ConnectError as e:
+        logger.error(f"Connection error to database service for project creation: {str(e)}")
+        raise HTTPException(status_code=503, detail=f"Cannot connect to database service: {str(e)}")
+    except HTTPException as e:
+        # Re-raise explicitly raised HTTPExceptions
+        raise e
     except Exception as e:
-        logger.error(f"Error processing create_project request: {str(e)}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Gateway error: {str(e)}")
+        logger.error(f"Unexpected error creating project: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Gateway error during project creation: {str(e)}")
 
 # --- Add other project endpoints (GET, PUT, DELETE) later as needed --- 

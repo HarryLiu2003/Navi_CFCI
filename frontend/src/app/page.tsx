@@ -15,21 +15,15 @@ import {
   LogOut,
   Bell,
   ChevronDown,
-  RefreshCw,
-  Check,
-  ChevronsUpDown,
+  ChevronLeft,
+  CalendarIcon as CalendarIconLucide,
   Users,
   FileText,
   Search,
-  ChevronLeft,
-  CalendarIcon as CalendarIconLucide,
 } from "lucide-react"
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from "@/components/ui/dialog"
-import { Label } from "@/components/ui/label"
-import { Input } from "@/components/ui/input"
-import { Textarea } from "@/components/ui/textarea"
+import { Dialog, DialogTrigger } from "@/components/ui/dialog"
 import { useRouter } from 'next/navigation'
-import { analyzeTranscript, getInterviews, Interview, createProject, getProjects, Project } from '@/lib/api'
+import { getInterviews, Interview, getProjects, Project } from '@/lib/api'
 import { toast } from 'sonner'
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { 
@@ -43,27 +37,17 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { useSession, signOut } from "next-auth/react"
 import {
-  Command,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-  CommandList,
-} from "@/components/ui/command"
-import {
   Popover,
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover"
 import { cn } from "@/lib/utils"
-import { 
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Input } from "@/components/ui/input"
+
+// Import the new modal components
+import { CreateProjectModal } from "@/components/dialogs/CreateProjectModal"
+import { UploadTranscriptModal } from "@/components/dialogs/UploadTranscriptModal"
 
 // Custom Month Picker Component (from reference)
 function MonthPicker({
@@ -133,30 +117,44 @@ function MonthPicker({
 function ProjectCardSkeleton() {
   return (
     <Card className="h-full overflow-hidden border border-border/40"> 
-      <div className="h-1 bg-muted animate-pulse w-full"></div> 
+      {/* Top accent line */}
+      <div className="h-1 w-full bg-muted animate-pulse" />
+      
       <CardHeader className="pb-3 pt-5">
-        <div className="h-6 w-2/3 bg-muted rounded animate-pulse mb-3"></div>
-        <div className="min-h-[48px] space-y-2">
-          <div className="h-4 w-full bg-muted rounded animate-pulse"></div>
-          <div className="h-4 w-4/5 bg-muted rounded animate-pulse"></div>
+        {/* Project title skeleton */}
+        <div className="h-7 w-2/3 bg-muted rounded-sm animate-pulse" />
+        
+        {/* Description skeleton with exact height match */}
+        <div className="min-h-[48px]">
+          <div className="mt-1.5 flex flex-col gap-1">
+            <div className="h-5 w-full bg-muted rounded-sm animate-pulse" />
+            <div className="h-5 w-4/5 bg-muted rounded-sm animate-pulse" />
+          </div>
         </div>
       </CardHeader>
+      
       <CardContent className="pb-3">
-        <div className="space-y-2.5 bg-muted/30 rounded-md p-3.5 animate-pulse">
-          <div className="flex items-center justify-between">
-            <div className="h-4 w-24 bg-muted/50 rounded"></div>
-            <div className="h-4 w-20 bg-muted/50 rounded"></div>
-          </div>
-          <div className="flex items-center justify-between">
-            <div className="h-4 w-20 bg-muted/50 rounded"></div>
-            <div className="h-4 w-28 bg-muted/50 rounded"></div>
-          </div>
+        <div className="rounded-md bg-muted/30 p-3.5 flex flex-col gap-2.5">
+          {/* Stats rows */}
+          {[
+            { iconWidth: 24, textWidth: 20 },
+            { iconWidth: 20, textWidth: 28 }
+          ].map((widths, index) => (
+            <div key={index} className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="h-3.5 w-3.5 rounded-sm bg-muted/50" />
+                <div className={`h-5 w-${widths.iconWidth} rounded-sm bg-muted/50`} />
+              </div>
+              <div className={`h-5 w-${widths.textWidth} rounded-sm bg-muted/50`} />
+            </div>
+          ))}
         </div>
       </CardContent>
-      <CardFooter className="pt-3 pb-5">
-        <div className="flex items-center space-x-2">
-          <div className="h-7 w-7 rounded-full bg-muted animate-pulse"></div>
-          <div className="h-4 w-32 bg-muted rounded animate-pulse"></div>
+      
+      <CardFooter className="pt-3 pb-6">
+        <div className="flex items-center gap-2">
+          <div className="h-6 w-6 rounded-full border border-border/40 bg-muted animate-pulse" />
+          <div className="h-5 w-32 rounded-sm bg-muted animate-pulse" />
         </div>
       </CardFooter>
     </Card>
@@ -179,26 +177,17 @@ export default function Home() {
   const router = useRouter()
   const { data: session, status } = useSession()
   
-  // Upload State
-  const [selectedFile, setSelectedFile] = useState<File | null>(null)
-  const [selectedProjectId, setSelectedProjectId] = useState<string | undefined>(undefined)
+  // Upload State - Simplified
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false)
-  const [isAnalyzing, setIsAnalyzing] = useState(false)
 
   // Interview State
   const [interviews, setInterviews] = useState<Interview[]>([])
   const [isLoadingInterviews, setIsLoadingInterviews] = useState(false)
 
-  // Project State
+  // Project State - Simplified
   const [projects, setProjects] = useState<Project[]>([])
   const [isLoadingProjects, setIsLoadingProjects] = useState(false)
   const [isProjectModalOpen, setIsProjectModalOpen] = useState(false)
-  const [newProjectName, setNewProjectName] = useState("")
-  const [newProjectDescription, setNewProjectDescription] = useState("")
-  const [isCreatingProject, setIsCreatingProject] = useState(false)
-  
-  // Combobox State
-  const [isProjectComboboxOpen, setIsProjectComboboxOpen] = useState(false)
 
   // New State from Reference
   const [interviewTitleSearch, setInterviewTitleSearch] = useState("")
@@ -229,7 +218,6 @@ export default function Home() {
           setInterviews(response.data.interviews)
         }
         
-        // Check if we have more interviews to load
         setHasMoreInterviews(response.data.interviews.length === INTERVIEWS_PER_PAGE)
         
         if (page > 0) {
@@ -279,12 +267,42 @@ export default function Home() {
 
   // --- Effects ---
 
-  // Redirect to signin if not authenticated
+  // Fetch initial data on mount and when session status changes
   useEffect(() => {
     if (status === "unauthenticated") {
-      router.push("/auth/signin")
+      router.push("/auth/signin");
+      return; 
     }
-  }, [status, router])
+
+    if (status === "authenticated") {
+      // Fetch interviews and projects concurrently
+      const fetchInitialData = async () => {
+        // Reset states before fetching
+        setIsLoadingInterviews(true); 
+        setIsLoadingProjects(true); 
+        setInterviews([]); // Clear previous interviews
+        setProjects([]); // Clear previous projects
+        setInterviewPage(0); // Reset page
+        setHasMoreInterviews(true); // Assume there might be more initially
+
+        const results = await Promise.allSettled([
+          fetchInterviews(0, false), // Initial fetch, don't append yet
+          fetchProjects()
+        ]);
+
+        // No need to manually set loading states to false here,
+        // as the individual fetch functions handle their own states.
+        // Error handling is also done within fetchInterviews/fetchProjects with toasts.
+        
+        // Log results for debugging if needed
+        // console.log("[Page Load] Initial fetch results:", results);
+      };
+      
+      fetchInitialData();
+    }
+    // Intentionally omitting fetchInterviews/fetchProjects from deps
+    // to only run on initial auth status change
+  }, [status, router]); // Run only when session status changes
 
   // Function to handle scroll and load more interviews
   const handleInterviewScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
@@ -303,98 +321,6 @@ export default function Home() {
     setHasMoreInterviews(true)
     fetchInterviews(0, false)
   }, [showAllInterviews, selectedMonth, interviewTitleSearch, fetchInterviews])
-
-  // Load initial data on component mount if authenticated
-  useEffect(() => {
-    if (status === "authenticated") {
-      fetchInterviews(0, false)
-      fetchProjects() 
-    }
-  }, [status, fetchInterviews, fetchProjects]) // Include useCallback functions here
-
-  // --- Event Handlers ---
-
-  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0]
-    if (file && (file.name.endsWith(".vtt") || file.name.endsWith(".txt"))) {
-      setSelectedFile(file)
-    } else {
-      toast.warning("Please select a .vtt or .txt file")
-      event.target.value = ""
-      setSelectedFile(null)
-    }
-  }
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!selectedFile) {
-      toast.error('Please select a transcript file.')
-      return
-    }
-
-    setIsAnalyzing(true)
-    const analysisToastId = toast.loading('Analyzing transcript...')
-
-    try {
-      console.log("[handleSubmit] Starting analysis. Selected Project ID:", selectedProjectId);
-      
-      const result = await analyzeTranscript(selectedFile, session?.user?.id, selectedProjectId)
-      
-      if (!result?.data) {
-        toast.error('Invalid response received from the server.', { id: analysisToastId })
-        setIsAnalyzing(false)
-        return
-      }
-      
-      toast.success('Analysis complete!', { id: analysisToastId })
-      
-      setSelectedFile(null)
-      setSelectedProjectId(undefined)
-      setIsProjectComboboxOpen(false)
-      setIsUploadModalOpen(false)
-      
-      fetchInterviews()
-      
-      if (result.data.storage?.id) {
-        router.push(`/interview-analysis/${result.data.storage.id}`)
-      } else {
-        console.error("Analysis successful but storage.id missing in response")
-      }
-    } catch (error) {
-      let errorMessage = error instanceof Error ? error.message : 'Failed to analyze transcript'
-      toast.error(errorMessage, { id: analysisToastId, duration: 5000 })
-    } finally {
-        setIsAnalyzing(false)
-    }
-  }
-
-  const handleCreateProjectSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!newProjectName.trim()) {
-      toast.error("Project name is required.")
-      return
-    }
-
-    setIsCreatingProject(true)
-    const creationToastId = toast.loading("Creating project...")
-
-    try {
-      const response = await createProject(newProjectName.trim(), newProjectDescription.trim())
-      toast.success(`Project "${response.data?.name}" created successfully!`, { id: creationToastId })
-      setIsProjectModalOpen(false)
-      setNewProjectName("")
-      setNewProjectDescription("")
-      fetchProjects()
-    } catch (error: any) {
-      console.error("Error creating project:", error)
-      toast.error(error.message || "An error occurred while creating the project.", { 
-        id: creationToastId,
-        duration: 5000
-      })
-    } finally {
-      setIsCreatingProject(false)
-    }
-  }
 
   // --- Helper Functions ---
 
@@ -425,13 +351,8 @@ export default function Home() {
   };
 
   const getInitials = (name?: string | null) => {
-    if (!name) return "?"
-    return name
-      .split(" ")
-      .map((n) => n[0])
-      .join("")
-      .toUpperCase()
-      .substring(0, 2)
+    if (!name || name.trim().length === 0) return "?"
+    return name.trim()[0].toUpperCase();
   }
 
   // --- Filtering Logic ---
@@ -565,160 +486,19 @@ export default function Home() {
                       <h1 className="text-2xl font-semibold tracking-tight text-foreground/90">
                         Welcome back, {session?.user?.name?.split(" ")[0] || 'User'} 👋
                       </h1>
-                      <p className="text-base text-muted-foreground/80">
+                      <p className="text-base text-muted-foreground/90">
                         Ready to analyze your next user interview? Upload a transcript to get started.
                       </p>
                     </div>
                     <div className="flex items-center gap-4">
-                      <Dialog open={isUploadModalOpen} onOpenChange={(open) => {
-                        setIsUploadModalOpen(open)
-                        if (!open) {
-                          setSelectedFile(null)
-                          setSelectedProjectId(undefined)
-                          setIsProjectComboboxOpen(false)
-                        }
-                      }}>
+                      {/* Trigger for the UploadTranscriptModal */}
+                      <Dialog open={isUploadModalOpen} onOpenChange={setIsUploadModalOpen}>
                         <DialogTrigger asChild>
                           <Button size="lg" className="h-10 shadow-sm bg-background hover:bg-background/90 text-foreground/90 hover:text-foreground">
                             <Upload className="mr-2 h-4 w-4" />
                             Upload Interview Transcript
                           </Button>
                         </DialogTrigger>
-                        <DialogContent className="sm:max-w-[425px]">
-                          <DialogHeader>
-                            <DialogTitle>Upload Interview Transcript</DialogTitle>
-                          </DialogHeader>
-                          <form onSubmit={handleSubmit} className="space-y-6 py-2">
-                            {/* File Upload Input - Moved to top */}
-                            <div className="space-y-1.5">
-                              <Label htmlFor="file">Transcript File</Label>
-                              <Input
-                                id="file"
-                                type="file"
-                                accept=".vtt,.txt"
-                                onChange={handleFileChange}
-                                required
-                              />
-                              <p className="text-sm text-muted-foreground">
-                                Upload a .vtt or .txt format transcript file.
-                              </p>
-                            </div>
-
-                            {/* Project Selection - Moved below file upload */}
-                            <div className="space-y-1.5">
-                              <Label htmlFor="project-search">Assign to Project (Optional)</Label>
-                              <div className="relative">
-                                <Button
-                                  type="button"
-                                  id="project-search"
-                                  variant="outline"
-                                  role="combobox"
-                                  onClick={() => setIsProjectComboboxOpen(!isProjectComboboxOpen)}
-                                  className="w-full justify-between font-normal border-border/40 hover:border-border/60 transition-colors"
-                                >
-                                  <span className="truncate">
-                                    {selectedProjectId
-                                      ? projects.find((project) => project.id === selectedProjectId)?.name
-                                      : "Select project..."}
-                                  </span>
-                                  <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                                </Button>
-                                
-                                {isProjectComboboxOpen && (
-                                  <div className="absolute z-50 top-full mt-1 w-full rounded-md border border-border/40 bg-background shadow-md">
-                                    <div className="flex items-center border-b px-3 py-2">
-                                      <Search className="h-4 w-4 shrink-0 opacity-50 mr-2" />
-                                      <input
-                                        placeholder="Search projects..."
-                                        className="flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground/70"
-                                        onChange={(e) => {
-                                          const value = e.target.value.toLowerCase();
-                                          const filteredProjects = document.querySelectorAll('[data-project-item]');
-                                          
-                                          filteredProjects.forEach((item) => {
-                                            const name = item.getAttribute('data-project-name')?.toLowerCase() || '';
-                                            if (name.includes(value)) {
-                                              item.classList.remove('hidden');
-                                            } else {
-                                              item.classList.add('hidden');
-                                            }
-                                          });
-                                        }}
-                                        onClick={(e) => e.stopPropagation()}
-                                        autoFocus
-                                      />
-                                    </div>
-                                    <div className="max-h-[200px] overflow-auto p-1">
-                                      {projects.length === 0 ? (
-                                        <div className="px-2 py-3 text-sm text-muted-foreground text-center">No projects found.</div>
-                                      ) : (
-                                        <div>
-                                          <div
-                                            data-project-item
-                                            data-project-name="no-project"
-                                            className="flex items-center gap-2 rounded-sm px-2 py-1.5 text-sm cursor-pointer hover:bg-muted/50"
-                                            onClick={() => {
-                                              setSelectedProjectId(undefined);
-                                              setIsProjectComboboxOpen(false);
-                                            }}
-                                          >
-                                            <Check 
-                                              className={cn(
-                                                "h-4 w-4 mr-2",
-                                                selectedProjectId === undefined ? "opacity-100" : "opacity-0"
-                                              )}
-                                            />
-                                            <span>(No Project)</span>
-                                          </div>
-                                          
-                                          {projects.map((project) => (
-                                            <div
-                                              key={project.id}
-                                              data-project-item
-                                              data-project-name={project.name}
-                                              className="flex items-center gap-2 rounded-sm px-2 py-1.5 text-sm cursor-pointer hover:bg-muted/50"
-                                              onClick={() => {
-                                                setSelectedProjectId(project.id);
-                                                setIsProjectComboboxOpen(false);
-                                              }}
-                                            >
-                                              <Check 
-                                                className={cn(
-                                                  "h-4 w-4 mr-2",
-                                                  selectedProjectId === project.id ? "opacity-100" : "opacity-0"
-                                                )}
-                                              />
-                                              <span>{project.name}</span>
-                                            </div>
-                                          ))}
-                                        </div>
-                                      )}
-                                    </div>
-                                  </div>
-                                )}
-                              </div>
-                              {isLoadingProjects && (
-                                <p className="text-xs text-muted-foreground flex items-center">
-                                  <RefreshCw className="h-3 w-3 mr-1 animate-spin" />
-                                  Loading projects...
-                                </p>
-                              )}
-                            </div>
-                            
-                            {/* Submit Button - Update disabled condition for transcript upload */}
-                            <Button 
-                              type="submit" 
-                              className="w-full" 
-                              disabled={!selectedFile || isAnalyzing}
-                            >
-                              {isAnalyzing ? (
-                                <><RefreshCw className="mr-2 h-4 w-4 animate-spin" /> Analyzing...</> 
-                              ) : (
-                                'Upload and Analyze'
-                              )}
-                            </Button>
-                          </form>
-                        </DialogContent>
                       </Dialog>
                     </div>
                   </div>
@@ -735,6 +515,7 @@ export default function Home() {
               <section className="mb-12">
                 <div className="flex items-center justify-between mb-6">
                   <h2 className="text-2xl font-semibold tracking-tight">Your Projects</h2>
+                  {/* Trigger for the CreateProjectModal */}
                   <Dialog open={isProjectModalOpen} onOpenChange={setIsProjectModalOpen}>
                     <DialogTrigger asChild>
                       <Button 
@@ -746,45 +527,6 @@ export default function Home() {
                         New Project
                       </Button>
                     </DialogTrigger>
-                    <DialogContent className="sm:max-w-[425px]">
-                      <DialogHeader>
-                        <DialogTitle>Create New Project</DialogTitle>
-                      </DialogHeader>
-                      <form onSubmit={handleCreateProjectSubmit} className="space-y-4 py-2">
-                        <div className="space-y-1.5">
-                          <Label htmlFor="projectName">Project Name</Label>
-                          <Input
-                            id="projectName"
-                            value={newProjectName}
-                            onChange={(e) => setNewProjectName(e.target.value)}
-                            placeholder="Enter project name"
-                            disabled={isCreatingProject}
-                            required
-                          />
-                        </div>
-                        <div className="space-y-1.5">
-                          <Label htmlFor="projectDescription">Description (Optional)</Label>
-                          <Textarea
-                            id="projectDescription"
-                            value={newProjectDescription}
-                            onChange={(e) => setNewProjectDescription(e.target.value)}
-                            placeholder="Enter a one-line description"
-                            disabled={isCreatingProject}
-                            rows={3}
-                          />
-                        </div>
-                        {/* Submit Button - Update disabled condition for project creation */}
-                        <Button 
-                          type="submit" 
-                          className="w-full" 
-                          disabled={!newProjectName.trim() || isCreatingProject}
-                        >
-                          {isCreatingProject ? (
-                            <><RefreshCw className="mr-2 h-4 w-4 animate-spin" /> Creating...</>
-                          ) : ( 'Create Project' )}
-                        </Button>
-                      </form>
-                    </DialogContent>
                   </Dialog>
                 </div>
                 <div className="grid gap-6 md:grid-cols-4">
@@ -809,7 +551,7 @@ export default function Home() {
                                 {project.name}
                               </CardTitle>
                               <div className="min-h-[48px]">
-                                <CardDescription className="line-clamp-2 text-sm text-muted-foreground/80 mt-1.5">
+                                <CardDescription className="line-clamp-2 text-sm text-muted-foreground/90 mt-1.5">
                                   {project.description || "No description"}
                                 </CardDescription>
                               </div>
@@ -821,7 +563,7 @@ export default function Home() {
                                     <CalendarIconLucide className="h-3.5 w-3.5 mr-2" />
                                     <span>Last updated</span>
                                   </div>
-                                  <span className="text-muted-foreground/90">
+                                  <span className="text-foreground/90">
                                     {project.updatedAt ? formatDate(project.updatedAt) : "N/A"}
                                   </span>
                                 </div>
@@ -830,7 +572,7 @@ export default function Home() {
                                     <FileText className="h-3.5 w-3.5 mr-2" />
                                     <span>Interviews</span>
                                   </div>
-                                  <span className="text-muted-foreground/90">
+                                  <span className="text-foreground/90">
                                     {project._count?.interviews ?? 0} last month
                                   </span>
                                 </div>
@@ -843,7 +585,7 @@ export default function Home() {
                                     {getInitials(project.owner?.name)}
                                   </AvatarFallback>
                                 </Avatar>
-                                <span className="text-sm text-muted-foreground/90 font-medium truncate" title={project.owner?.name ?? project.ownerId}>
+                                <span className="text-sm text-foreground/90 font-medium truncate" title={project.owner?.name ?? project.ownerId}>
                                   {project.owner?.name ?? `Owner ${project.ownerId.substring(0, 6)}...`}
                                 </span>
                               </div>
@@ -868,7 +610,7 @@ export default function Home() {
                                     <CardTitle className="text-xl font-semibold tracking-tight text-foreground/90 hover:text-primary transition-colors">
                                       View All Projects
                                     </CardTitle>
-                                    <CardDescription className="text-sm text-muted-foreground/80 mt-1.5">
+                                    <CardDescription className="text-sm text-muted-foreground/90 mt-1.5">
                                       {projects.length} total projects
                                     </CardDescription>
                                   </div>
@@ -879,10 +621,10 @@ export default function Home() {
                           </Link>
                         )}
                         
-                        {/* Add New Project Card */} 
+                        {/* Add New Project Card - Triggers CreateProjectModal */} 
                         <Card 
                           className="h-full border-2 border-dashed border-primary/20 hover:border-primary/40 bg-primary/5 hover:bg-primary/10 transition-all duration-200 flex flex-col items-center justify-center cursor-pointer flex-1" 
-                          onClick={() => setIsProjectModalOpen(true)}
+                          onClick={() => setIsProjectModalOpen(true)} // Open the modal
                         >
                           <CardContent className="flex flex-col items-center justify-center h-full py-8">
                             <div className="rounded-full bg-primary/10 p-3 mb-4">
@@ -901,6 +643,7 @@ export default function Home() {
               <section className="space-y-4 mb-10">
                 <div className="flex items-center justify-between mb-6">
                   <h2 className="text-2xl font-semibold tracking-tight">Recent Interviews</h2>
+                  {/* Trigger for the UploadTranscriptModal */}
                   <Dialog open={isUploadModalOpen} onOpenChange={setIsUploadModalOpen}>
                     <DialogTrigger asChild>
                       <Button 
@@ -942,7 +685,7 @@ export default function Home() {
                         placeholder="Search interviews by title..."
                         className="pl-9 bg-background border-border/40 hover:border-border/60 transition-colors"
                         value={interviewTitleSearch}
-                        onChange={(e) => setInterviewTitleSearch(e.target.value)}
+                        onChange={(e: React.ChangeEvent<HTMLInputElement>) => setInterviewTitleSearch(e.target.value)}
                       />
                     </div>
                     <Popover>
@@ -971,10 +714,9 @@ export default function Home() {
                   </div>
 
                   <div className="bg-card rounded-lg border border-border/40 overflow-hidden shadow-sm">
-                    {/* Sticky Header - 4-2-2-4 Widths */}
+                    {/* Sticky Header */}
                     <div className="bg-muted/30 border-b border-border/40 sticky top-0 z-10 backdrop-blur-sm supports-[backdrop-filter]:bg-background/60">
-                      <div className="grid grid-cols-12 gap-0 px-0 text-sm font-medium text-muted-foreground/80">
-                        {/* Apply 4-2-2-4 distribution */}
+                      <div className="grid grid-cols-12 gap-0 px-0 text-sm font-medium text-muted-foreground/90">
                         <div className="col-span-4 px-6 py-3.5 border-r border-border/20 whitespace-nowrap overflow-x-auto scrollbar-thin">Title</div>
                         <div className="col-span-2 px-6 py-3.5 border-r border-border/20 whitespace-nowrap overflow-x-auto scrollbar-thin">Date</div>
                         <div className="col-span-2 px-6 py-3.5 border-r border-border/20 whitespace-nowrap overflow-x-auto scrollbar-thin">Project</div>
@@ -982,14 +724,13 @@ export default function Home() {
                       </div>
                     </div>
 
-                    {/* Table Body - Increased Participant Spacing */}
+                    {/* Table Body */}
                     <div 
                       className="max-h-[600px] overflow-y-auto overflow-x-hidden scrollbar-thin scrollbar-thumb-border scrollbar-track-muted/30 hover:scrollbar-thumb-border/60 transition-colors"
                       onScroll={handleInterviewScroll}
                     >
                       <div className="relative min-h-[240px]">
                         {isLoadingInterviews ? (
-                          // Loading State - Center within the min-height
                           <div className="absolute inset-0 flex items-center justify-center">
                             <div className="flex flex-col items-center gap-3">
                               <div className="h-6 w-6 animate-spin rounded-full border-2 border-primary border-t-transparent"></div>
@@ -997,8 +738,7 @@ export default function Home() {
                             </div>
                           </div>
                         ) : interviews.length === 0 ? (
-                          // Initial Empty State - Center within the min-height
-                          <div className="absolute inset-0 flex items-center justify-center">
+                           <div className="absolute inset-0 flex items-center justify-center">
                             <div className="flex flex-col items-center justify-center text-center px-6">
                               <div className="rounded-full bg-muted/30 p-4 mb-4">
                                 <FileText className="h-8 w-8 text-primary/30" />
@@ -1014,8 +754,7 @@ export default function Home() {
                             </div>
                           </div>
                         ) : interviewsToDisplay.length === 0 ? (
-                          // Filtered/View Empty State - Center within the min-height
-                          <div className="absolute inset-0 flex items-center justify-center">
+                           <div className="absolute inset-0 flex items-center justify-center">
                              <div className="flex flex-col items-center justify-center text-center px-6">
                               <div className="rounded-full bg-muted/30 p-4 mb-4">
                                 <FileText className="h-8 w-8 text-primary/30" /> 
@@ -1048,13 +787,11 @@ export default function Home() {
                                       "group"
                                     )}
                                   >
-                                    {/* Title Cell - Unconditional border-b */}
                                     <div className={cn(
                                       "col-span-4 px-6 py-3.5 h-14 flex items-center text-sm font-medium text-foreground/90 border-r border-b border-border/20 group-hover:text-primary transition-colors overflow-x-auto scrollbar-thin"
                                     )}>
                                       <div className="whitespace-nowrap">{interview.title}</div>
                                     </div>
-                                    {/* Date Cell - Unconditional border-b */}
                                     <div className={cn(
                                       "col-span-2 px-6 py-3.5 h-14 flex items-center text-sm text-muted-foreground border-r border-b border-border/20 overflow-x-auto scrollbar-thin"
                                     )}>
@@ -1062,7 +799,6 @@ export default function Home() {
                                         {formatDate(interview.created_at)} {formatTime(interview.created_at)}
                                       </div>
                                     </div>
-                                    {/* Project Cell - Unconditional border-b */}
                                     <div className={cn(
                                       "col-span-2 px-6 py-3.5 h-14 flex items-center text-sm text-muted-foreground border-r border-b border-border/20 overflow-x-auto scrollbar-thin"
                                     )}>
@@ -1085,7 +821,6 @@ export default function Home() {
                                         <div className="whitespace-nowrap text-muted-foreground/50">—</div>
                                       )}
                                     </div>
-                                    {/* Participants Cell - Updated gap */}
                                     <div className={cn(
                                       "col-span-4 px-6 py-3.5 h-14 flex items-center text-sm border-b border-border/20 overflow-x-auto scrollbar-thin"
                                     )}>
@@ -1097,7 +832,7 @@ export default function Home() {
                                                 {getInitials(participant.trim())}
                                               </AvatarFallback>
                                             </Avatar>
-                                            <span className="text-muted-foreground">
+                                            <span className="text-foreground/90">
                                               {participant.trim()}
                                             </span>
                                           </div>
@@ -1130,6 +865,20 @@ export default function Home() {
           </div>
         </ScrollArea>
       </div>
+
+      {/* Render the Modals */}
+      <CreateProjectModal 
+        isOpen={isProjectModalOpen} 
+        onOpenChange={setIsProjectModalOpen} 
+        onProjectCreated={fetchProjects} // Pass fetchProjects to refresh list on creation
+      />
+      
+      <UploadTranscriptModal 
+        isOpen={isUploadModalOpen} 
+        onOpenChange={setIsUploadModalOpen} 
+        onUploadComplete={fetchInterviews} // Pass fetchInterviews to refresh list on upload
+      />
+
     </div>
   )
 }

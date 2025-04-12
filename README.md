@@ -8,9 +8,11 @@ A microservices-based platform using Next.js, FastAPI, Python, and Prisma/Postgr
 
 Navi CFCI helps product teams extract meaningful insights from user interviews by:
 
-*   Processing VTT transcript files.
-*   Using AI (Google Gemini) to identify problem areas, key demands, and synthesis.
-*   Providing a dashboard to view and manage analysis results.
+*   Processing VTT and TXT transcript files.
+*   Using AI (primarily Google Gemini) to identify problem areas, key demands, and generate a synthesis.
+*   Extracting participant names based on transcript structure.
+*   Providing a dashboard to view, filter, and manage analysis results and projects.
+*   Allowing assignment of interviews to projects.
 *   Integrating with user authentication.
 
 ## Architecture
@@ -19,7 +21,7 @@ The platform uses a microservices architecture deployed in a hybrid model:
 
 *   **Frontend:** Next.js (React) application served via Vercel.
 *   **API Gateway:** FastAPI (Python) service routing requests, running on Google Cloud Run.
-*   **Backend Services:** FastAPI (Python) microservices for specific tasks (e.g., Interview Analysis), running on Google Cloud Run.
+*   **Backend Services:** FastAPI (Python) microservices for specific tasks (e.g., Interview Analysis using Gemini, Database interactions), running on Google Cloud Run.
 *   **Database:** PostgreSQL managed via Prisma, hosted on Supabase.
 *   **Local Development:** Fully containerized using Docker Compose.
 

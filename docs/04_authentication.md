@@ -6,9 +6,9 @@ This document explains the authentication methods used in the Navi CFCI platform
 
 The system now follows a standard JWT-based authentication flow:
 
-1.  **Frontend Login:** The user logs in via the Next.js frontend using NextAuth (`CredentialsProvider`). NextAuth manages the user session using secure cookies. Based on the configuration (`strategy: 'jwt'`, top-level `secret`), NextAuth generates and stores a standard **JSON Web Signature (JWS)** token internally, signed using the `NEXTAUTH_SECRET`.
-2.  **Frontend Client Request:** The React components (`page.tsx`) make requests to internal Next.js API routes (e.g., `/api/interviews`, `/api/analyze-transcript`) using `fetch`. The `credentials: 'include'` option ensures the browser sends the NextAuth session cookies along with these requests.
-3.  **Frontend API Route (Server-Side):**
+1.  **Frontend Login:** The user logs in via the Next.js frontend using NextAuth (`CredentialsProvider`). NextAuth manages the user session using secure cookies. Based on the configuration (`strategy: 'jwt'`, top-level `secret` from `NEXTAUTH_SECRET`), NextAuth generates and stores a standard **JSON Web Signature (JWS)** token internally, signed using the `NEXTAUTH_SECRET`.
+2.  **Frontend Client Request:** The React components (`page.tsx`, `[id]/page.tsx`) make requests to internal Next.js API routes (e.g., `/api/interviews`, `/api/analyze-transcript`) using `fetch`. The `credentials: 'include'` option ensures the browser sends the NextAuth session cookies along with these requests.
+3.  **Frontend API Route (Server-Side - e.g., `frontend/src/app/api/...`):**
     *   Receives the request from the client with cookies.
     *   Validates the user's session using `getServerSession(authOptions)`.
     *   **Crucially:** It calls `getToken({ req, secret: process.env.NEXTAUTH_SECRET })` to get the *decoded payload* of the user's session JWT.
@@ -16,8 +16,8 @@ The system now follows a standard JWT-based authentication flow:
     *   It prepares the onward request to the **API Gateway**.
     *   It adds the newly signed JWS token to the `Authorization: Bearer <new_signed_JWS>` header.
     *   It sends the request (using the correct internal Docker hostname or production Cloud Run URL) to the API Gateway.
-4.  **API Gateway (Cloud Run - Python/FastAPI):**
-    *   Receives the request from the frontend server.
+4.  **API Gateway (`services/api_gateway` - Python/FastAPI):**
+    *   Receives the request from the frontend server's API route.
     *   The authentication middleware (`app/middleware/auth.py`) intercepts the request.
     *   It uses `jwt.decode` (from `PyJWT`) and the shared `JWT_SECRET` (loaded from env/Secret Manager) to **strictly validate** the incoming JWS token (checks signature, expiry, required `sub` claim).
     *   If validation succeeds, the decoded payload is passed to the route handler. If validation fails (invalid signature, expired, missing claims), a `401 Unauthorized` error is typically raised by the middleware (`verify_token` dependency) or handled by the route logic (`get_optional_user` dependency followed by a check).
@@ -37,15 +37,15 @@ The system now follows a standard JWT-based authentication flow:
     *   The Vercel frontend environment (`NEXTAUTH_SECRET` - linked from Secret Manager).
     *   The API Gateway Cloud Run environment (`JWT_SECRET` - linked from Secret Manager).
     *   Local development `.env` files for both `frontend` (`NEXTAUTH_SECRET`) and `api_gateway` (`JWT_SECRET`).
-*   **NextAuth Config (`...nextauth]/route.ts`):**
+*   **NextAuth Config (`frontend/src/app/api/auth/[...nextauth]/route.ts`):**
     *   `session: { strategy: "jwt" }`
     *   Relies on the top-level `secret` for default JWS (HS256) signing. The `jwt: {}` block is intentionally left empty/removed.
     *   Callbacks ensure `user.id` is mapped to the `sub` claim in the token.
-*   **Frontend API Routes (`/api/.../*.ts`):**
+*   **Frontend API Routes (`frontend/src/app/api/.../route.ts`):**
     *   Use `getToken({ req, secret, raw: false })` to get the *decoded* session payload.
     *   Use `jose.SignJWT` to manually sign a *new* JWS token with relevant claims and short expiry.
     *   Send `Authorization: Bearer <new_signed_JWS>` to the API Gateway.
-*   **API Gateway Middleware (`auth.py`):**
+*   **API Gateway Middleware (`api_gateway/app/middleware/auth.py`):**
     *   Uses `jwt.decode` with the shared `JWT_SECRET` and `algorithms=['HS256']` to validate incoming JWS.
     *   `verify_token` dependency provides strict validation (requires `sub`, `exp`, valid signature/expiry).
     *   `get_optional_user` dependency attempts validation but allows controlled fallbacks *only* in development (`ENABLE_DEV_AUTH=true`).

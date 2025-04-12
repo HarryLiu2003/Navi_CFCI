@@ -7,6 +7,32 @@ export default {
     "./src/components/**/*.{js,ts,jsx,tsx,mdx}",
     "./src/app/**/*.{js,ts,jsx,tsx,mdx}",
   ],
+  safelist: [
+    // Gray
+    'bg-gray-50', 'text-gray-700', 'border-gray-100',
+    // Red
+    'bg-red-50', 'text-red-700', 'border-red-100',
+    // Orange
+    'bg-orange-50', 'text-orange-700', 'border-orange-100',
+    // Yellow
+    'bg-yellow-50', 'text-yellow-700', 'border-yellow-100',
+    // Green
+    'bg-green-50', 'text-green-700', 'border-green-100',
+    // Teal
+    'bg-teal-50', 'text-teal-700', 'border-teal-100',
+    // Blue
+    'bg-blue-50', 'text-blue-700', 'border-blue-100',
+    // Indigo
+    'bg-indigo-50', 'text-indigo-700', 'border-indigo-100',
+    // Purple
+    'bg-purple-50', 'text-purple-700', 'border-purple-100',
+    // Pink
+    'bg-pink-50', 'text-pink-700', 'border-pink-100',
+    // Add ring classes used in the modal for selected color swatch
+    'ring-2', 
+    'ring-offset-1', 
+    'ring-foreground'
+  ],
   theme: {
   	extend: {
   		colors: {

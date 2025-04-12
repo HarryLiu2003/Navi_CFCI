@@ -4,8 +4,8 @@ Data access layer for interview storage.
 import logging
 import os
 import httpx
-from typing import Dict, Any, Optional
-from ...utils.errors import StorageError
+from typing import Dict, Any, Optional, List
+from ...utils.errors import StorageError, NotFoundError
 from ...utils.cloud_auth import call_authenticated_service
 
 # Set up logging
@@ -114,6 +114,113 @@ class InterviewRepository:
             logger.error(f"Error preparing interview data: {str(e)}", exc_info=True)
             raise StorageError(f"Failed to prepare interview data: {str(e)}")
     
+    async def get_interview_by_id(self, interview_id: str) -> Dict[str, Any]:
+        """
+        Fetch a single interview by its ID from the database service.
+
+        Args:
+            interview_id: The ID of the interview to fetch.
+
+        Returns:
+            The interview data as a dictionary.
+
+        Raises:
+            NotFoundError: If the interview is not found.
+            StorageError: If there's any other error during fetching.
+        """
+        endpoint_url = f"{self.api_url}/interviews/{interview_id}"
+        logger.info(f"Fetching interview {interview_id} from: {endpoint_url}")
+        
+        try:
+            result = await call_authenticated_service(
+                service_url=endpoint_url, 
+                method="GET"
+            )
+
+            if isinstance(result, dict) and result.get("status") == "error":
+                error_msg = result.get("message", "Unknown error fetching interview")
+                status_code = result.get("status_code", 500) 
+                logger.error(f"Error from service call fetching interview {interview_id}: {error_msg} (Status: {status_code})")
+                if status_code == 404:
+                     raise NotFoundError(f"Interview with ID {interview_id} not found.")
+                raise StorageError(f"Service call error: {error_msg}")
+
+            if isinstance(result, dict) and result.get("status") == "success":
+                interview_data = result.get("data")
+                if not interview_data:
+                     logger.error(f"No data returned for interview {interview_id}. Full response: {result}")
+                     raise StorageError(f"No data returned for interview {interview_id}")
+                logger.info(f"Successfully fetched interview {interview_id}")
+                return interview_data
+            
+            # Handle unexpected response structure
+            logger.error(f"Unexpected response structure when fetching interview {interview_id}: {result}")
+            raise StorageError(f"Unexpected response structure from database service for interview {interview_id}.")
+
+        except NotFoundError:
+             raise # Re-raise NotFoundError explicitly
+        except StorageError as e:
+            raise StorageError(f"Storage layer error fetching interview {interview_id}: {str(e)}") # Re-raise other storage errors
+        except Exception as e:
+            logger.error(f"Unexpected error fetching interview {interview_id}: {str(e)}", exc_info=True)
+            raise StorageError(f"Unexpected error fetching interview {interview_id}: {str(e)}")
+
+
+    async def get_personas_for_user(self, user_id: str) -> List[Dict[str, Any]]:
+        """
+        Fetch all personas associated with a specific user ID.
+
+        Args:
+            user_id: The ID of the user whose personas to fetch.
+
+        Returns:
+            A list of persona data dictionaries.
+
+        Raises:
+            StorageError: If there's an error during fetching.
+        """
+        # Assuming the endpoint structure based on common patterns
+        endpoint_url = f"{self.api_url}/personas?userId={user_id}" 
+        logger.info(f"Fetching personas for user {user_id} from: {endpoint_url}")
+        
+        try:
+            result = await call_authenticated_service(
+                service_url=endpoint_url, 
+                method="GET"
+            )
+
+            if isinstance(result, dict) and result.get("status") == "error":
+                error_msg = result.get("message", "Unknown error fetching personas")
+                status_code = result.get("status_code", 500)
+                logger.error(f"Error from service call fetching personas for user {user_id}: {error_msg} (Status: {status_code})")
+                # Note: Depending on API design, an empty list might be returned instead of 404 for no personas.
+                # We assume an error status code indicates a real problem.
+                raise StorageError(f"Service call error fetching personas: {error_msg}")
+
+            if isinstance(result, dict) and result.get("status") == "success":
+                personas_data = result.get("data")
+                if personas_data is None: # Allow empty list, but error if 'data' key is missing
+                     logger.error(f"No 'data' field returned when fetching personas for user {user_id}. Full response: {result}")
+                     raise StorageError(f"Invalid response structure fetching personas for user {user_id}")
+                
+                # Ensure data is a list
+                if not isinstance(personas_data, list):
+                    logger.error(f"Expected list but got {type(personas_data)} when fetching personas for user {user_id}. Data: {personas_data}")
+                    raise StorageError(f"Unexpected data type for personas: {type(personas_data)}")
+
+                logger.info(f"Successfully fetched {len(personas_data)} personas for user {user_id}")
+                return personas_data
+            
+            # Handle unexpected response structure
+            logger.error(f"Unexpected response structure when fetching personas for user {user_id}: {result}")
+            raise StorageError(f"Unexpected response structure from database service for personas.")
+
+        except StorageError as e:
+             raise StorageError(f"Storage layer error fetching personas for user {user_id}: {str(e)}")
+        except Exception as e:
+            logger.error(f"Unexpected error fetching personas for user {user_id}: {str(e)}", exc_info=True)
+            raise StorageError(f"Unexpected error fetching personas for user {user_id}: {str(e)}")
+
     def _extract_title(self, analysis_result: Dict[str, Any], metadata: Optional[Dict[str, Any]]) -> str:
         """
         Extract a title for the interview from the analysis or metadata.

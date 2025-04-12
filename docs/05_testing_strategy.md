@@ -29,6 +29,7 @@ We employ a multi-layered testing strategy to ensure code quality, correctness, 
     # docker compose exec navi_cfci-frontend-1 npm test
 
     # Database Service (No tests defined)
+    # docker compose exec navi_cfci-database-service-1 npm test
     ```
 
 ## 2. Integration Tests
@@ -53,6 +54,7 @@ We employ a multi-layered testing strategy to ensure code quality, correctness, 
     docker compose exec navi_cfci-api_gateway-1 pytest tests/api_tests
     docker compose exec navi_cfci-interview_analysis-1 pytest tests/api_tests
     docker compose exec navi_cfci-sprint1_deprecated-1 pytest tests/api_tests
+    # docker compose exec navi_cfci-database-service-1 npm test:api # Example
     ```
 
 ## 4. End-to-End (E2E) Tests

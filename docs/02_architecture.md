@@ -4,7 +4,7 @@ This document outlines the technical architecture of the Navi CFCI platform.
 
 ## 1. System Overview
 
-Navi CFCI is a microservices-based application designed to analyze user interview transcripts (VTT format) using AI and provide insights through a web interface. It features user authentication and a clear separation between frontend presentation, API routing, and backend processing.
+Navi CFCI is a microservices-based application designed to analyze user interview transcripts (VTT and TXT formats) using AI and provide insights through a web interface. It features user authentication, project management, and a clear separation between frontend presentation, API routing, and backend processing.
 
 The system employs a hybrid deployment model:
 *   **Frontend:** Next.js application hosted on Vercel.
@@ -50,24 +50,24 @@ graph LR
     *   **Framework:** Next.js 15+ (React 18)
     *   **Language:** TypeScript
     *   **Styling:** Tailwind CSS, shadcn/ui components
-    *   **Responsibilities:** User interface, dashboard display, transcript upload, visualization of analysis, user login/registration (via NextAuth).
+    *   **Responsibilities:** User interface, dashboard display (projects, interviews), transcript upload, interview analysis visualization (problem areas, synthesis, transcript), project/interview creation/management, user login/registration (via NextAuth).
     *   **Communication:** Interacts *only* with the API Gateway via HTTPS API calls, sending user authentication (JWS token) in the `Authorization` header.
 *   **API Gateway (`services/api_gateway/`)**
     *   **Framework:** FastAPI (Python 3.11+)
-    *   **Responsibilities:** Single public entry point for the frontend. Validates incoming user JWS tokens. Routes requests to appropriate backend microservices. Handles CORS. Aggregates responses if needed.
+    *   **Responsibilities:** Single public entry point for the frontend. Validates incoming user JWS tokens. Routes requests to appropriate backend microservices (Database, Interview Analysis). Handles CORS. Aggregates responses if needed.
     *   **Authentication:**
         *   Validates user JWS tokens from the frontend using a shared secret.
         *   Uses Google IAM (OIDC tokens via service account) to authenticate its requests *to* backend services in production.
     *   **Deployment:** Google Cloud Run (configured for public access).
 *   **Interview Analysis Service (`services/interview_analysis/`)**
     *   **Framework:** FastAPI (Python 3.11+)
-    *   **Responsibilities:** Core analysis logic. Processes VTT files, interacts with Google Gemini API via a defined pipeline to extract problem areas, synthesis, etc. Stores results via the Database Service.
+    *   **Responsibilities:** Core analysis logic. Processes VTT/TXT files using basic parsing rules (identifying speakers based on `Name:` pattern). Interacts with Google Gemini API via a defined pipeline to extract problem areas, synthesis, etc. Stores results (including rule-based participants) via the Database Service.
     *   **Authentication:** Accessed *only* by the API Gateway via IAM authentication.
     *   **Deployment:** Google Cloud Run (configured for private access - no-allow-unauthenticated).
-*   **Database Service (`services/database/`)**
+*   **Database Service (`services/database-service/`)**
     *   **Framework:** Node.js/Express (TypeScript)
     *   **Database ORM:** Prisma
-    *   **Responsibilities:** Provides a RESTful API wrapper around the PostgreSQL database. Handles CRUD operations for interviews, users, etc.
+    *   **Responsibilities:** Provides a RESTful API wrapper around the PostgreSQL database. Handles CRUD operations for users, projects, and interviews. Updates project `updatedAt` timestamp when an associated interview is created.
     *   **Authentication:** Accessed *only* by the API Gateway and Interview Analysis service via IAM authentication.
     *   **Deployment:** Google Cloud Run (configured for private access - no-allow-unauthenticated).
 *   **Sprint1 Deprecated Service (`services/sprint1_deprecated/`)**
@@ -77,7 +77,7 @@ graph LR
     *   **Deployment:** Google Cloud Run (configured for private access - no-allow-unauthenticated).
 *   **Database (External)**
     *   **Provider:** Supabase (PostgreSQL)
-    *   **Responsibilities:** Persistent storage for users, interviews, analysis results.
+    *   **Responsibilities:** Persistent storage for users, projects, interviews, analysis results.
 
 ## 4. Communication & Data Flow
 

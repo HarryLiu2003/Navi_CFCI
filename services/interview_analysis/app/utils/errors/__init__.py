@@ -28,6 +28,18 @@ class StorageError(InterviewAnalysisError):
         super().__init__(message, status_code=500)
 
 
+class NotFoundError(InterviewAnalysisError):
+    """Error when a requested resource is not found."""
+    def __init__(self, message):
+        super().__init__(message, status_code=404)
+
+
+class WorkflowError(InterviewAnalysisError):
+    """Error during workflow execution."""
+    def __init__(self, message):
+        super().__init__(message, status_code=500)
+
+
 class ConfigurationError(InterviewAnalysisError):
     """Error in service configuration."""
     def __init__(self, message):
