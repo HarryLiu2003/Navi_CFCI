@@ -687,4 +687,50 @@ export async function suggestPersonas(interviewId: string): Promise<PersonaSugge
   }
   
   return responseBody.data as PersonaSuggestionResponse;
+}
+
+export async function deletePersona(personaId: string): Promise<{ status: string, message?: string, data?: Persona }> {
+  console.log(`[lib/api] deletePersona called for ID: ${personaId}`);
+  try {
+    // Ensure this matches the internal API route you set up in the frontend's /api directory
+    const apiUrl = `/api/personas/${personaId}`; 
+    console.log(`[lib/api] Deleting via internal API route: ${apiUrl}`);
+
+    const response = await fetch(apiUrl, {
+      method: 'DELETE',
+      headers: {
+        'Accept': 'application/json'
+      },
+      credentials: 'include', // Important for sending session cookies
+    });
+
+    console.log(`[lib/api] Response status from DELETE ${apiUrl}: ${response.status}`);
+    const responseText = await response.text(); // Read text regardless of status
+
+    if (!response.ok) {
+      let errorDetail = responseText;
+      try {
+        // Attempt to parse JSON error for more detail
+        const errorJson = JSON.parse(responseText);
+        if(errorJson.message) errorDetail = errorJson.message;
+      } catch {} // Ignore if parsing fails
+      console.error(`[lib/api] Error deleting persona ${personaId} (${response.status}): ${errorDetail}`);
+      return { status: 'error', message: errorDetail || `Failed to delete persona (${response.status})` };
+    }
+
+    // Try to parse success response (might contain the deleted object)
+    let responseData: any = {};
+    try {
+        responseData = JSON.parse(responseText);
+    } catch {} // Ignore if parsing fails
+
+    console.log(`[lib/api] Successfully deleted persona ${personaId}.`);
+    // Return structure might vary based on your actual API response
+    return { status: 'success', message: responseData.message || 'Persona deleted successfully', data: responseData.data };
+
+  } catch (error) {
+    console.error(`[lib/api] Catch block error in deletePersona for ${personaId}:`, error);
+    const message = error instanceof Error ? error.message : 'Failed to delete persona due to a network or unexpected error.';
+    return { status: 'error', message: message };
+  }
 } 

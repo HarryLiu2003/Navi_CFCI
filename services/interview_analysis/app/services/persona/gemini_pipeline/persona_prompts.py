@@ -59,19 +59,7 @@ Respond *only* with a single, valid JSON object containing the final selected ta
     ```
     *(Explanation: Prioritized tags reflecting the core role, business model, stage, and market focus within the limit of 5)*
 
-*   **Example 2: Healthcare Patient**
-    *   *Interviewee Core Context:* Patient, Managing Chronic Condition (Diabetes) with Device, Goal: Stable Blood Sugar. Challenge: Occasional UI Confusion.
-    *   *Other Attributes:* Millennial, Likes data tracking, Checks app daily.
-    *   *Existing Tags Provided:* `[...] // Includes tags like {"id": "tag-pat", "name": "Patient"}, {"id": "tag-mil", "name": "Millennial"}, {"id": "tag-daily", "name": "Daily App User"}, {"id": "tag-chronic", "name": "Chronic Condition Mgmt"} etc.`
-    *   *Expected Output (Prioritizing Core Context & Key Attributes):*
-    ```json
-    {
-      "existing_persona_ids": ["tag-pat", "tag-chronic", "tag-daily"], // Selected core + key behavior
-      "suggested_new_personas": ["goal: stable blood sugar", "UI confusion pain-point"] // Added core goal/pain
-    }
-    ```
-
-*   **Example 3: Restaurant Goer**
+*   **Example 2: Restaurant Goer**
     *   *Interviewee Core Context:* Consumer, Frequent Diner (Weekly), Goal: Find unique experiences. Challenge: Finding visual info easily.
     *   *Other Attributes:* Gen Z, Uses mobile apps for reservations, Budget-conscious, Relies on reviews.
     *   *Existing Tags Provided:* `[...] // Includes tags like {"id": "tag-genz", "name": "Gen Z"}, {"id": "tag-mobile", "name": "Mobile App User"}, {"id": "tag-budget", "name": "Budget Conscious"}, {"id": "tag-weekly", "name": "Weekly User"} etc.`

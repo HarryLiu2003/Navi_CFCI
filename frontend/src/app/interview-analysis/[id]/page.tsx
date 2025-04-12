@@ -129,6 +129,46 @@ export default function InterviewAnalysisDetail({ params }: PageProps) {
   // New state for hovering over tags
   const [hoveredPersona, setHoveredPersona] = useState<string | null>(null);
 
+  // State to prevent concurrent fetches
+  const [isFetchingInterview, setIsFetchingInterview] = useState(false);
+
+  // Extracted function to fetch interview data
+  const fetchInterviewData = useCallback(async () => {
+    if (isFetchingInterview || !resolvedParams.id) return;
+    
+    setIsFetchingInterview(true);
+    setIsLoading(true); // Use the main loading state
+    setError(null);
+    
+    console.log("[page.tsx] Refetching interview data...");
+    
+    try {
+      const interviewResponse = await getInterviewById(resolvedParams.id);
+      
+      if (interviewResponse.status === "success" && interviewResponse.data) {
+        const fetchedInterview = interviewResponse.data;
+        setInterview(fetchedInterview);
+        const initialTitle = fetchedInterview?.title || "Interview Analysis";
+        setCurrentTitle(initialTitle);
+        setOriginalTitle(initialTitle);
+        // Optionally reset expanded problems or keep existing logic
+        if (fetchedInterview.analysis_data?.problem_areas?.length > 0 && expandedProblemIds.length === 0) {
+          setExpandedProblemIds([fetchedInterview.analysis_data.problem_areas[0].problem_id]);
+        }
+        console.log("[page.tsx] Interview data refetched successfully.");
+      } else {
+        setError(interviewResponse.message || "Failed to refetch interview data");
+        console.error("[page.tsx] Failed to refetch interview data:", interviewResponse.message);
+      }
+    } catch (fetchError) {
+      console.error("[page.tsx] Error refetching interview data:", fetchError);
+      setError(fetchError instanceof Error ? fetchError.message : "An unknown error occurred during refetch");
+    } finally {
+      setIsFetchingInterview(false);
+      setIsLoading(false);
+    }
+  }, [resolvedParams.id, isFetchingInterview, expandedProblemIds.length]); // Add dependencies
+
   useEffect(() => {
     if (status === "unauthenticated") {
       router.push("/auth/signin");
@@ -136,12 +176,17 @@ export default function InterviewAnalysisDetail({ params }: PageProps) {
     }
 
     if (status === "authenticated") {
-      const fetchInterviewAndData = async () => {
+      // Initial fetch logic combined with refetch function
+      const fetchInitialData = async () => {
+        if (isFetchingInterview) return; // Prevent concurrent initial fetch
+        
+        // Reset states for initial load
+        setError(null);
+        setPersonasError(null);
+        setIsLoading(true);
+        setIsFetchingInterview(true);
+        
         try {
-          setIsLoading(true)
-          setError(null)
-          setPersonasError(null)
-          
           // Fetch interview and projects data in parallel
           const [interviewResponse, projectsResponse] = await Promise.all([
             getInterviewById(resolvedParams.id),
@@ -150,7 +195,7 @@ export default function InterviewAnalysisDetail({ params }: PageProps) {
           
           let fetchedInterview: any = null;
           
-          // Handle interview data
+          // Handle interview data (similar to fetchInterviewData but includes title setting)
           if (interviewResponse.status === "success" && interviewResponse.data) {
             fetchedInterview = interviewResponse.data;
             setInterview(fetchedInterview);
@@ -158,18 +203,21 @@ export default function InterviewAnalysisDetail({ params }: PageProps) {
             setCurrentTitle(initialTitle);
             setOriginalTitle(initialTitle);
             if (fetchedInterview.analysis_data?.problem_areas?.length > 0) {
-              setExpandedProblemIds([fetchedInterview.analysis_data.problem_areas[0].problem_id])
+              setExpandedProblemIds([fetchedInterview.analysis_data.problem_areas[0].problem_id]);
             }
           } else {
-            setError(interviewResponse.message || "Failed to load interview data")
+            setError(interviewResponse.message || "Failed to load interview data");
           }
 
           // Handle projects data
           if (projectsResponse.status === 'success') {
             setProjects(projectsResponse.data?.projects || []);
+          } else {
+            // Optionally handle project fetch error
+             console.warn("Failed to fetch projects:", projectsResponse.message);
           }
 
-          // --- Check sessionStorage flag --- 
+          // --- Check sessionStorage flag for Persona Modal --- 
           const flagInterviewId = sessionStorage.getItem('showPersonaModalForInterview');
           let shouldShowModal = false;
           
@@ -181,14 +229,14 @@ export default function InterviewAnalysisDetail({ params }: PageProps) {
             }
           }
           
-          // Fetch personas if needed
+          // Fetch personas if needed for modal
           if (shouldShowModal) {
             setIsLoadingPersonas(true);
             try {
               const personasResponse = await getAllPersonas();
               if (personasResponse.status === 'success') {
                 setAllPersonas(personasResponse.data || []);
-                setShowPersonaModal(true);
+                setShowPersonaModal(true); // Show modal *after* personas are fetched
               } else {
                 setPersonasError(personasResponse.message || 'Failed to fetch personas for tagging.');
                 toast.error(personasResponse.message || 'Could not load personas for tagging.');
@@ -202,15 +250,18 @@ export default function InterviewAnalysisDetail({ params }: PageProps) {
             }
           }
         } catch (fetchError) {
-          console.error("Error fetching data:", fetchError)
-          setError(fetchError instanceof Error ? fetchError.message : "An unknown error occurred")
+          console.error("[page.tsx] Error fetching initial data:", fetchError);
+          setError(fetchError instanceof Error ? fetchError.message : "An unknown error occurred during initial load");
         } finally {
-          setIsLoading(false)
+          setIsLoading(false);
+          setIsFetchingInterview(false);
         }
-      }
-      fetchInterviewAndData()
+      };
+      
+      fetchInitialData();
     }
-  }, [resolvedParams.id, status, router])
+    // Depend only on auth status and ID for initial fetch trigger
+  }, [resolvedParams.id, status, router]);
 
   // --- Title Editing Logic (contentEditable version) ---
 
@@ -347,13 +398,75 @@ export default function InterviewAnalysisDetail({ params }: PageProps) {
     return name.trim()[0].toUpperCase();
   }
 
+  // --- Function to fetch all personas (used by Edit button and onDeleteSuccess) ---
+  const fetchAllPersonas = useCallback(async () => {
+    // No need to set loading state here if called internally
+    try {
+      console.log("[page.tsx] Refetching all personas list...");
+      const personasResponse = await getAllPersonas();
+      if (personasResponse.status === 'success') {
+        setAllPersonas(personasResponse.data || []);
+         console.log("[page.tsx] All personas list updated.");
+      } else {
+        // Keep existing personas list, show error
+        setPersonasError(personasResponse.message || 'Failed to refresh personas list.');
+        toast.error(personasResponse.message || 'Could not refresh personas list.');
+      }
+    } catch (error: any) {
+      const message = error.message || 'Error refreshing personas list.';
+      setPersonasError(message);
+      toast.error(`Error refreshing personas: ${message}`);
+    }
+  }, []); // No dependencies needed if just fetching
+  
   // --- Callback for Persona Modal Save ---
   const handlePersonaSaveSuccess = useCallback((updatedPersonas: Persona[]) => {
+    console.log("[page.tsx] Persona save successful, updating interview state.");
     setInterview((prevInterview: Interview | null) => {
       if (!prevInterview) return null;
-      return { ...prevInterview, personas: updatedPersonas };
+      // Update the personas list directly based on the successful save
+      const updatedInterview = { ...prevInterview, personas: updatedPersonas };
+      // Also update the original title if it matches current (in case save happened)
+      if (updatedInterview.title === currentTitle) {
+          setOriginalTitle(currentTitle);
+      }
+      return updatedInterview;
     });
-  }, []);
+    // After successful save, also refresh the full list of personas 
+    // in case new ones were created during the save process in the modal.
+    fetchAllPersonas(); 
+  }, [currentTitle, fetchAllPersonas]); // Add fetchAllPersonas dependency
+  
+  // --- Callback for Persona Modal Open/Close (REVISED) ---
+  const handlePersonaModalOpenChange = useCallback(async (open: boolean) => {
+    // Always update modal visibility immediately
+    setShowPersonaModal(open);
+
+    if (!open) {
+      // Modal is closing. Refetch *both* interview and all personas
+      // regardless of whether it was saved or cancelled.
+      console.log("[page.tsx] Persona modal closed. Refetching interview and all personas list.");
+      
+      // Use Promise.allSettled to fetch concurrently and handle potential errors individually
+      await Promise.allSettled([
+        fetchInterviewData(),
+        fetchAllPersonas()
+      ]);
+      console.log("[page.tsx] Refetch operations complete after modal close.");
+    }
+  }, [fetchInterviewData, fetchAllPersonas]); // Depend on the fetch functions
+
+  // --- Callback for Persona Deletion inside Modal (SIMPLIFIED) ---
+  const handlePersonaDeleteSuccess = useCallback((deletedPersonaId: string) => {
+    console.log(`[page.tsx] Persona deleted (ID: ${deletedPersonaId}) within modal. Refreshing all personas list.`);
+    
+    // When a persona is deleted *within* the modal, the only immediate action needed
+    // on the parent page is to refresh the list of available personas.
+    // The *linking* status will be correctly handled by the refetch 
+    // when the modal eventually closes (via handlePersonaModalOpenChange).
+    fetchAllPersonas();
+
+  }, [fetchAllPersonas]); // Depend on fetchAllPersonas
 
   // --- Callback for Change Project Modal Save (NEW) ---
   const handleProjectChangeSuccess = useCallback((newProjectId: string | undefined) => {
@@ -362,7 +475,7 @@ export default function InterviewAnalysisDetail({ params }: PageProps) {
         // Find the project object from the fetched list to update the nested data if needed
         const newProject = projects.find(p => p.id === newProjectId);
         return {
-            ...prevInterview, 
+            ...prevInterview,
             project_id: newProjectId,
             project: newProject || null // Update the nested project data or set to null
         };
@@ -939,11 +1052,16 @@ export default function InterviewAnalysisDetail({ params }: PageProps) {
       {interview && (
          <PersonaTaggingModal
             open={showPersonaModal}
-            onOpenChange={setShowPersonaModal}
+            // Use the new handler for open/change
+            onOpenChange={handlePersonaModalOpenChange} 
             interviewId={resolvedParams.id}
             initialPersonas={interview?.personas || []} 
             allPersonas={allPersonas} 
             onSaveSuccess={handlePersonaSaveSuccess}
+            // Use the modified delete handler
+            onDeleteSuccess={handlePersonaDeleteSuccess}
+            // Derive the prop directly from interview state
+            isInitialTagging={!interview?.personas || interview.personas.length === 0}
           />
       )}
       {/* Display loading indicator for personas if needed */} 
