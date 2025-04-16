@@ -8,6 +8,7 @@
     "build": "tsc",
     "dev": "ts-node src/api/server.ts",
     "start": "node dist/api/server.js",
+    "test": "echo \"Error: no test specified\" && exit 1",
     "prisma:generate": "npx prisma generate",
     "prisma:migrate:dev": "npx prisma migrate dev",
     "prisma:migrate:deploy": "npx prisma migrate deploy",

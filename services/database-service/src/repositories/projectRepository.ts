@@ -52,27 +52,36 @@ export class ProjectRepository {
       const oneMonthAgo = getOneMonthAgo();
       
       return await this.prisma.project.findMany({
-        ...args, // Spread existing args (where, take, skip, orderBy)
+        ...args, // Spread existing args (where, take, skip)
         select: { // Use select to explicitly choose fields and relations/counts
           id: true,
           name: true,
           description: true,
           ownerId: true,
-          updatedAt: true, // Include the new updatedAt field
-          owner: { // Include the related owner
+          updatedAt: true, // Keep updatedAt for fallback sorting
+          owner: { 
             select: {
-              name: true, // Only select the name field from the owner
+              name: true, 
             }
           },
-          _count: { // Include a count of related interviews
+          _count: { 
             select: {
-              interviews: { // Count interviews...
+              interviews: { 
                 where: {
-                  created_at: { // ...where the creation date...
-                    gte: oneMonthAgo, // ...is greater than or equal to one month ago
+                  created_at: {
+                    gte: oneMonthAgo 
                   }
                 }
               }
+            }
+          },
+          interviews: { // Get latest interview for sorting key
+            orderBy: {
+              created_at: 'desc'
+            },
+            take: 1,
+            select: {
+              created_at: true 
             }
           }
         }
@@ -120,40 +129,70 @@ export class ProjectRepository {
   }
 
   /**
-   * Update an existing project
+   * Update an existing project after verifying ownership.
    * @param id - The project ID to update
-   * @param data - The update data (e.g., { updatedAt: new Date() })
-   * @returns Promise<Project> - The updated project
-   * @throws Error if update fails
+   * @param ownerId - The ID of the user requesting the update (for authorization).
+   * @param data - The update data (e.g., { name: 'new name', description: 'new desc' }).
+   * @returns Promise<Project> - The updated project.
+   * @throws Error if project not found, user not authorized, or update fails.
    */
-  async update(id: string, data: Prisma.ProjectUpdateInput): Promise<Project> {
+  async update(id: string, ownerId: string, data: Prisma.ProjectUpdateInput): Promise<Project> {
     try {
-      return await this.prisma.project.update({
+      // Verify ownership before updating
+      const project = await this.prisma.project.findUnique({
         where: { id },
+      });
+
+      if (!project) {
+        throw new Error(`Project not found with ID: ${id}`); // Use a specific error type or code if preferred
+      }
+
+      if (project.ownerId !== ownerId) {
+        throw new Error(`User ${ownerId} is not authorized to update project ${id}`); // Use a specific error type or code if preferred
+      }
+
+      // Proceed with the update if authorized
+      return await this.prisma.project.update({
+        where: { id }, // Use the validated ID
         data
       });
     } catch (error) {
-      console.error(`Error updating project ${id}:`, error);
-      // Consider specific error handling, e.g., P2025 for record not found
+      console.error(`Error updating project ${id} for user ${ownerId}:`, error);
+      // Re-throw or handle specific Prisma errors (e.g., P2025)
       throw error;
     }
   }
 
   /**
-   * Delete a project by ID
-   * @param id - The project ID to delete
-   * @returns Promise<Project> - The deleted project
-   * @throws Error if deletion fails
+   * Delete a project by ID after verifying ownership.
+   * @param id - The project ID to delete.
+   * @param ownerId - The ID of the user requesting the deletion (for authorization).
+   * @returns Promise<Project> - The deleted project.
+   * @throws Error if project not found, user not authorized, or deletion fails.
    */
-  async delete(id: string): Promise<Project> {
+  async delete(id: string, ownerId: string): Promise<Project> {
     try {
-      // Potential: Add checks here if needed before deleting
+      // Verify ownership before deleting
+       const project = await this.prisma.project.findUnique({
+        where: { id },
+      });
+
+      if (!project) {
+        throw new Error(`Project not found with ID: ${id}`); // Use a specific error type or code if preferred
+      }
+
+      if (project.ownerId !== ownerId) {
+        throw new Error(`User ${ownerId} is not authorized to delete project ${id}`); // Use a specific error type or code if preferred
+      }
+      
+      // Proceed with deletion if authorized
+      // Potential: Add checks here if needed before deleting (e.g., check for associated interviews?)
       return await this.prisma.project.delete({
-        where: { id }
+        where: { id } // Use the validated ID
       });
     } catch (error) {
-      console.error(`Error deleting project ${id}:`, error);
-      // Consider specific error handling, e.g., P2025 for record not found
+      console.error(`Error deleting project ${id} for user ${ownerId}:`, error);
+      // Re-throw or handle specific Prisma errors (e.g., P2025, foreign key constraints)
       throw error;
     }
   }

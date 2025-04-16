@@ -87,14 +87,36 @@ export interface Persona {
   userId?: string; // Optional, depending if backend sends it
 }
 
-// Interview storage types
+// --- NEW Types for Problem Areas and Excerpts ---
+export interface Excerpt {
+  id: string;
+  problem_area_id: string;
+  quote: string;
+  categories: string[];
+  insight: string;
+  chunk_number: number;
+}
+
+export interface ProblemArea {
+  id: string;
+  interview_id: string;
+  title: string;
+  description: string;
+  is_confirmed: boolean;
+  priority?: string | null; // Added optional priority
+  created_at: string; // Represent dates as strings
+  updated_at: string;
+  excerpts: Excerpt[];
+}
+
+// Interview storage types (UPDATED)
 export interface Interview {
   id: string;
   created_at: string;
   title: string;
   problem_count: number;
   transcript_length: number;
-  analysis_data: any;
+  analysis_data: any; // Re-add temporarily for transcript/synthesis
   project_id: string | null;
   participants?: string | null;
   userId?: string | null;
@@ -102,7 +124,8 @@ export interface Interview {
     id: string;
     name: string;
   } | null;
-  personas?: Persona[]; 
+  personas?: Persona[];
+  problemAreas?: ProblemArea[]; // Added typed relation
 }
 
 export interface InterviewsResponse {
@@ -119,6 +142,40 @@ export interface InterviewDetailResponse {
   message: string;
   data: Interview; 
 }
+
+// --- NEW Project-Specific Response Types ---
+export interface ProjectDetailResponse {
+  status: string;
+  message?: string;
+  data?: Project;
+}
+
+// Matches the type defined in the page component
+interface ProblemAreaWithInterviewContext extends ProblemArea {
+  interview: {
+    id: string;
+    title: string;
+    personas: Persona[];
+  }
+}
+
+export interface ProjectProblemAreasResponse {
+  status: string;
+  message?: string;
+  data?: {
+    problemAreas: ProblemAreaWithInterviewContext[];
+  };
+}
+
+export interface ProjectInterviewsResponse {
+  status: string;
+  message?: string;
+  data?: {
+    interviews: Interview[]; // Use existing Interview type, assuming fields match
+  };
+}
+
+// --- END NEW Project-Specific Response Types ---
 
 // --- UPDATED Response Type for /api/personas ---
 export interface PersonasResponse {
@@ -386,9 +443,11 @@ export interface Project {
   owner?: { // Add owner object
     name: string | null; // Include owner's name
   };
-  _count?: { // Add _count object
-    interviews: number; // Include interview count
+  _count?: { 
+    interviews: number; 
   };
+  // Add field to hold the latest interview data for sorting
+  interviews?: Array<{ created_at: string }>; 
   // Add other fields like created_at if they are returned
 }
 
@@ -523,7 +582,8 @@ export async function updateInterview(
 
     const result = await response.json();
     console.log(`[lib/api] Successfully updated interview ${id}:`, result);
-    return result; 
+    // Ensure the returned data conforms to the Interview type
+    return result as { status: string, message?: string, data?: Interview }; 
 
   } catch (error) {
     console.error(`[lib/api] Catch block error updating interview ${id}:`, error);
@@ -731,6 +791,388 @@ export async function deletePersona(personaId: string): Promise<{ status: string
   } catch (error) {
     console.error(`[lib/api] Catch block error in deletePersona for ${personaId}:`, error);
     const message = error instanceof Error ? error.message : 'Failed to delete persona due to a network or unexpected error.';
-    return { status: 'error', message: message };
+    return { status: 'error', message };
   }
-} 
+}
+
+// --- NEW API Function ---
+// Function to delete an interview
+export async function deleteInterview(id: string): Promise<{ status: string, message?: string }> {
+  if (!id) {
+    throw new Error("Interview ID is required to delete.");
+  }
+  const url = `/api/interviews/${id}`; // Use internal API route
+  
+  console.log(`[lib/api] deleteInterview calling internal route: DELETE ${url}`);
+  
+  try {
+    const response = await fetch(url, {
+      method: 'DELETE',
+      headers: {
+        'Accept': 'application/json', 
+      },
+      credentials: 'include', 
+    });
+
+    // Check for successful deletion (200 OK or 204 No Content)
+    if (response.ok) {
+      // Try to parse potential JSON response, but don't fail if it's empty (204)
+      let message = 'Interview deleted successfully';
+      try {
+        const result = await response.json();
+        message = result.message || message;
+      } catch {
+        // Ignore parsing error for 204 No Content
+      }
+      console.log(`[lib/api] Successfully deleted interview ${id}.`);
+      return { status: 'success', message };
+    } else {
+      // Handle errors
+      let errorDetail = 'Failed to delete interview';
+      try {
+        const errorJson = await response.json();
+        errorDetail = errorJson.message || errorJson.detail || JSON.stringify(errorJson);
+      } catch { 
+         errorDetail = response.statusText;
+      }
+      console.error(`[lib/api] Error deleting interview ${id} (${response.status}): ${errorDetail}`);
+      return { status: 'error', message: `API Error (${response.status}): ${errorDetail}` };
+    }
+
+  } catch (error) {
+    console.error(`[lib/api] Catch block error deleting interview ${id}:`, error);
+    const message = error instanceof Error ? error.message : 'An unknown error occurred';
+    return { status: 'error', message };
+  }
+}
+
+// --- NEW API Functions for Problem Areas ---
+
+export async function updateProblemArea(
+  problemAreaId: string,
+  data: { title?: string; description?: string }
+): Promise<{ status: string, message?: string, data?: ProblemArea }> {
+  const url = `/api/problem-areas/${problemAreaId}`; // Internal Next.js route
+  console.log(`[lib/api] updateProblemArea calling internal route: PUT ${url}`);
+
+  try {
+    const response = await fetch(url, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+      credentials: 'include',
+    });
+
+    const result = await response.json();
+    if (!response.ok || result.status !== 'success') {
+      const errorMsg = result.message || 'Failed to update problem area';
+      console.error(`[lib/api] Error updating problem area ${problemAreaId} (${response.status}):`, result);
+      throw new Error(errorMsg);
+    }
+    console.log(`[lib/api] Successfully updated problem area ${problemAreaId}`);
+    return result as { status: string, message?: string, data?: ProblemArea }; // Return updated data
+  } catch (error) {
+    console.error(`[lib/api] Catch block error updating problem area ${problemAreaId}:`, error);
+    const message = error instanceof Error ? error.message : 'An unknown error occurred';
+    return { status: 'error', message };
+  }
+}
+
+export async function confirmProblemArea(
+  problemAreaId: string,
+  isConfirmed: boolean,
+  priority?: string | null // Added optional priority parameter
+): Promise<{ status: string, message?: string, data?: ProblemArea }> {
+  const url = `/api/problem-areas/${problemAreaId}/confirm`; // Internal Next.js route
+  console.log(`[lib/api] confirmProblemArea calling internal route: PATCH ${url}`);
+
+  // Prepare body, include priority if provided
+  const body: { isConfirmed: boolean; priority?: string | null } = { isConfirmed };
+  if (priority !== undefined) { // Send priority even if null (to clear it)
+      body.priority = priority;
+  }
+
+  try {
+    const response = await fetch(url, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body), // Send body with isConfirmed and optional priority
+      credentials: 'include',
+    });
+
+    const result = await response.json();
+    if (!response.ok || result.status !== 'success') {
+      const errorMsg = result.message || 'Failed to update problem area confirmation';
+      console.error(`[lib/api] Error confirming problem area ${problemAreaId} (${response.status}):`, result);
+      throw new Error(errorMsg);
+    }
+    console.log(`[lib/api] Successfully updated confirmation for problem area ${problemAreaId}`);
+    return result as { status: string, message?: string, data?: ProblemArea }; // Return updated data
+  } catch (error) {
+    console.error(`[lib/api] Catch block error confirming problem area ${problemAreaId}:`, error);
+    const message = error instanceof Error ? error.message : 'An unknown error occurred';
+    return { status: 'error', message };
+  }
+}
+
+export async function deleteProblemArea(
+  problemAreaId: string
+): Promise<{ status: string, message?: string, data?: ProblemArea }> {
+  const url = `/api/problem-areas/${problemAreaId}`; // Internal Next.js route
+  console.log(`[lib/api] deleteProblemArea calling internal route: DELETE ${url}`);
+
+  try {
+    const response = await fetch(url, {
+      method: 'DELETE',
+      credentials: 'include',
+    });
+
+    const result = await response.json(); // Assume API returns JSON even for DELETE success/error
+    if (!response.ok || result.status !== 'success') {
+      const errorMsg = result.message || 'Failed to delete problem area';
+      console.error(`[lib/api] Error deleting problem area ${problemAreaId} (${response.status}):`, result);
+      throw new Error(errorMsg);
+    }
+    console.log(`[lib/api] Successfully deleted problem area ${problemAreaId}`);
+    // Return the data which might include the deleted object, or adjust as needed
+    return result as { status: string, message?: string, data?: ProblemArea }; 
+  } catch (error) {
+    console.error(`[lib/api] Catch block error deleting problem area ${problemAreaId}:`, error);
+    const message = error instanceof Error ? error.message : 'An unknown error occurred';
+    return { status: 'error', message };
+  }
+}
+
+// --- NEW Project-Specific API Functions ---
+
+// Get a specific project by ID
+export async function getProjectById(projectId: string): Promise<ProjectDetailResponse> {
+  console.log(`[lib/api] getProjectById called for ID: ${projectId}`);
+  if (!projectId) {
+    console.error("[lib/api] getProjectById: projectId is missing.");
+    return { status: 'error', message: 'Project ID is required.' };
+  }
+  try {
+    const apiUrl = `/api/projects/${projectId}`; // Assuming internal route exists
+    console.log(`[lib/api] Fetching from internal API route: ${apiUrl}`);
+
+    const response = await fetch(apiUrl, {
+      method: 'GET',
+      headers: { 'Accept': 'application/json' },
+      credentials: 'include',
+      cache: 'no-store',
+    });
+
+    console.log(`[lib/api] Response status from ${apiUrl}: ${response.status}`);
+    const responseData = await response.json(); // Parse JSON regardless of status
+
+    if (!response.ok) {
+      const errorDetail = JSON.stringify(responseData);
+      console.error(`[lib/api] Error fetching project ${projectId} (${response.status}): ${errorDetail}`);
+      // Return the error structure from the API if possible
+      return { status: 'error', message: responseData.message || responseData.detail || `Failed to fetch project (${response.status})`, data: responseData.data };
+    }
+
+    console.log(`[lib/api] Successfully fetched and parsed project ${projectId}.`);
+    return responseData; // Assumes backend returns { status: 'success', data: Project }
+
+  } catch (error) {
+    console.error(`[lib/api] Catch block error in getProjectById for ${projectId}:`, error);
+    const message = error instanceof Error ? error.message : 'An unknown error occurred';
+    return { status: 'error', message };
+  }
+}
+
+// Get confirmed problem areas for a specific project
+export async function getProjectProblemAreas(projectId: string): Promise<ProjectProblemAreasResponse> {
+  console.log(`[lib/api] getProjectProblemAreas called for project ID: ${projectId}`);
+  if (!projectId) {
+    console.error("[lib/api] getProjectProblemAreas: projectId is missing.");
+    return { status: 'error', message: 'Project ID is required.' };
+  }
+  try {
+    // Internal Next.js API route
+    const apiUrl = `/api/projects/${projectId}/problem-areas`;
+    console.log(`[lib/api] Fetching from internal API route: ${apiUrl}`);
+
+    const response = await fetch(apiUrl, {
+      method: 'GET',
+      headers: { 'Accept': 'application/json' },
+      credentials: 'include',
+      cache: 'no-store',
+    });
+
+    console.log(`[lib/api] Response status from ${apiUrl}: ${response.status}`);
+    const responseData = await response.json(); 
+
+    if (!response.ok) {
+      const errorDetail = JSON.stringify(responseData);
+      console.error(`[lib/api] Error fetching problem areas for project ${projectId} (${response.status}): ${errorDetail}`);
+      return { status: 'error', message: responseData.message || responseData.detail || `Failed to fetch problem areas (${response.status})`, data: responseData.data };
+    }
+
+    console.log(`[lib/api] Successfully fetched problem areas for project ${projectId}.`);
+    // Assuming backend returns { status: 'success', data: { problemAreas: [...] } }
+    return responseData; 
+
+  } catch (error) {
+    console.error(`[lib/api] Catch block error in getProjectProblemAreas for ${projectId}:`, error);
+    const message = error instanceof Error ? error.message : 'An unknown error occurred';
+    return { status: 'error', message };
+  }
+}
+
+// Get interviews for a specific project
+export async function getProjectInterviews(projectId: string): Promise<ProjectInterviewsResponse> {
+  console.log(`[lib/api] getProjectInterviews called for project ID: ${projectId}`);
+  if (!projectId) {
+    console.error("[lib/api] getProjectInterviews: projectId is missing.");
+    return { status: 'error', message: 'Project ID is required.' };
+  }
+  try {
+    const apiUrl = `/api/projects/${projectId}/interviews`; // Internal Next.js API route
+    console.log(`[lib/api] Fetching from internal API route: ${apiUrl}`);
+
+    const response = await fetch(apiUrl, {
+      method: 'GET',
+      headers: { 'Accept': 'application/json' },
+      credentials: 'include',
+      cache: 'no-store',
+    });
+
+    console.log(`[lib/api] Response status from ${apiUrl}: ${response.status}`);
+    const responseData = await response.json();
+
+    if (!response.ok) {
+      const errorDetail = JSON.stringify(responseData);
+      console.error(`[lib/api] Error fetching interviews for project ${projectId} (${response.status}): ${errorDetail}`);
+      return { status: 'error', message: responseData.message || responseData.detail || `Failed to fetch interviews (${response.status})`, data: responseData.data };
+    }
+
+    console.log(`[lib/api] Successfully fetched interviews for project ${projectId}.`);
+    // Assuming backend returns { status: 'success', data: { interviews: [...] } }
+    return responseData;
+
+  } catch (error) {
+    console.error(`[lib/api] Catch block error in getProjectInterviews for ${projectId}:`, error);
+    const message = error instanceof Error ? error.message : 'An unknown error occurred';
+    return { status: 'error', message };
+  }
+}
+
+// --- END NEW Project-Specific API Functions ---
+
+// --- NEW Project Update and Delete Functions ---
+
+/**
+ * Updates a project's name and/or description.
+ * @param projectId The ID of the project to update.
+ * @param data An object containing the fields to update (name, description).
+ * @returns A promise resolving to the API response.
+ */
+export async function updateProject(
+  projectId: string,
+  data: { name?: string; description?: string | null }
+): Promise<{ status: string; message?: string; data?: Project }> {
+  if (!projectId) {
+    throw new Error("Project ID is required to update.");
+  }
+  const url = `/api/projects/${projectId}`; // Internal Next.js route
+  console.log(`[lib/api] updateProject calling internal route: PUT ${url}`);
+
+  try {
+    const response = await fetch(url, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+      body: JSON.stringify(data),
+      credentials: 'include', // Send session cookies
+    });
+
+    const result = await response.json();
+
+    if (!response.ok || result.status !== 'success') {
+      const errorMsg = result.message || result.detail || 'Failed to update project';
+      console.error(`[lib/api] Error updating project ${projectId} (${response.status}):`, result);
+      return { status: 'error', message: `API Error (${response.status}): ${errorMsg}` };
+    }
+
+    console.log(`[lib/api] Successfully updated project ${projectId}`);
+    return result as { status: string; message?: string; data?: Project };
+
+  } catch (error) {
+    console.error(`[lib/api] Catch block error updating project ${projectId}:`, error);
+    const message = error instanceof Error ? error.message : 'An unknown network or unexpected error occurred';
+    return { status: 'error', message };
+  }
+}
+
+/**
+ * Deletes a project.
+ * @param projectId The ID of the project to delete.
+ * @param force Optional: If true, deletes project and associated interviews/problem areas.
+ * @returns A promise resolving to the API response (usually just status/message).
+ */
+export async function deleteProject(
+  projectId: string,
+  force: boolean = false // Add force parameter
+): Promise<{ status: string; message?: string }> {
+  if (!projectId) {
+    throw new Error("Project ID is required to delete.");
+  }
+  let url = `/api/projects/${projectId}`; // Internal Next.js route
+  if (force) {
+    url += '?force=true'; // Append force parameter if true
+  }
+  console.log(`[lib/api] deleteProject calling internal route: DELETE ${url}`);
+
+  try {
+    const response = await fetch(url, {
+      method: 'DELETE',
+      headers: { 'Accept': 'application/json' },
+      credentials: 'include', // Send session cookies
+    });
+
+    // Handle specific known status codes FIRST
+    if (response.status === 204) {
+        console.log(`[lib/api] Successfully deleted project ${projectId} (204 No Content).`);
+        return { status: 'success', message: 'Project deleted successfully' };
+    }
+    if (response.status === 409) {
+        // Assume 409 means "contains interviews" in this context
+        console.log(`[lib/api] Received 409 Conflict for project ${projectId}, likely contains interviews.`);
+        return { status: 'error', message: 'Cannot delete project: It still contains interviews. Please remove or reassign interviews first.' };
+    }
+    
+    // For other status codes (including potential success with body like 200 OK), try to parse JSON
+    let result: any = {}; // Initialize result
+    let errorMsg: string = 'Failed to delete project'; // Default error message
+    try {
+        result = await response.json(); 
+        // Try to get a more specific message from the parsed result
+        errorMsg = result.message || result.detail || errorMsg;
+    } catch (parseError) {
+        console.warn(`[lib/api] Failed to parse JSON response for DELETE ${projectId} (status: ${response.status}).`);
+        // Use status text if JSON parsing fails
+        errorMsg = response.statusText || errorMsg;
+    }
+
+    // Check if the operation was successful based on status code OR parsed result
+    if (!response.ok) {
+       // Log the error only if it wasn't the handled 409
+       console.error(`[lib/api] Error deleting project ${projectId} (${response.status}):`, result); // Log the parsed result (might be {}) or raw error info
+       return { status: 'error', message: `API Error (${response.status}): ${errorMsg}` };
+    }
+
+    // If response.ok is true (e.g., 200 OK), assume success
+    console.log(`[lib/api] Successfully deleted project ${projectId} (Status: ${response.status}).`);
+    return { status: 'success', message: result.message || 'Project deleted successfully' }; // Use message from result if available
+
+  } catch (error) {
+    console.error(`[lib/api] Catch block error deleting project ${projectId}:`, error);
+    const message = error instanceof Error ? error.message : 'An unknown network or unexpected error occurred';
+    return { status: 'error', message };
+  }
+}
+
+// Define a type for the expected success response when creating a project
+// ... existing code ... 

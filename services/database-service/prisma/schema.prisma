@@ -14,13 +14,14 @@ model Interview {
   title            String
   problem_count    Int
   transcript_length Int
-  analysis_data    Json
+  analysis_data    Json      // Keeping temporarily for migration backup
   project_id       String?   @map("project_id")
   participants     String?
   user             User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
   userId           String?
   project          Project?  @relation(fields: [project_id], references: [id], onDelete: SetNull)
   personas         Persona[]
+  problemAreas     ProblemArea[] // Added relation
 
   @@map("interviews")
 }
@@ -75,4 +76,34 @@ model Persona {
 }
 
 // Note: VerificationToken is required for password reset functionality
-// If you need that feature later, this model can be added back 
+// If you need that feature later, this model can be added back
+
+// Added models
+model ProblemArea {
+  id                  String    @id @default(uuid())
+  interview_id        String
+  interview           Interview @relation(fields: [interview_id], references: [id], onDelete: Cascade)
+  title               String
+  description         String    @db.Text
+  is_confirmed        Boolean   @default(false)
+  priority            String?   // Added to support L, M, S priority values
+  created_at          DateTime  @default(now())
+  updated_at          DateTime  @updatedAt
+  excerpts            Excerpt[]
+
+  @@index([interview_id])
+  @@map("problem_areas")
+}
+
+model Excerpt {
+  id              String      @id @default(uuid())
+  problem_area_id String
+  problemArea     ProblemArea @relation(fields: [problem_area_id], references: [id], onDelete: Cascade)
+  quote           String      @db.Text
+  categories      String[]
+  insight         String      @db.Text
+  chunk_number    Int
+
+  @@index([problem_area_id])
+  @@map("excerpts")
+} 

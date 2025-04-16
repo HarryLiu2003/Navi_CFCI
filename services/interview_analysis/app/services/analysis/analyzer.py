@@ -49,19 +49,14 @@ class TranscriptAnalyzer:
             logger.info(f"Parsing transcript from bytes using filename: {filename}")
             text = file_content.decode("utf-8")
             
-            # --- REMOVED RULE-BASED EXTRACTION FROM RAW TEXT --- 
-
-            # Step 2: Parse the transcript based on file extension into initial chunks
-            raw_chunks: List[Dict[str, Any]] = []
+            # Step 2: Parse the transcript based on file extension
+            # _parse_vtt and _parse_txt now return the post-processed chunks directly
             if filename.lower().endswith('.vtt'):
-                raw_chunks = self._parse_vtt(text) # _parse_vtt now calls _post_process_chunks internally
+                processed_chunks = self._parse_vtt(text)
             elif filename.lower().endswith('.txt'):
-                raw_chunks = self._parse_txt(text) # _parse_txt now calls _post_process_chunks internally
+                processed_chunks = self._parse_txt(text)
             else:
                 raise FileProcessingError(f"Unsupported file extension: {filename}")
-
-            # The variable 'raw_chunks' now holds the result from _post_process_chunks
-            processed_chunks = raw_chunks 
 
             if not processed_chunks:
                 logger.error("No valid chunks found in transcript after post-processing")
@@ -69,37 +64,44 @@ class TranscriptAnalyzer:
             
             logger.info(f"Successfully processed {len(processed_chunks)} chunks")
 
-            # --- BEGIN PARTICIPANT EXTRACTION FROM PROCESSED CHUNKS --- 
+            # Step 2b: Extract participants from processed chunks
             unique_speakers = set()
             for chunk in processed_chunks:
                 speaker = chunk.get("speaker")
                 if speaker and speaker != "Unknown":
                     unique_speakers.add(speaker)
-            
             extracted_participants = sorted(list(unique_speakers))
             logger.info(f"Extracted unique participants from chunks: {extracted_participants}")
-            # --- END PARTICIPANT EXTRACTION FROM PROCESSED CHUNKS --- 
             
             # Step 3: Format transcript for LLM analysis
             formatted_transcript = self._format_chunks_for_analysis(processed_chunks)
             
-            # Step 4: Run the analysis pipeline (for synthesis, problems, etc.)
+            # Step 4: Run the analysis pipeline (UPDATED CALL)
             logger.info("Starting analysis with Gemini pipeline")
             try:
                 if not self.analysis_pipeline:
                     logger.error("Analysis pipeline was not initialized properly")
                     raise ConfigurationError("Analysis service configuration error: Gemini pipeline not initialized")
                 
-                result = await self.analysis_pipeline.run_analysis(formatted_transcript)
+                # Calculate max_chunk_number (required by new pipeline)
+                max_chunk_number = max(chunk.get('number', 0) for chunk in processed_chunks) if processed_chunks else 0
+
+                # Call the pipeline with the required arguments
+                result = await self.analysis_pipeline.run_analysis(
+                    transcript_text=formatted_transcript, 
+                    transcript_chunks=processed_chunks, # Pass the structured chunks
+                    participants=extracted_participants # Pass the pre-parsed participants
+                )
                 logger.info("Analysis pipeline completed successfully")
                 
             except Exception as e:
                 logger.error(f"Error in analysis pipeline: {str(e)}")
                 raise AnalysisError(f"Analysis failed: {str(e)}")
             
-            # Step 5: Process results and OVERRIDE participants
-            # Pass the chunk-derived participants to the processing function
-            processed_result = self._process_synthesis_result(result, processed_chunks, extracted_participants)
+            # Step 5: Process results (no longer needs participant override)
+            # The pipeline now returns the final structure including pre-parsed participants
+            # We might still want to add the full transcript chunk data if not included by pipeline
+            processed_result = self._add_full_transcript_to_result(result, processed_chunks)
             
             # Log completion time
             duration = time.time() - start_time
@@ -116,40 +118,43 @@ class TranscriptAnalyzer:
     
     def _parse_vtt(self, vtt_content: str) -> List[Dict[str, Any]]:
         """
-        Parse standard VTT content, handling cue identifiers.
+        Parse standard VTT content, capturing timestamps.
         Args: vtt_content: String content of VTT file
-        Returns: List of dictionaries with speaker and text information
+        Returns: List of dictionaries with number, timestamp, text
         """
         logger.info("Parsing using VTT logic")
         lines = vtt_content.strip().split("\n")
         chunks = []
         chunk_number = 0
         current_text = []
+        current_timestamp = "" # Store the timestamp for the current cue
         in_cue_block = False 
 
         for line in lines:
             line = line.strip()
 
-            if "WEBVTT" in line: continue # Ignore header
+            if "WEBVTT" in line: continue
 
             if "-->" in line:
                 if in_cue_block and current_text: # Finalize previous cue block
                     chunk_number += 1
-                    chunks.append({"number": chunk_number, "text": " ".join(current_text).strip()})
+                    # Include timestamp when adding chunk
+                    chunks.append({"number": chunk_number, "timestamp": current_timestamp, "text": " ".join(current_text).strip()})
                 current_text = []
+                current_timestamp = line # Capture the timestamp line
                 in_cue_block = True 
                 continue 
 
             if in_cue_block:
-                if not line: # Empty line ends cue block
+                if not line: 
                     if current_text:
                         chunk_number += 1
-                        chunks.append({"number": chunk_number, "text": " ".join(current_text).strip()})
+                        chunks.append({"number": chunk_number, "timestamp": current_timestamp, "text": " ".join(current_text).strip()})
                     current_text = []
+                    current_timestamp = ""
                     in_cue_block = False
                     continue
 
-                # Ignore cue identifier (digit only, first line in block)
                 if line.isdigit() and not current_text:
                     continue 
                 else:
@@ -157,72 +162,78 @@ class TranscriptAnalyzer:
 
         if in_cue_block and current_text: # Capture last cue
             chunk_number += 1
-            chunks.append({"number": chunk_number, "text": " ".join(current_text).strip()})
+            chunks.append({"number": chunk_number, "timestamp": current_timestamp, "text": " ".join(current_text).strip()})
 
         return self._post_process_chunks(chunks)
 
 
     def _parse_txt(self, txt_content: str) -> List[Dict[str, Any]]:
         """
-        Parse TXT content assuming VTT-like structure but potentially missing header/identifiers.
+        Parse TXT content assuming VTT-like structure, capturing timestamps.
         Args: txt_content: String content of the TXT file
-        Returns: List of dictionaries with speaker and text information
+        Returns: List of dictionaries with number, timestamp, text
         """
         logger.info("Parsing using TXT logic")
         lines = txt_content.strip().split("\n")
         chunks = []
         chunk_number = 0
         current_text = []
+        current_timestamp = "" # Store the timestamp
         in_cue_block = False 
 
         for line in lines:
             line = line.strip()
 
-            # Ignore WEBVTT if present, but don't require it
             if "WEBVTT" in line: continue 
 
             if "-->" in line:
-                if in_cue_block and current_text: # Finalize previous cue block
+                if in_cue_block and current_text:
                     chunk_number += 1
-                    chunks.append({"number": chunk_number, "text": " ".join(current_text).strip()})
+                    chunks.append({"number": chunk_number, "timestamp": current_timestamp, "text": " ".join(current_text).strip()})
                 current_text = []
+                current_timestamp = line # Capture timestamp
                 in_cue_block = True 
                 continue 
 
             if in_cue_block:
-                if not line: # Empty line can end cue block
+                if not line: 
                     if current_text:
                         chunk_number += 1
-                        chunks.append({"number": chunk_number, "text": " ".join(current_text).strip()})
+                        chunks.append({"number": chunk_number, "timestamp": current_timestamp, "text": " ".join(current_text).strip()})
                     current_text = []
-                    in_cue_block = False # Assume next non-empty line might be timestamp
+                    current_timestamp = ""
+                    in_cue_block = False
                     continue
                 
-                # Unlike VTT, we don't explicitly ignore numeric lines here
                 current_text.append(line)
 
         if in_cue_block and current_text: # Capture last cue
             chunk_number += 1
-            chunks.append({"number": chunk_number, "text": " ".join(current_text).strip()})
+            chunks.append({"number": chunk_number, "timestamp": current_timestamp, "text": " ".join(current_text).strip()})
         
         return self._post_process_chunks(chunks)
 
     def _post_process_chunks(self, chunks: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-        """Shared logic to extract speaker from parsed chunks."""
+        """Shared logic to extract speaker from parsed chunks, preserving timestamp."""
         processed_chunks = []
         for chunk in chunks:
             text = chunk["text"]
+            timestamp = chunk.get("timestamp", "") # Get timestamp
+            number = chunk["number"]
+            
             if ": " in text:
                 speaker, actual_text = text.split(": ", 1)
                 processed_chunks.append({
-                    "number": chunk["number"],
+                    "number": number,
+                    "timestamp": timestamp, # Keep timestamp
                     "speaker": speaker.strip(),
                     "text": actual_text.strip()
                 })
             else:
                 processed_chunks.append({
-                    "number": chunk["number"],
-                    "speaker": "Unknown", # Assign Unknown if no ': ' separator
+                    "number": number,
+                    "timestamp": timestamp, # Keep timestamp
+                    "speaker": "Unknown", 
                     "text": text
                 })
         
@@ -276,76 +287,28 @@ class TranscriptAnalyzer:
             
         return "\n".join(formatted_lines)
     
-    def _process_synthesis_result(self, 
-                                 result: Dict[str, Any], 
-                                 chunks: List[Dict[str, Any]],
-                                 extracted_participants: List[str]) -> Dict[str, Any]:
+    def _add_full_transcript_to_result(self, 
+                                       result: Dict[str, Any], 
+                                       chunks: List[Dict[str, Any]]) -> Dict[str, Any]:
         """
-        Process analysis result, enrich with transcript, OVERRIDE participants.
+        Ensures the full transcript data, including timestamps, is present.
         """
-        # Create a mapping of chunk numbers to chunks for easy lookup
-        chunk_map = {chunk["number"]: chunk for chunk in chunks}
-        
-        # Convert chunks to a format expected by the frontend
-        transcript = []
-        for chunk in chunks:
-            transcript.append({
-                "chunk_number": chunk["number"],
-                "speaker": chunk["speaker"],
-                "text": chunk["text"]
-            })
-        
-        # Add the transcript to the result
-        result["transcript"] = transcript
-        
-        # Process problem areas if present
-        if "problem_areas" in result:
-            for problem_area in result["problem_areas"]:
-                # Process excerpts to add chunk information
-                if "excerpts" in problem_area:
-                    for excerpt in problem_area["excerpts"]:
-                        # Ensure categories is an array
-                        if "categories" not in excerpt:
-                            excerpt["categories"] = ["Pain Point"]  # Default category
-                            
-                        # Map chunk references to actual chunks
-                        if "chunk_number" in excerpt and excerpt["chunk_number"] in chunk_map:
-                            chunk = chunk_map[excerpt["chunk_number"]]
-                            if "quote" not in excerpt:
-                                excerpt["quote"] = chunk["text"]
-        
-        # Ensure metadata fields exist (though Pydantic model should handle this)
-        if "metadata" not in result:
-            result["metadata"] = {}
-            
-        # Add basic metadata (potentially redundant if included in LLM response)
-        result["metadata"]["transcript_length"] = len(chunks) 
-        
-        # Add counts if not already present in metadata from LLM
-        if "problem_areas_count" not in result["metadata"]:
-            result["metadata"]["problem_areas_count"] = len(result.get("problem_areas", []))
-            
-        if "excerpts_count" not in result["metadata"]:
-            excerpts_count = 0
-            for problem_area in result.get("problem_areas", []):
-                excerpts_count += len(problem_area.get("excerpts", []))
-            result["metadata"]["excerpts_count"] = excerpts_count
-        
-        # --- OVERRIDE PARTICIPANTS --- 
-        # Use the list derived from processed chunks
-        result["participants"] = extracted_participants
-        logger.info(f"Final participants list set to: {extracted_participants}")
+        if "transcript" not in result or not result["transcript"]:
+             # Reconstruct from chunks, including timestamp
+            transcript_data = [
+                {
+                    "chunk_number": chunk["number"],
+                    "speaker": chunk["speaker"],
+                    "text": chunk["text"],
+                    "timestamp": chunk.get("timestamp", "") # Include timestamp
+                } for chunk in chunks
+            ]
+            result["transcript"] = transcript_data
+            logger.info("Added full transcript data (with timestamps) to the final result.")
+        # Ensure timestamp exists even if transcript was already present
+        elif result["transcript"] and chunks and len(result["transcript"]) == len(chunks):
+            for i, res_chunk in enumerate(result["transcript"]):
+                 if "timestamp" not in res_chunk:
+                     res_chunk["timestamp"] = chunks[i].get("timestamp", "")
 
-        # Remove interviewer/interviewee fields derived from LLM if they exist,
-        # as they are now potentially inconsistent with the rule-based list.
-        # Keep the main 'speakers' dict for backward compatibility if needed elsewhere, 
-        # but mark it as potentially inaccurate.
-        result.pop("interviewer", None)
-        result.pop("interviewee", None)
-        result["speakers"] = {
-            "interviewer": None, 
-            "interviewee": None, 
-            "_source": "Participants extracted via rule-based logic, speaker roles not inferred."
-        }
-        
         return result 

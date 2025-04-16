@@ -20,15 +20,16 @@ interface UploadTranscriptModalProps {
   isOpen: boolean;
   onOpenChange: (isOpen: boolean) => void;
   onUploadComplete: () => void; // Callback to potentially refresh interviews list
+  preSelectedProjectId?: string; // Optional prop for pre-selecting a project
 }
 
-export function UploadTranscriptModal({ isOpen, onOpenChange, onUploadComplete }: UploadTranscriptModalProps) {
+export function UploadTranscriptModal({ isOpen, onOpenChange, onUploadComplete, preSelectedProjectId }: UploadTranscriptModalProps) {
   const router = useRouter();
   const { data: session } = useSession();
 
   // State for the modal
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [selectedProjectId, setSelectedProjectId] = useState<string | undefined>(undefined);
+  const [selectedProjectId, setSelectedProjectId] = useState<string | undefined>(preSelectedProjectId);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   
   // State for project combobox within the modal
@@ -74,6 +75,13 @@ export function UploadTranscriptModal({ isOpen, onOpenChange, onUploadComplete }
     // Don't reset projects/loading state here, only on open
     onOpenChange(false);
   };
+
+  // Update selected project when preSelectedProjectId changes or modal opens
+  useEffect(() => {
+    if (isOpen) {
+      setSelectedProjectId(preSelectedProjectId);
+    }
+  }, [isOpen, preSelectedProjectId]);
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     if (event.target.files && event.target.files[0]) {

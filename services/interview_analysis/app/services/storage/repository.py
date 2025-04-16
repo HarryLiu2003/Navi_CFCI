@@ -29,89 +29,122 @@ class InterviewRepository:
     ) -> Dict[str, Any]:
         """
         Store interview analysis result via the database service.
+        Now includes transforming problem areas/excerpts for relational storage.
         
         Args:
             analysis_result: The analysis result from the interview
             metadata: Additional metadata about the interview (optional)
             
         Returns:
-            The stored interview data with ID
+            The stored interview data with ID (usually just the ID)
             
         Raises:
             StorageError: If there's an error storing the interview data
         """
         try:
-            # Prepare data for storage
-            interview_data = {
+            # Prepare BASE interview data (excluding problem areas for nested creation)
+            base_interview_data = {
                 "title": self._extract_title(analysis_result, metadata),
                 "problem_count": len(analysis_result.get("problem_areas", [])),
                 "transcript_length": analysis_result.get("metadata", {}).get("transcript_length", 0),
-                "analysis_data": analysis_result,
+                "analysis_data": analysis_result, # Keep sending the blob for backup
             }
             
             # Add optional metadata if provided
             if metadata:
                 if "project_id" in metadata and metadata["project_id"]:
-                    interview_data["project_id"] = metadata["project_id"]
-                if "interviewer" in metadata and metadata["interviewer"]:
-                    interview_data["interviewer"] = metadata["interviewer"]
-                if "interview_date" in metadata and metadata["interview_date"]:
-                    interview_data["interview_date"] = metadata["interview_date"]
+                    base_interview_data["project_id"] = metadata["project_id"]
+                # Removed interviewer and interview_date as they aren't on the base Interview model
+                # if "interviewer" in metadata and metadata["interviewer"]:
+                #     base_interview_data["interviewer"] = metadata["interviewer"]
+                # if "interview_date" in metadata and metadata["interview_date"]:
+                #     base_interview_data["interview_date"] = metadata["interview_date"]
                 if "userId" in metadata and metadata["userId"]:
-                    interview_data["userId"] = metadata["userId"]
+                    base_interview_data["userId"] = metadata["userId"]
+
+            # Prepare NESTED problem area data (if any)
+            problem_areas_payload: List[Dict[str, Any]] = []
+            raw_problem_areas = analysis_result.get("problem_areas", [])
+            if isinstance(raw_problem_areas, list):
+                for pa in raw_problem_areas:
+                    if isinstance(pa, dict) and pa.get("problem_id") and pa.get("title") and pa.get("description"):
+                        excerpts_payload: List[Dict[str, Any]] = []
+                        raw_excerpts = pa.get("excerpts", [])
+                        if isinstance(raw_excerpts, list):
+                            for ex in raw_excerpts:
+                                # Basic validation of excerpt structure
+                                if isinstance(ex, dict) and ex.get("quote") and ex.get("categories") and ex.get("insight") and ex.get("chunk_number") is not None:
+                                    excerpts_payload.append({
+                                        "quote": ex["quote"],
+                                        "categories": ex["categories"],
+                                        "insight": ex["insight"],
+                                        "chunk_number": ex["chunk_number"],
+                                    })
+                                else:
+                                    logger.warning(f"Skipping invalid excerpt structure: {ex}")
+                        
+                        problem_areas_payload.append({
+                            "title": pa["title"],
+                            "description": pa["description"],
+                            "excerpts": excerpts_payload
+                        })
+                    else:
+                         logger.warning(f"Skipping invalid problem area structure: {pa}")
+            else:
+                 logger.warning(f"Problem areas field is not a list: {raw_problem_areas}")
+
+            # Combine base data and nested data for the final payload
+            final_payload = base_interview_data.copy()
+            if problem_areas_payload: # Only add if there are valid problem areas
+                final_payload["problemAreasData"] = problem_areas_payload
             
-            logger.info(f"Storing interview with title: {interview_data['title']}")
-            logger.debug(f"Interview data: {interview_data}")
+            logger.info(f"Storing interview with title: {final_payload.get('title')}")
+            logger.debug(f"Final payload keys: {list(final_payload.keys())}")
             
             # Use authenticated service call (works in both production and development)
             try:
-                # Log URL for debugging
                 endpoint_url = f"{self.api_url}/interviews"
-                logger.info(f"Calling database service at: {endpoint_url}")
+                logger.info(f"Calling database service POST {endpoint_url}")
                 
-                # Make the API call
+                # Make the API call with the combined payload
                 result = await call_authenticated_service(
                     service_url=endpoint_url, 
                     method="POST", 
-                    json_data=interview_data
+                    json_data=final_payload
                 )
                 
                 # Check if the result is an error response from call_authenticated_service
                 if isinstance(result, dict) and result.get("status") == "error":
                     error_msg = result.get("message", "Unknown error from service call")
-                    logger.error(f"Error from call_authenticated_service: {error_msg}")
+                    logger.error(f"Error from call_authenticated_service storing interview: {error_msg}")
                     raise StorageError(f"Service call error: {error_msg}")
                 
                 # Check if the result is a success response from the database service
                 if isinstance(result, dict) and result.get("status") != "success":
-                    error_msg = result.get("message", "Unknown error")
-                    logger.error(f"Database service returned error: {error_msg}")
+                    error_msg = result.get("message", "Unknown error storing interview")
+                    logger.error(f"Database service returned error on interview creation: {error_msg}")
                     raise StorageError(f"Failed to store interview: {error_msg}")
                 
-                # Get the stored interview data
-                stored_interview = result.get("data")
+                # Get the stored interview data (likely just the ID now)
+                stored_interview_info = result.get("data")
                 
-                if not stored_interview:
-                    logger.error("No data returned after interview insertion")
+                if not stored_interview_info or not stored_interview_info.get('id'):
+                    logger.error("No data or ID returned after interview insertion")
                     logger.error(f"Full response: {result}")
-                    raise StorageError("No data returned after interview insertion")
+                    raise StorageError("No ID returned after interview insertion")
                     
-                logger.info(f"Successfully stored interview with ID: {stored_interview.get('id')}")
-                return stored_interview
+                logger.info(f"Successfully initiated storage for interview ID: {stored_interview_info.get('id')}")
+                # Return the essential info (like ID) received from the DB service
+                return stored_interview_info
                     
             except StorageError:
-                # Re-raise storage errors
-                raise
+                raise # Re-raise storage errors
             except Exception as e:
-                logger.error(f"Error storing interview: {str(e)}", exc_info=True)
-                raise StorageError(f"Failed to store interview: {str(e)}")
+                logger.error(f"Error during authenticated call to store interview: {str(e)}", exc_info=True)
+                raise StorageError(f"Failed to call database service: {str(e)}")
                 
-        except StorageError:
-            # Re-raise storage errors
-            raise
-            
         except Exception as e:
-            logger.error(f"Error preparing interview data: {str(e)}", exc_info=True)
+            logger.error(f"Error preparing interview data for storage: {str(e)}", exc_info=True)
             raise StorageError(f"Failed to prepare interview data: {str(e)}")
     
     async def get_interview_by_id(self, interview_id: str) -> Dict[str, Any]:

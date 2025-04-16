@@ -20,10 +20,15 @@ import {
   Users,
   FileText,
   Search,
+  Trash2,
+  Loader2,
+  X,
+  ChevronsLeft,
+  ChevronsRight,
 } from "lucide-react"
 import { Dialog, DialogTrigger } from "@/components/ui/dialog"
 import { useRouter } from 'next/navigation'
-import { getInterviews, Interview, getProjects, Project } from '@/lib/api'
+import { getInterviews, Interview, getProjects, Project, deleteInterview } from '@/lib/api'
 import { toast } from 'sonner'
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { 
@@ -44,10 +49,16 @@ import {
 import { cn } from "@/lib/utils"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Input } from "@/components/ui/input"
+import { Checkbox } from "@/components/ui/checkbox"
+import { Breadcrumb } from "@/components/ui/breadcrumb"
+
+// Import Sheet components
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet"
 
 // Import the new modal components
 import { CreateProjectModal } from "@/components/dialogs/CreateProjectModal"
 import { UploadTranscriptModal } from "@/components/dialogs/UploadTranscriptModal"
+import { BatchDeleteConfirmationDialog } from '@/components/dialogs/BatchDeleteConfirmationDialog'
 
 // Custom Month Picker Component (from reference)
 function MonthPicker({
@@ -199,6 +210,14 @@ export default function Home() {
   const [hasMoreInterviews, setHasMoreInterviews] = useState(true)
   const [isLoadingMoreInterviews, setIsLoadingMoreInterviews] = useState(false)
   const INTERVIEWS_PER_PAGE = 20
+
+  // --- NEW State for Project List Sheet ---
+  const [isProjectsSheetOpen, setIsProjectsSheetOpen] = useState(false);
+
+  // --- NEW State for Selection & Batch Delete ---
+  const [selectedInterviewIds, setSelectedInterviewIds] = useState<Set<string>>(new Set());
+  const [isBatchDeleteConfirmOpen, setIsBatchDeleteConfirmOpen] = useState(false);
+  const [isBatchDeleting, setIsBatchDeleting] = useState(false);
 
   // --- Data Fetching (Defined before useEffect) ---
 
@@ -381,13 +400,114 @@ export default function Home() {
     interview => showAllInterviews || !interview.project_id
   );
 
-  // Project sorting remains the same
+  // --- NEW Project Sorting Logic ---
   const sortedProjects = [...projects].sort((a, b) => {
-    const dateA = a.updatedAt ? new Date(a.updatedAt).getTime() : 0;
-    const dateB = b.updatedAt ? new Date(b.updatedAt).getTime() : 0;
-    return dateB - dateA;
+    // Helper to safely parse date and return timestamp or 0
+    const getTime = (dateString: string | undefined | null): number => {
+      if (!dateString) return 0;
+      try {
+        return new Date(dateString).getTime();
+      } catch {
+        return 0;
+      }
+    };
+
+    // Get the latest interview date for project A, default to 0 if none
+    const latestInterviewTimeA = a.interviews && a.interviews.length > 0 
+      ? getTime(a.interviews[0].created_at) 
+      : 0;
+    // Get the project update time for project A
+    const projectUpdateTimeA = getTime(a.updatedAt);
+    // Use the more recent of the two for comparison
+    const effectiveTimestampA = Math.max(latestInterviewTimeA, projectUpdateTimeA);
+
+    // Get the latest interview date for project B, default to 0 if none
+    const latestInterviewTimeB = b.interviews && b.interviews.length > 0 
+      ? getTime(b.interviews[0].created_at) 
+      : 0;
+    // Get the project update time for project B
+    const projectUpdateTimeB = getTime(b.updatedAt);
+    // Use the more recent of the two for comparison
+    const effectiveTimestampB = Math.max(latestInterviewTimeB, projectUpdateTimeB);
+
+    // Sort descending (newest first)
+    return effectiveTimestampB - effectiveTimestampA;
   });
+  // Display only the top 3 sorted projects
   const displayedProjects = sortedProjects.slice(0, 3);
+
+  // --- NEW Batch Delete Logic ---
+  const handleBatchDelete = async () => {
+    setIsBatchDeleting(true);
+    const idsToDelete = Array.from(selectedInterviewIds);
+    let successCount = 0;
+    let failCount = 0;
+
+    const results = await Promise.allSettled(
+      idsToDelete.map(id => deleteInterview(id))
+    );
+
+    results.forEach((result, index) => {
+      if (result.status === 'fulfilled' && result.value.status === 'success') {
+        successCount++;
+      } else {
+        failCount++;
+        const interviewId = idsToDelete[index];
+        const interviewTitle = interviews.find(i => i.id === interviewId)?.title || interviewId;
+        const errorMessage = (result.status === 'rejected') 
+          ? result.reason?.message 
+          : (result.value as any)?.message || 'Unknown error';
+        console.error(`Failed to delete interview ${interviewTitle} (${interviewId}): ${errorMessage}`);
+      }
+    });
+
+    if (successCount > 0) {
+      toast.success(`${successCount} interview${successCount > 1 ? 's' : ''} deleted successfully.`);
+      setInterviews(prev => prev.filter(interview => !selectedInterviewIds.has(interview.id)));
+    }
+    if (failCount > 0) {
+      toast.error(`${failCount} interview${failCount > 1 ? 's' : ''} could not be deleted. See console for details.`);
+    }
+
+    setSelectedInterviewIds(new Set());
+    setIsBatchDeleteConfirmOpen(false);
+    setIsBatchDeleting(false);
+  };
+
+  // --- Selection Logic ---
+  const handleRowCheckboxChange = (checked: boolean | 'indeterminate', interviewId: string) => {
+    setSelectedInterviewIds(prev => {
+      const newSet = new Set(prev);
+      if (checked === true) {
+        newSet.add(interviewId);
+      } else {
+        newSet.delete(interviewId);
+      }
+      return newSet;
+    });
+  };
+
+  const handleHeaderCheckboxChange = (checked: boolean | 'indeterminate') => {
+    if (checked === true) {
+      setSelectedInterviewIds(new Set(interviewsToDisplay.map(i => i.id)));
+    } else {
+      setSelectedInterviewIds(new Set());
+    }
+  };
+
+  const getHeaderCheckboxState = () => {
+    const visibleIds = new Set(interviewsToDisplay.map(i => i.id));
+    const selectedVisibleCount = Array.from(selectedInterviewIds).filter(id => visibleIds.has(id)).length;
+    
+    if (selectedVisibleCount === 0 || interviewsToDisplay.length === 0) {
+      return false;
+    } else if (selectedVisibleCount === interviewsToDisplay.length) {
+      return true;
+    } else {
+      return 'indeterminate';
+    }
+  };
+  const headerCheckboxState = getHeaderCheckboxState(); // Calculate once for render
 
   // --- Render Logic ---
 
@@ -412,11 +532,14 @@ export default function Home() {
       <div className="px-4 md:px-8 py-3.5 border-b border-border/40 bg-background/70 backdrop-blur supports-[backdrop-filter]:bg-background/60">
         <div className="max-w-7xl mx-auto">
           <div className="flex justify-between items-center">
-            <div className="flex items-center gap-2">
-              <h1 className="text-lg font-semibold tracking-tight bg-gradient-to-r from-foreground/90 to-foreground/70 bg-clip-text text-transparent">
-                Navi ProductForce
-              </h1>
-              <Badge variant="outline" className="font-normal text-xs text-muted-foreground/70 bg-background/50">Beta</Badge>
+            <div className="flex items-center gap-4">
+              <div className="flex items-center gap-2">
+                <h1 className="text-lg font-semibold tracking-tight bg-gradient-to-r from-foreground/90 to-foreground/70 bg-clip-text text-transparent">
+                  Navi ProductForce
+                </h1>
+                <Badge variant="outline" className="font-normal text-xs text-muted-foreground/70 bg-background/50">Beta</Badge>
+              </div>
+              <Breadcrumb items={[]} />
             </div>
             
             <div className="flex items-center gap-4">
@@ -427,6 +550,9 @@ export default function Home() {
               >
                 <Bell className="h-4 w-4" />
               </Button>
+              
+              {/* Divider */}
+              <div className="h-5 w-px bg-border/50"></div>
               
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
@@ -444,7 +570,11 @@ export default function Home() {
                     <ChevronDown className="h-3.5 w-3.5 opacity-50" />
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-56">
+                <DropdownMenuContent 
+                  align="end" 
+                  className="w-56"
+                  onCloseAutoFocus={(e) => e.preventDefault()}
+                >
                   <DropdownMenuLabel className="text-muted-foreground/80">My Account</DropdownMenuLabel>
                   <DropdownMenuSeparator />
                   <DropdownMenuGroup>
@@ -543,7 +673,7 @@ export default function Home() {
                     <> 
                       {/* Project Cards (Mapped from displayedProjects) */}
                       {displayedProjects.map((project) => (
-                        <Link href={`/project/${project.id}`} key={project.id} className="block">
+                        <Link href={`/project/${project.id}/prioritize`} key={project.id} className="block">
                           <Card className="h-full overflow-hidden border border-border/40 hover:border-border/80 transition-all duration-200 hover:shadow-md">
                             <div className="h-1 bg-primary/80 w-full"></div> 
                             <CardHeader className="pb-3 pt-5">
@@ -561,10 +691,13 @@ export default function Home() {
                                 <div className="flex items-center justify-between text-sm">
                                   <div className="flex items-center text-muted-foreground/80">
                                     <CalendarIconLucide className="h-3.5 w-3.5 mr-2" />
-                                    <span>Last updated</span>
+                                    <span>Last Interview</span>
                                   </div>
                                   <span className="text-foreground/90">
-                                    {project.updatedAt ? formatDate(project.updatedAt) : "N/A"}
+                                    {(project.interviews && project.interviews.length > 0 && project.interviews[0].created_at)
+                                      ? formatDate(project.interviews[0].created_at)
+                                      : "None"
+                                    }
                                   </span>
                                 </div>
                                 <div className="flex items-center justify-between text-sm">
@@ -573,7 +706,8 @@ export default function Home() {
                                     <span>Interviews</span>
                                   </div>
                                   <span className="text-foreground/90">
-                                    {project._count?.interviews ?? 0} last month
+                                    {/* Display the count (which now represents last month) */}
+                                    {project._count?.interviews ?? 0} last month 
                                   </span>
                                 </div>
                               </div>
@@ -585,7 +719,7 @@ export default function Home() {
                                     {getInitials(project.owner?.name)}
                                   </AvatarFallback>
                                 </Avatar>
-                                <span className="text-sm text-foreground/90 font-medium truncate" title={project.owner?.name ?? project.ownerId}>
+                                <span className="text-sm text-foreground/90 truncate" title={project.owner?.name ?? project.ownerId}>
                                   {project.owner?.name ?? `Owner ${project.ownerId.substring(0, 6)}...`}
                                 </span>
                               </div>
@@ -601,24 +735,25 @@ export default function Home() {
                       )}>
                         {/* Conditional View All Projects */} 
                         {projects.length >= 4 && (
-                          <Link href="/projects" className="block">
-                             <Card className="h-full overflow-hidden border border-border/40 hover:border-border/80 transition-all duration-200 hover:shadow-md">
-                              <div className="h-1 bg-primary/80 w-full"></div>
-                              <CardHeader className="pb-3 pt-5">
-                                <div className="flex items-center justify-between">
-                                  <div>
-                                    <CardTitle className="text-xl font-semibold tracking-tight text-foreground/90 hover:text-primary transition-colors">
-                                      View All Projects
-                                    </CardTitle>
-                                    <CardDescription className="text-sm text-muted-foreground/90 mt-1.5">
-                                      {projects.length} total projects
-                                    </CardDescription>
-                                  </div>
-                                  <ChevronRight className="h-5 w-5 text-muted-foreground/50 group-hover:text-primary/70 transition-colors" />
+                          <Card 
+                            className="h-full overflow-hidden border border-border/40 hover:border-border/80 transition-all duration-200 hover:shadow-md cursor-pointer"
+                            onClick={() => setIsProjectsSheetOpen(true)}
+                          >
+                            <div className="h-1 bg-primary/80 w-full"></div>
+                            <CardHeader className="pb-3 pt-5">
+                              <div className="flex items-center justify-between">
+                                <div>
+                                  <CardTitle className="text-xl font-semibold tracking-tight text-foreground/90 hover:text-primary transition-colors">
+                                    View All Projects
+                                  </CardTitle>
+                                  <CardDescription className="text-sm text-muted-foreground/90 mt-1.5">
+                                    {projects.length} total projects
+                                  </CardDescription>
                                 </div>
-                              </CardHeader>
-                            </Card>
-                          </Link>
+                                <ChevronRight className="h-5 w-5 text-muted-foreground/50 transition-colors" />
+                              </div>
+                            </CardHeader>
+                          </Card>
                         )}
                         
                         {/* Add New Project Card - Triggers CreateProjectModal */} 
@@ -659,68 +794,109 @@ export default function Home() {
                 </div>
 
                 <div className="space-y-5">
-                  <div className="flex flex-col sm:flex-row gap-4">
-                    <Button
-                      variant="outline"
-                      size="default"
-                      className="w-[200px] justify-start text-left font-normal border-border/40 hover:border-border/60 transition-colors h-10"
-                      onClick={() => setShowAllInterviews(!showAllInterviews)}
-                    >
-                      {showAllInterviews ? (
-                        <>
-                          <Users className="h-4 w-4 mr-2" />
-                          Show Unassigned
-                        </>
-                      ) : (
-                        <>
-                          <FileText className="h-4 w-4 mr-2" />
-                          Show All Interviews
-                        </>
-                      )}
-                    </Button>
-
-                    <div className="relative flex-1">
-                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground/60" />
-                      <Input
-                        placeholder="Search interviews by title..."
-                        className="pl-9 bg-background border-border/40 hover:border-border/60 transition-colors"
-                        value={interviewTitleSearch}
-                        onChange={(e: React.ChangeEvent<HTMLInputElement>) => setInterviewTitleSearch(e.target.value)}
-                      />
-                    </div>
-                    <Popover>
-                      <PopoverTrigger asChild>
+                  {/* Filter controls are always visible now (unless hidden by other logic) */}
+                  <div className="flex flex-col sm:flex-row gap-4 items-center min-h-[40px]">
+                      <>
                         <Button
                           variant="outline"
-                          className={`w-full sm:w-[200px] justify-start text-left font-normal border-border/40 hover:border-border/60 transition-colors ${!selectedMonth ? "text-muted-foreground/70" : ""}`}
+                          size="default"
+                          className="w-[200px] justify-start text-left font-normal border-border/40 hover:border-border/60 transition-colors h-10"
+                          onClick={() => setShowAllInterviews(!showAllInterviews)}
                         >
-                          <CalendarIconLucide className="mr-2 h-4 w-4" />
-                          {selectedMonth 
-                            ? selectedMonth.toLocaleDateString('en-US', { month: 'long', year: 'numeric' }) 
-                            : "Filter by month"}
+                          {showAllInterviews ? (
+                            <>
+                              <Users className="h-4 w-4 mr-2" />
+                              Show Unassigned
+                            </>
+                          ) : (
+                            <>
+                              <FileText className="h-4 w-4 mr-2" />
+                              Show All Interviews
+                            </>
+                          )}
                         </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0" align="start">
-                        <MonthPicker selected={selectedMonth} onSelect={setSelectedMonth} />
-                        {selectedMonth && (
-                          <div className="p-3 border-t border-border/20">
-                            <Button variant="ghost" size="sm" className="w-full" onClick={() => setSelectedMonth(undefined)}>
-                              Clear
+
+                        <div className="relative flex-1">
+                          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground/60" />
+                          <Input
+                            placeholder="Search interviews by title..."
+                            className="pl-9 bg-background border-border/40 hover:border-border/60 transition-colors"
+                            value={interviewTitleSearch}
+                            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setInterviewTitleSearch(e.target.value)}
+                          />
+                        </div>
+                        <Popover>
+                          <PopoverTrigger asChild>
+                            <Button
+                              variant="outline"
+                              className={`w-full sm:w-[200px] justify-start text-left font-normal border-border/40 hover:border-border/60 transition-colors ${!selectedMonth ? "text-muted-foreground/70" : ""}`}
+                            >
+                              <CalendarIconLucide className="mr-2 h-4 w-4" />
+                              {selectedMonth 
+                                ? selectedMonth.toLocaleDateString('en-US', { month: 'long', year: 'numeric' }) 
+                                : "Filter by month"}
                             </Button>
-                          </div>
-                        )}
-                      </PopoverContent>
-                    </Popover>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-auto p-0" align="start">
+                            <MonthPicker selected={selectedMonth} onSelect={setSelectedMonth} />
+                            {selectedMonth && (
+                              <div className="p-3 border-t border-border/20">
+                                <Button variant="ghost" size="sm" className="w-full" onClick={() => setSelectedMonth(undefined)}>
+                                  Clear
+                                </Button>
+                              </div>
+                            )}
+                          </PopoverContent>
+                        </Popover>
+                      </>
                   </div>
 
+                  {/* Interviews Table */}
                   <div className="bg-card rounded-lg border border-border/40 overflow-hidden shadow-sm">
                     {/* Sticky Header */}
                     <div className="bg-muted/30 border-b border-border/40 sticky top-0 z-10 backdrop-blur-sm supports-[backdrop-filter]:bg-background/60">
-                      <div className="grid grid-cols-12 gap-0 px-0 text-sm font-medium text-muted-foreground/90">
-                        <div className="col-span-4 px-6 py-3.5 border-r border-border/20 whitespace-nowrap overflow-x-auto scrollbar-thin">Title</div>
-                        <div className="col-span-2 px-6 py-3.5 border-r border-border/20 whitespace-nowrap overflow-x-auto scrollbar-thin">Date</div>
-                        <div className="col-span-2 px-6 py-3.5 border-r border-border/20 whitespace-nowrap overflow-x-auto scrollbar-thin">Project</div>
-                        <div className="col-span-4 px-6 py-3.5 whitespace-nowrap overflow-x-auto scrollbar-thin">Participants</div>
+                      {/* === 5 COLUMN GRID HEADER === */}
+                      <div className="grid grid-cols-[auto_minmax(0,4fr)_minmax(0,2fr)_minmax(0,2fr)_minmax(0,3fr)] gap-0 px-0 text-sm font-medium text-muted-foreground/90 items-center">
+                        {/* Col 1: Checkbox */}
+                        <div className="col-span-1 px-4 py-3.5 border-r border-border/20 flex items-center justify-center">
+                          <Checkbox
+                            id="select-all-interviews"
+                            checked={headerCheckboxState}
+                            onCheckedChange={handleHeaderCheckboxChange}
+                            aria-label="Select all visible interviews"
+                            disabled={interviewsToDisplay.length === 0}
+                            className={interviewsToDisplay.length === 0 ? 'opacity-50' : ''}
+                          />
+                        </div>
+                        {/* Col 2: Title */}
+                        <div className="col-span-1 px-6 py-3.5 border-r border-border/20 whitespace-nowrap">Title</div>
+                        {/* Col 3: Date */}
+                        <div className="col-span-1 px-6 py-3.5 border-r border-border/20 whitespace-nowrap">Date</div>
+                        {/* Col 4: Project */}
+                        <div className="col-span-1 px-6 py-3.5 border-r border-border/20 whitespace-nowrap">Project</div>
+                        {/* Col 5: Participants Header + Delete Action */}
+                        <div className="col-span-1 px-6 py-3.5 flex items-center justify-between"> 
+                          <span className="whitespace-nowrap">Participants</span>
+                          <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            onClick={() => {
+                              if (selectedInterviewIds.size > 0 && !isBatchDeleting) {
+                                setIsBatchDeleteConfirmOpen(true);
+                              }
+                            }}
+                            className={cn(
+                              "h-7 w-7 -mr-2", 
+                              selectedInterviewIds.size > 0 
+                                ? "text-destructive hover:bg-destructive/10 hover:text-destructive"
+                                : "text-muted-foreground/30 cursor-not-allowed"
+                            )}
+                            disabled={selectedInterviewIds.size === 0 || isBatchDeleting}
+                            aria-label="Delete selected interviews"
+                          >
+                            {isBatchDeleting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+                          </Button>
+                        </div>
                       </div>
                     </div>
 
@@ -779,68 +955,71 @@ export default function Home() {
                         ) : (
                           <>
                             {interviewsToDisplay
-                              .map((interview, index, filteredArray) => (
-                                <Link href={`/interview-analysis/${interview.id}`} key={interview.id}>
-                                  <div
-                                    className={cn(
-                                      "grid grid-cols-12 gap-0 px-0 items-center hover:bg-muted/30 transition-colors",
-                                      "group"
-                                    )}
-                                  >
-                                    <div className={cn(
-                                      "col-span-4 px-6 py-3.5 h-14 flex items-center text-sm font-medium text-foreground/90 border-r border-b border-border/20 group-hover:text-primary transition-colors overflow-x-auto scrollbar-thin"
-                                    )}>
+                              .map((interview) => (
+                                <div 
+                                  key={interview.id} 
+                                  className={cn(
+                                    // === 5 COLUMN GRID ROW ===
+                                    "grid grid-cols-[auto_minmax(0,4fr)_minmax(0,2fr)_minmax(0,2fr)_minmax(0,3fr)] gap-0 items-center hover:bg-muted/30 transition-colors",
+                                    "group relative",
+                                    selectedInterviewIds.has(interview.id) ? 'bg-muted/50' : ''
+                                  )}
+                                >
+                                  {/* Col 1: Row Checkbox */}
+                                  <div className="col-span-1 px-4 py-3.5 h-14 flex items-center justify-center border-r border-b border-border/20">
+                                    <Checkbox 
+                                      id={`select-interview-${interview.id}`}
+                                      checked={selectedInterviewIds.has(interview.id)}
+                                      onCheckedChange={(checked: boolean | 'indeterminate') => handleRowCheckboxChange(checked, interview.id)}
+                                      aria-labelledby={`interview-title-${interview.id}`}
+                                    />
+                                  </div>
+                                  
+                                  {/* Col 2: Title Link */}
+                                  <Link href={`/interview-analysis/${interview.id}`} className="col-span-1 contents">
+                                    <div id={`interview-title-${interview.id}`} className={cn("px-6 py-3.5 h-14 flex items-center text-sm font-medium text-foreground/90 border-r border-b border-border/20 group-hover:text-primary transition-colors overflow-x-auto scrollbar-thin cursor-pointer")}>
                                       <div className="whitespace-nowrap">{interview.title}</div>
                                     </div>
-                                    <div className={cn(
-                                      "col-span-2 px-6 py-3.5 h-14 flex items-center text-sm text-muted-foreground border-r border-b border-border/20 overflow-x-auto scrollbar-thin"
-                                    )}>
-                                      <div className="whitespace-nowrap">
-                                        {formatDate(interview.created_at)} {formatTime(interview.created_at)}
-                                      </div>
+                                  </Link>
+                                  {/* Col 3: Date Link */}
+                                  <Link href={`/interview-analysis/${interview.id}`} className="col-span-1 contents">
+                                    <div className={cn("px-6 py-3.5 h-14 flex items-center text-sm text-muted-foreground border-r border-b border-border/20 overflow-x-auto scrollbar-thin cursor-pointer")}>
+                                      <div className="whitespace-nowrap">{formatDate(interview.created_at)} {formatTime(interview.created_at)}</div>
                                     </div>
-                                    <div className={cn(
-                                      "col-span-2 px-6 py-3.5 h-14 flex items-center text-sm text-muted-foreground border-r border-b border-border/20 overflow-x-auto scrollbar-thin"
-                                    )}>
-                                      {interview.project ? (
-                                        <span
-                                          className="hover:underline inline-flex items-center gap-1.5 hover:text-primary transition-colors cursor-pointer whitespace-nowrap"
-                                          style={{ color: 'inherit' }}
-                                          onClick={(e: React.MouseEvent<HTMLSpanElement>) => {
-                                            e.stopPropagation();
-                                            e.preventDefault();
-                                            if (interview.project?.id) { 
-                                              router.push(`/project/${interview.project.id}`);
-                                            }
-                                          }}
+                                  </Link>
+                                  {/* Col 4: Project Link - REMOVE outer Link */}
+                                  {/* <Link href={`/interview-analysis/${interview.id}`} className="col-span-1 contents"> */}
+                                    <div className={cn("px-6 py-3.5 h-14 flex items-center text-sm text-muted-foreground border-r border-b border-border/20 overflow-x-auto scrollbar-thin")}>
+                                      {interview.project && interview.project.id ? (
+                                        <Link 
+                                          href={`/project/${interview.project.id}/prioritize`}
+                                          className="hover:underline inline-flex items-center gap-1.5 hover:text-primary transition-colors cursor-pointer whitespace-nowrap text-foreground/90"
+                                          onClick={(e) => e.stopPropagation()} // Prevent row selection if needed
+                                          title={`Go to project: ${interview.project.name}`}
                                         >
                                           {interview.project?.name || 'Unknown Project'}
-                                          <ChevronRight className="h-3.5 w-3.5 opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all flex-shrink-0" />
-                                        </span>
+                                          <ChevronRight className="h-3.5 w-3.5 opacity-0 group-hover:opacity-100 group-hover:translate-x-0 transition-all flex-shrink-0" />
+                                        </Link>
                                       ) : (
                                         <div className="whitespace-nowrap text-muted-foreground/50">—</div>
                                       )}
                                     </div>
-                                    <div className={cn(
-                                      "col-span-4 px-6 py-3.5 h-14 flex items-center text-sm border-b border-border/20 overflow-x-auto scrollbar-thin"
-                                    )}>
-                                      <div className="flex items-center gap-4 whitespace-nowrap">
-                                        {interview.participants?.split(',').filter(p => p.trim()).map((participant, i) => (
-                                          <div key={i} className="flex items-center gap-1.5 flex-shrink-0" title={participant.trim()}>
-                                            <Avatar className="h-6 w-6 border border-border/40">
-                                              <AvatarFallback className="text-xs bg-primary/10 text-primary">
-                                                {getInitials(participant.trim())}
-                                              </AvatarFallback>
-                                            </Avatar>
-                                            <span className="text-foreground/90">
-                                              {participant.trim()}
-                                            </span>
-                                          </div>
-                                        ))}
-                                      </div>
-                                    </div>
-                                  </div>
-                                </Link>
+                                  {/* </Link> */}
+                                  {/* Col 5: Participants Link - Keep outer link */}
+                                  <Link href={`/interview-analysis/${interview.id}`} className="col-span-1 contents">
+                                     <div className={cn("px-6 py-3.5 h-14 flex items-center text-sm border-b border-border/20 overflow-x-auto scrollbar-thin cursor-pointer")}> 
+                                        <div className="flex items-center gap-4 whitespace-nowrap">
+                                          {interview.participants?.split(',').filter(p => p.trim()).map((participant, i) => (
+                                            <div key={i} className="flex items-center gap-1.5 flex-shrink-0" title={participant.trim()}>
+                                              <Avatar className="h-6 w-6 border border-border/40"><AvatarFallback className="text-xs bg-primary/10 text-primary">{getInitials(participant.trim())}</AvatarFallback></Avatar>
+                                              <span className="text-foreground/90">{participant.trim()}</span>
+                                            </div>
+                                          ))}
+                                        </div>
+                                     </div>
+                                  </Link>
+                                  
+                                </div> 
                               ))}
                             {isLoadingMoreInterviews && (
                               <div className="py-6 text-center">
@@ -878,6 +1057,96 @@ export default function Home() {
         onOpenChange={setIsUploadModalOpen} 
         onUploadComplete={fetchInterviews} // Pass fetchInterviews to refresh list on upload
       />
+
+      {/* Use the new Batch Delete Confirmation Dialog Component */}
+      <BatchDeleteConfirmationDialog
+        open={isBatchDeleteConfirmOpen}
+        onOpenChange={setIsBatchDeleteConfirmOpen}
+        onConfirm={handleBatchDelete}
+        itemCount={selectedInterviewIds.size}
+        itemTypePlural="interviews"
+        isDeleting={isBatchDeleting}
+      />
+
+      {/* --- NEW: All Projects Right Sheet --- */}
+      <Sheet open={isProjectsSheetOpen} onOpenChange={setIsProjectsSheetOpen}>
+        <SheetContent side="right" className="w-full sm:max-w-xl p-0 flex flex-col [&>button]:hidden">
+           <div className="flex flex-1 min-h-0"> {/* Parent Flex Container */}
+
+            {/* --- Closer Button (Now on the Left for Right Sheet) --- */}
+            <div 
+              onClick={() => setIsProjectsSheetOpen(false)}
+              className="w-12 flex items-center justify-center border-r border-border/40 hover:bg-muted/40 transition-colors cursor-pointer bg-muted/20" // Correct border-r
+              role="button"
+              aria-label="Close panel"
+            >
+              <ChevronsRight className="h-5 w-5 text-muted-foreground/70" /> 
+            </div>
+
+            {/* --- Main Content Area (Header + ScrollArea) --- */}
+            <div className="flex-1 flex flex-col">
+              <SheetHeader className="px-6 py-4 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+                <div className="flex justify-between items-center space-y-0">
+                  <div>
+                    <SheetTitle className="text-lg font-semibold tracking-tight">All Projects</SheetTitle>
+                    <SheetDescription className="text-sm text-muted-foreground/80 mt-1">
+                      {projects.length} project{projects.length !== 1 ? 's' : ''} found
+                    </SheetDescription>
+                  </div>
+                </div>
+              </SheetHeader>
+              <ScrollArea className="flex-1 min-h-0">
+                <div className="divide-y divide-border/40">
+                  {projects.length > 0 ? (
+                    sortedProjects.map(project => (
+                      <Link 
+                        href={`/project/${project.id}/prioritize`} 
+                        key={project.id} 
+                        className="block p-4 hover:bg-muted/40 transition-colors space-y-1.5" 
+                        onClick={() => setIsProjectsSheetOpen(false)} 
+                      >
+                        <div className="flex items-baseline justify-between gap-3">
+                          <p className="font-medium text-foreground/90 truncate flex-shrink min-w-0" title={project.name}>
+                             {project.name}
+                          </p>
+                          {project.description && (
+                            <p className="text-xs text-muted-foreground/80 truncate flex-shrink-0 ml-auto pl-2" title={project.description}>
+                              {project.description}
+                            </p>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                          <div className="flex items-center gap-1.5" title="Last Activity">
+                            <CalendarIconLucide className="h-3.5 w-3.5" />
+                            <span>
+                              {
+                                (project.interviews && project.interviews.length > 0 && project.interviews[0].created_at) 
+                                  ? formatDate(project.interviews[0].created_at) 
+                                  : project.updatedAt ? formatDate(project.updatedAt) : 'N/A'
+                              }
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-1.5" title="Total Interviews">
+                            <FileText className="h-3.5 w-3.5" />
+                            <span>{project._count?.interviews ?? 0} Interview{project._count?.interviews !== 1 ? 's' : ''} last month</span>
+                          </div>
+                        </div>
+                      </Link>
+                    ))
+                  ) : (
+                    <div className="flex flex-col items-center justify-center py-12 px-4 text-center">
+                      <FileText className="h-8 w-8 text-muted-foreground/30 mb-3" />
+                      <p className="text-muted-foreground text-sm">No projects created yet.</p>
+                    </div>
+                  )}
+                </div>
+              </ScrollArea>
+            </div> {/* End Main Content Area div */} 
+
+          </div> {/* End Parent Flex Container div */} 
+        </SheetContent>
+      </Sheet>
+      {/* --- End All Projects Sheet --- */}
 
     </div>
   )

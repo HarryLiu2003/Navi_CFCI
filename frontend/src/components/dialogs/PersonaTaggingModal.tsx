@@ -10,17 +10,6 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { 
-  AlertDialog, 
-  AlertDialogAction, 
-  AlertDialogCancel, 
-  AlertDialogContent, 
-  AlertDialogDescription, 
-  AlertDialogFooter, 
-  AlertDialogHeader, 
-  AlertDialogTitle, 
-  AlertDialogTrigger, 
-} from "@/components/ui/alert-dialog";
-import { 
   Command, 
   CommandEmpty, 
   CommandGroup, 
@@ -44,6 +33,7 @@ import {
   getRandomPersonaColorId, 
   PersonaColorId 
 } from '@/lib/constants';
+import { DeletePersonaConfirmationDialog } from '@/components/dialogs/DeletePersonaConfirmationDialog'; // Import new component
 
 // Define type for staged new personas
 interface StagedPersona {
@@ -341,72 +331,55 @@ export function PersonaTaggingModal({
            !Array.from(selectedPersonaIds).every(id => initialIds.has(id));
   }, [initialPersonas, selectedPersonaIds, stagedPersonas]);
 
-  // Handler function to actually perform the deletion
+  // --- Deletion Logic --- 
+  const handleDeleteRequest = (persona: Persona) => {
+    // Trigger the confirmation dialog
+    setPersonaToDelete(persona);
+  };
+
   const performDelete = useCallback(async () => {
     if (!personaToDelete) return;
 
     const personaId = personaToDelete.id;
     const personaName = personaToDelete.name;
     
+    setDeletingPersonaIds(prev => new Set(prev).add(personaId)); // Mark as deleting for UI
+    setIsDeleting(true); // Indicate general deleting process for dialog button
+    
     try {
       console.log(`[PersonaTaggingModal] Deleting persona: ID=${personaId}, Name=${personaName}`);
       
-      // Add this persona ID to the set of deleting personas
-      setDeletingPersonaIds(prev => new Set(Array.from(prev).concat(personaId)));
+      // Close the confirmation dialog *before* making the API call
+      setPersonaToDelete(null); 
       
-      // Immediately close the dialog
-      setPersonaToDelete(null);
-      
-      // Make the API call to delete the persona
       const result = await deletePersona(personaId);
 
       if (result.status === 'success') {
         toast.success(`Persona "${personaName}" deleted.`);
-        
-        // Only after successful deletion, update the UI
-        // Important: Keep the persona ID in deletingPersonaIds until parent component processes the deletion
-        setTimeout(() => {
-          // Notify parent to update list
-          onDeleteSuccess(personaId);
-          
-          // Remove from selected personas
-          setSelectedPersonaIds(prev => {
-            const next = new Set(Array.from(prev).filter(id => id !== personaId));
-            return next;
-          });
-          
-          // Remove from AI suggested personas
-          setAiSuggestedExisting(prev => prev.filter(p => p.id !== personaId));
-          
-          // Wait a bit more to ensure UI has processed all updates before removing from deletingPersonaIds
-          setTimeout(() => {
-            setDeletingPersonaIds(prev => {
-              const next = new Set(Array.from(prev));
-              next.delete(personaId);
-              return next;
-            });
-          }, 300); // Additional small delay to prevent flickering
-        }, 50); // Small delay to ensure sequencing
-      } else {
-        // If deletion failed, don't change the UI state, just remove from loading state
-        setDeletingPersonaIds(prev => {
-          const next = new Set(Array.from(prev));
+        onDeleteSuccess(personaId); // Notify parent
+        // Remove from selected state if it was selected
+        setSelectedPersonaIds(prev => {
+          const next = new Set(prev);
           next.delete(personaId);
           return next;
         });
+        // Remove from AI suggestions if present
+        setAiSuggestedExisting(prev => prev.filter(p => p.id !== personaId));
+      } else {
         throw new Error(result.message || 'Failed to delete persona.');
       }
     } catch (err: any) {
       console.error('[PersonaTaggingModal] Error deleting persona:', err);
       const errorMessage = err.message || 'An unexpected error occurred during deletion.';
       toast.error(`Delete failed: ${errorMessage}`);
-      
-      // Ensure we remove from loading state on error
+    } finally {
+      // Remove from deleting state regardless of outcome
       setDeletingPersonaIds(prev => {
-        const next = new Set(Array.from(prev));
+        const next = new Set(prev);
         next.delete(personaId);
         return next;
       });
+      setIsDeleting(false); // Reset general deleting state
     }
   }, [personaToDelete, onDeleteSuccess]);
 
@@ -622,19 +595,14 @@ export function PersonaTaggingModal({
                   ) : (
                     availablePersonaObjects.map((persona) => {
                       const colorInfo = getPersonaColorById(persona.color);
-                      // NEW: Check both personaToDelete and deletingPersonaIds
                       const isBeingDeleted = deletingPersonaIds.has(persona.id);
-                      const isThisBeingDeleted = isDeleting && personaToDelete?.id === persona.id;
                       
                       return (
                         <div key={persona.id} className="flex items-center justify-between w-full px-1 py-1 text-sm rounded-md">
                           {/* Button for selecting the persona */}
                           <button
-                            onClick={() => {
-                              toggleSelection(persona.id);
-                              setInputValue('');
-                            }}
-                            disabled={isThisBeingDeleted || isSuggesting || isBeingDeleted}
+                            onClick={() => toggleSelection(persona.id)}
+                            disabled={isBeingDeleted || isLoading || isSuggesting}
                             className={cn(
                               "flex-grow text-left py-2 px-3 text-sm rounded-md cursor-pointer",
                               "transition-colors duration-150",
@@ -642,33 +610,26 @@ export function PersonaTaggingModal({
                               colorInfo.text,
                               colorInfo.border,
                               "hover:opacity-90 focus:ring-2 focus:ring-ring focus:ring-offset-1 focus:outline-none",
-                              (isThisBeingDeleted || isBeingDeleted) && "opacity-50 cursor-not-allowed"
+                              isBeingDeleted && "opacity-50 cursor-not-allowed"
                             )}
                             style={{ marginRight: '8px' }}
                           >
                             {persona.name}
-                            {/* NEW: Show spinner if this persona is being deleted */}
-                            {isBeingDeleted && (
-                              <Loader2 className="inline-block ml-2 h-3 w-3 animate-spin" />
-                            )}
+                            {isBeingDeleted && <Loader2 className="inline-block ml-2 h-3 w-3 animate-spin" />}
                           </button>
 
                           {/* Delete Trigger Button */}
                           <Button
                             variant="ghost"
                             size="icon"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setPersonaToDelete(persona);
-                            }}
-                            disabled={isThisBeingDeleted || isSuggesting || isBeingDeleted}
+                            onClick={() => handleDeleteRequest(persona)}
+                            disabled={isBeingDeleted || isLoading || isSuggesting}
                             className={cn(
                               "h-7 w-7 flex-shrink-0 rounded-full text-muted-foreground hover:text-destructive hover:bg-destructive/10",
-                              (isThisBeingDeleted || isBeingDeleted) && "opacity-50 cursor-not-allowed"
+                              isBeingDeleted && "opacity-50 cursor-not-allowed"
                             )}
                             aria-label={`Delete persona ${persona.name}`}
                           >
-                            {/* NEW: Show spinner or trash icon based on deletion state */}
                             {isBeingDeleted ? (
                               <Loader2 className="h-4 w-4 animate-spin" />
                             ) : (
@@ -710,29 +671,16 @@ export function PersonaTaggingModal({
         </DialogContent>
       </Dialog>
 
-      {/* Confirmation Dialog */}
-      <AlertDialog open={!!personaToDelete} onOpenChange={(isOpen: boolean) => !isOpen && setPersonaToDelete(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Confirm Deletion</AlertDialogTitle>
-            <AlertDialogDescription>
-              Are you sure you want to delete the persona tag
-              <span className="font-semibold"> "{personaToDelete?.name}"</span>?
-              <br />
-              This action cannot be undone and will remove the tag from all associated interviews.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => setPersonaToDelete(null)}>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={performDelete}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
-              Delete Persona
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      {/* Use the new Delete Persona Confirmation Dialog */}
+      {personaToDelete && (
+        <DeletePersonaConfirmationDialog
+          open={!!personaToDelete} // Controlled by personaToDelete state
+          onOpenChange={(isOpen) => !isOpen && setPersonaToDelete(null)} // Close by setting state to null
+          onConfirm={performDelete} // Call the actual delete function
+          personaName={personaToDelete.name} // Pass name
+          isDeleting={isDeleting} // Pass general deleting state
+        />
+      )}
     </>
   );
 }
