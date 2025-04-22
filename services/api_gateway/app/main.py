@@ -1027,38 +1027,64 @@ async def delete_interview(
         
     # Prepare parameters for the database service call
     # Pass userId as query param for ownership check in the DB service
-    db_params = {"userId": user_id}
+    params = {"userId": user_id}
+    
+    # Prepare explicit headers (matching working endpoints pattern)
+    forward_headers = {"X-Forwarded-User-ID": user_id}
+    logger.debug(f"Forwarding headers to DB service: {list(forward_headers.keys())}")
     
     # Construct the target URL for the database service
-    db_service_url = f"{DATABASE_SERVICE_URL}/interviews/{interview_id}"
-    logger.info(f"Forwarding DELETE request to database service: {db_service_url} with params: {db_params}")
+    service_target_url = f"{DATABASE_SERVICE_URL}/interviews/{interview_id}"
+    logger.info(f"Forwarding DELETE request to database service: {service_target_url} with params: {params}")
 
     # Call the database service using the authenticated helper
-    response_data = await call_authenticated_service(
-        service_url=db_service_url,
-        method="DELETE",
-        params=db_params,
-        headers=dict(request.headers) # Forward relevant headers
-    )
-    
-    # Check for errors from the database service
-    # Handle potential different success statuses (e.g., 200 OK or 204 No Content)
-    if isinstance(response_data, dict) and response_data.get("status") == "error":
-        error_message = response_data.get("message", "Database service error during delete")
-        # Try to get specific status code, default to 500 or maybe 400/404 depending on expected errors
-        status_code = response_data.get("statusCode", 500) 
-        logger.error(f"Error from database service during delete: {error_message} (Status: {status_code})")
-        raise HTTPException(status_code=status_code, detail=error_message)
-    elif isinstance(response_data, dict) and response_data.get("status") == "success":
-         # If DB service returns a success object (e.g., status 200)
-        logger.info(f"Successfully deleted interview {interview_id} via database service.")
-        return response_data # Forward the success response
-    else:
-        # Assume success if no error dict is returned (could be 204 No Content)
-        # Or handle unexpected response structures
-        logger.info(f"Interview {interview_id} deletion likely successful (non-error response from DB service).")
-        # Return a standard success response or modify based on actual DB service behavior
-        return {"status": "success", "message": "Interview deleted successfully"} 
+    try:
+        response = await call_authenticated_service(
+            service_url=service_target_url,
+            method="DELETE",
+            params=params,
+            headers=forward_headers # Use explicit headers instead of forwarding all request headers
+        )
+        
+        # Check if the call itself failed or returned an error structure
+        if isinstance(response, dict) and response.get("status") == "error":
+            # Extract details from the error response returned by call_authenticated_service
+            error_message = response.get("message", "Unknown error from database service")
+            # Attempt to parse the original status code from the error message if possible
+            # Example: "Service returned 409: ..."
+            original_status_code = 500 # Default
+            if isinstance(error_message, str) and error_message.startswith("Service returned "):
+                try:
+                    parts = error_message.split(':', 1)
+                    code_part = parts[0].split()[-1]
+                    original_status_code = int(code_part)
+                except (ValueError, IndexError):
+                    pass # Keep default 500 if parsing fails
+            
+            logger.error(f"Error response relayed from database service deleting interview (Status: {original_status_code}): {error_message}")
+            
+            # Determine effective status code to return to the client
+            effective_status_code = original_status_code if 400 <= original_status_code < 600 else 500
+            raise HTTPException(status_code=effective_status_code, detail=f"Database service error: {error_message}")
+        
+        # If call_authenticated_service did not return an error status, assume success
+        elif response.get("status") == "success": 
+            logger.info(f"Successfully deleted interview {interview_id} via database service.")
+            return response # Forward the success response
+        else:
+            # Fallback for unexpected successful response format from DB service
+            logger.warning(f"Received unexpected successful response format from DB service: {response}")
+            return response # Forward it anyway
+
+    except httpx.RequestError as exc:
+        logger.error(f"HTTP RequestError calling database service to delete interview: {exc}")
+        raise HTTPException(status_code=503, detail=f"Error communicating with database service: {exc}")
+    except HTTPException as http_exc:
+        # Re-raise HTTPExceptions explicitly to prevent them being caught by the generic Exception handler
+        raise http_exc
+    except Exception as e:
+        logger.error(f"Unexpected error deleting interview {interview_id}: {e}", exc_info=DEBUG)
+        raise HTTPException(status_code=500, detail="Internal server error deleting interview")
 
 # ==============================================================================
 # DATABASE SERVICE ENDPOINTS (FORWARDING)

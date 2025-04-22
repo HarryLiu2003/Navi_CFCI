@@ -6,16 +6,35 @@ declare global {
   var prisma: PrismaClient | undefined;
 }
 
-// Initialize Prisma Client
-// Use globalThis to ensure a single instance in development (due to Next.js hot reloading)
+// Initialize Prisma Client with connection pooler parameters
 export const prisma =
   globalThis.prisma ||
-  new PrismaClient({
-    // Optional: Add logging configuration if needed for debugging
-    // log: process.env.NODE_ENV === 'development' ? ['query', 'error', 'warn'] : ['error'],
-  });
+  (() => {
+    // Handle pgbouncer parameters for the pooler URL
+    const dbUrl = process.env.DATABASE_URL;
+    if (dbUrl && dbUrl.includes('pooler.supabase.com:6543')) {
+      const url = new URL(dbUrl);
+      url.searchParams.set('pgbouncer', 'true');
+      url.searchParams.set('prepared_statements', 'false');
+      url.searchParams.set('pool_timeout', '30');
+      
+      return new PrismaClient({
+        datasources: {
+          db: {
+            url: url.toString(),
+          },
+        },
+        log: process.env.NODE_ENV === 'development' ? ['error', 'warn'] : ['error'],
+      });
+    }
+    
+    // Direct connection doesn't need special handling
+    return new PrismaClient({
+      log: process.env.NODE_ENV === 'development' ? ['error', 'warn'] : ['error'],
+    });
+  })();
 
-// In development, assign the client instance to the global variable
+// Set singleton in global scope for Next.js hot reloading
 if (process.env.NODE_ENV !== 'production') {
   globalThis.prisma = prisma;
 } 
