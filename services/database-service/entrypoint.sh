@@ -7,20 +7,20 @@ RUNTIME_DATABASE_URL=$DATABASE_URL
 echo "Runtime DATABASE_URL stored (should be pooler URL from secret)"
 
 # Ensure MIGRATE_DATABASE_URL is set (required for migrations)
-if [ -z "$MIGRATE_DATABASE_URL" ]; then
-  echo "Error: MIGRATE_DATABASE_URL is not set. Cannot run migrations."
-  exit 1
-fi
-echo "MIGRATE_DATABASE_URL is set (should be direct URL from secret)"
+# if [ -z "$MIGRATE_DATABASE_URL" ]; then
+#   echo "Error: MIGRATE_DATABASE_URL is not set. Cannot run migrations."
+#   exit 1
+# fi
+# echo "MIGRATE_DATABASE_URL is set (should be direct URL from secret)"
 
 # Run database migrations using the direct URL
-echo "Running database migrations (deploy) using MIGRATE_DATABASE_URL..."
+# echo "Running database migrations (deploy) using MIGRATE_DATABASE_URL..."
 # Export the direct URL TEMPORARILY for the prisma command
-export DATABASE_URL=$MIGRATE_DATABASE_URL
-npx prisma migrate deploy
+# export DATABASE_URL=$MIGRATE_DATABASE_URL
+# npx prisma migrate deploy
 # Unset the temporary export (or just overwrite below)
-unset DATABASE_URL
-echo "Database migrations finished."
+# unset DATABASE_URL
+# echo "Database migrations finished."
 
 # Explicitly export the RUNTIME Database URL before starting the app
 export DATABASE_URL=$RUNTIME_DATABASE_URL

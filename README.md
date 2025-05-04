@@ -43,6 +43,8 @@ For detailed instructions on cloning, configuring required `.env` files (includi
 
 ➡️ [**docs/01_local_development_guide.md**](docs/01_local_development_guide.md)
 
+**Important:** Before running `docker compose up` for the first time, you must manually apply database migrations. See the Local Development Guide for details.
+
 **Access After Running:**
 
 *   Frontend: http://localhost:3000

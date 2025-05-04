@@ -16,8 +16,8 @@
     
     "prisma:migrate:dev": "npm run prisma:sync && echo \"Running migrate dev for database-service... Will prompt for migration name.\" && docker compose run --rm --entrypoint \"\" database-service sh -c 'DATABASE_URL=$MIGRATE_DATABASE_URL npm run prisma:migrate:dev'",
 
-    "prisma:migrate:deploy": "docker compose run --rm database-service sh -c 'DATABASE_URL=$MIGRATE_DATABASE_URL npm run prisma:migrate:deploy'",
-    "prisma:migrate:reset": "docker compose run --rm database-service sh -c 'DATABASE_URL=$MIGRATE_DATABASE_URL npm run prisma:migrate:reset'"
+    "prisma:migrate:deploy": "docker compose run --rm --entrypoint \"\" database-service sh -c 'DATABASE_URL=$MIGRATE_DATABASE_URL npm run prisma:migrate:deploy'",
+    "prisma:migrate:reset": "docker compose run --rm --entrypoint \"\" database-service sh -c 'DATABASE_URL=$MIGRATE_DATABASE_URL npm run prisma:migrate:reset'"
   },
   "workspaces": [
     "frontend",

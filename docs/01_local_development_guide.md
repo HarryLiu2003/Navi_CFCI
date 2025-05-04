@@ -6,6 +6,7 @@ This guide provides comprehensive instructions for setting up and running the Na
 
 *   **Docker & Docker Compose:** Ensure they are installed and running.
 *   **Git:** For cloning the repository.
+*   **Node.js & npm:** Required on your host machine to run the helper scripts defined in the root `package.json` (e.g., for database migrations). We recommend using `nvm` (Node Version Manager) to install and manage Node.js versions.
 *   **Secrets/Credentials:** You will need access to:
     *   Supabase Database Connection URLs (Transaction Pooler & Session Pooler).
     *   Google Gemini API Key.
@@ -81,22 +82,27 @@ You need two different connection URLs from your Supabase project:
 
 **Make sure you obtain both URLs from your Supabase project settings and place them in the correct `.env` variables.**
 
-## 3. Initialize Database (Automatic on First Run)
+## 3. Apply Initial Database Migrations (Manual Step)
 
-When you run `docker compose up` for the first time (or after clearing volumes), the `database-service` container will automatically:
+Before running the application for the first time, or after any changes to the database schema (`services/database-service/prisma/schema.prisma`), you **must manually apply the database migrations**.
 
-1.  Start.
-2.  Execute its `entrypoint.sh` script.
-3.  Run `npx prisma migrate deploy` using the `MIGRATE_DATABASE_URL` from its `.env` file.
-
-This ensures the database schema defined in `services/database-service/prisma/schema.prisma` is applied to your development database.
-
-**Note on Schema Changes:** If *you* modify the `schema.prisma` file later, you need to generate a *new* migration file first before the `entrypoint.sh` script can apply it on the next startup:
+From the project root directory, run:
 
 ```bash
-# Inside the services/database-service directory
-docker compose run --rm database-service sh -c 'DATABASE_URL=$MIGRATE_DATABASE_URL npm run prisma:migrate:dev'
+npm run prisma:migrate:deploy
+```
+
+This command uses the `MIGRATE_DATABASE_URL` defined in `services/database-service/.env` to connect to the database and apply all pending migrations defined in `services/database-service/prisma/migrations/`.
+
+**Note on Schema Changes:** If *you* modify the `schema.prisma` file, you first need to **generate a new migration file** before you can apply it:
+
+```bash
+# Run from the project root
+npm run prisma:migrate:dev
 # Follow the prompts to name your migration.
+
+# Then apply the migration (can also be done with the above command)
+# npm run prisma:migrate:deploy 
 ```
 
 ## 4. Run the Application
