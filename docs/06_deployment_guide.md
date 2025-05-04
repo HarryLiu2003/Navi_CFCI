@@ -154,7 +154,34 @@ gcloud secrets add-iam-policy-binding migrate-database-connection-string \\
 We use Cloud Build (`cloudbuild.yaml` files within each service directory) to build and deploy container images to Cloud Run.
 
 **Deployment Order is Important:** Deploy services that others depend on first.
-**Note on Migrations:** The `database-service` is configured to automatically run database migrations (`prisma migrate deploy`) using the `MIGRATE_DATABASE_URL` during its container startup process.
+
+### Prerequisites
+
+*   Google Cloud Project setup
+*   Billing enabled
+*   APIs enabled: Cloud Build, Cloud Run, Container Registry (or Artifact Registry), Secret Manager
+*   Service Accounts created with appropriate roles (e.g., Cloud Run Invoker, Secret Manager Secret Accessor)
+*   Docker images built and pushed to GCR/Artifact Registry (handled by Cloud Build)
+*   Secrets configured in Google Secret Manager (e.g., `nextauth-jwt-secret`, `gemini-api-key`)
+*   Production database provisioned (Supabase)
+
+### Ensuring Database Schema Compatibility (Migrations)
+
+**IMPORTANT:** Before deploying or updating backend services, especially those interacting with the database, you **must** ensure the database schema matches the code's expectations by applying any necessary Prisma migrations against the **production database** environment.
+
+1.  **Ensure Schema Changes are Migrated:** If you have modified `services/database-service/prisma/schema.prisma`, generate a new migration file locally first: `npx prisma migrate dev --name <your_migration_name>` (run this within the `services/database-service` directory or configure `package.json` scripts).
+2.  **Connect to Production DB:** Configure your local environment or a secure deployment runner to connect to the production database. This typically involves setting the `DATABASE_URL` (or `MIGRATE_DATABASE_URL`) environment variable to the **production** Supabase direct connection string (Session Pooler, port 5432 recommended for migrations).
+3.  **Apply Migrations:** Run the deploy command:
+    ```bash
+    # From services/database-service directory, or use npm script if configured
+    npx prisma migrate deploy 
+    ```
+    This applies all pending migrations defined in the `prisma/migrations` folder to the production database schema.
+4.  **Verify:** Check the production database schema (e.g., via Supabase UI) to confirm the changes were applied successfully.
+
+**Failure to run migrations against production before deploying code that relies on schema changes will likely cause runtime errors.**
+
+### Cloud Build & Deploy
 
 ```bash
 export PROJECT_ID="$(gcloud config get-value project)"
@@ -242,6 +269,6 @@ Consider setting up GitHub Actions (or similar) to automate testing and deployme
 Refer to the `.env.example` file in each service/frontend directory for specific variables. Key variables for production include:
 
 *   **Frontend (Vercel):** `NEXTAUTH_SECRET` (from Secret Mgr), `NEXTAUTH_URL` (Primary Prod URL), `NEXT_PUBLIC_API_URL` (API Gateway URL), `NODE_ENV=production`, `DATABASE_URL` (Transaction Pooler from Secret Mgr).
-*   **API Gateway (Cloud Run):** `JWT_SECRET` (from Secret Mgr), `SERVICE_DATABASE`, `SERVICE_INTERVIEW_ANALYSIS` (Cloud Run URLs injected via build), `CORS_ORIGINS` (Vercel URL injected via build), `NODE_ENV=production`, `DEBUG=false`, `ENABLE_DEV_AUTH=false`.
-*   **Interview Analysis (Cloud Run):** `GEMINI_API_KEY` (from Secret Mgr), `DATABASE_API_URL` (Cloud Run URL injected via build), `NODE_ENV=production`.
-*   **Database Service (Cloud Run):** `DATABASE_URL` (Transaction Pooler from Secret Mgr `database-connection-string`), `MIGRATE_DATABASE_URL` (Session Pooler from Secret Mgr `migrate-database-connection-string`), `NODE_ENV=production`.
+*   **API Gateway (Cloud Run):** Requires `JWT_SECRET`, service URLs (`SERVICE_DATABASE`, `SERVICE_INTERVIEW_ANALYSIS`), `CORS_ORIGINS`. Set `NODE_ENV=production`, `DEBUG=false`, `ENABLE_DEV_AUTH=false`.
+*   **Interview Analysis (Cloud Run):** Requires `GEMINI_API_KEY`, `DATABASE_API_URL`. Set `NODE_ENV=production`.
+*   **Database Service (Cloud Run):** Requires `DATABASE_URL` (Transaction Pooler), `MIGRATE_DATABASE_URL` (Session Pooler). Set `NODE_ENV=production`.

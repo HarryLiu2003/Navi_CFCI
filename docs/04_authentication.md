@@ -62,3 +62,24 @@ The system now follows a standard JWT-based authentication flow:
 *   Testing authentication failures locally requires setting `ENABLE_DEV_AUTH=false` temporarily or generating test tokens (Option B).
 
 This standard JWT approach ensures security and aligns with common microservice patterns.
+
+### Credentials Provider Flow
+
+1.  **Frontend (`/auth/signin`):** User enters email and password.
+2.  **NextAuth.js (`authorize` function):** The `CredentialsProvider`'s `authorize` function is invoked within the Next.js backend (`src/app/api/auth/[...nextauth]/route.ts`).
+3.  **Database Lookup:** The `authorize` function uses `prisma.user.findUnique` to find the user by email.
+4.  **Password Verification:** 
+    *   It retrieves the stored password hash for the user.
+    *   The stored hash follows the format: `algorithm:iterations:salt:hash`.
+    *   It uses Node.js `crypto.pbkdf2Sync` with the *same algorithm, iterations, and salt* extracted from the stored hash to hash the password provided by the user during login.
+    *   It compares the newly generated hash with the hash stored in the database.
+5.  **User Object:** If verification succeeds, `authorize` returns a user object (e.g., `{ id, email, name }`).
+6.  **JWT Generation:** NextAuth.js generates a JWT containing user details (including the `sub` claim mapped to `user.id` via the `jwt` callback). The token is signed using the shared `NEXTAUTH_SECRET`.
+7.  **Session Cookie:** NextAuth.js sets an HTTP-only session cookie containing the JWT.
+
+**Important Note on Password Hashing:**
+
+*   Password *verification* logic (comparing the entered password to the stored hash) resides within the NextAuth.js `authorize` function.
+*   The process for initially *hashing* passwords during user creation is **external** to this application's core API codebase. Users must be created (e.g., via a separate script or directly in the Supabase UI) with passwords hashed using the same `crypto.pbkdf2Sync` algorithm, iteration count, salt generation method, and stored in the required `algorithm:iterations:salt:hash` format in the `User` table.
+
+### Prisma Adapter
