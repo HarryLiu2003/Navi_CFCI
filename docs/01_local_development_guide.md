@@ -21,17 +21,13 @@ cd Navi_CFCI
 
 ## 2. Configure Environment Variables (.env files)
 
-This is the most crucial setup step. You need to create and populate `.env` files for the root directory and each service.
+This is the most crucial setup step. You need to create and populate `.env` files for each service.
 
 **Action:** Copy the corresponding `.env.example` file to `.env` in each required location and **edit the `.env` file** to insert the correct values (secrets, URLs, keys).
 
 **Required Files & Key Variables:**
 
-1.  **Root Directory (`./.env`)**
-    *   Copy from: `.env.example`
-    *   Purpose: General development settings (not heavily used currently).
-
-2.  **Frontend (`frontend/.env`)**
+1.  **Frontend (`frontend/.env`)**
     *   Copy from: `frontend/.env.example`
     *   `NEXT_PUBLIC_API_URL=http://localhost:8000`: Points to the local API Gateway.
     *   `DATABASE_URL`: **Required** for NextAuth Prisma Adapter. Use the **Transaction Pooler URL** (Port 6543) from Supabase. (See Database URLs Explained below).
@@ -39,21 +35,21 @@ This is the most crucial setup step. You need to create and populate `.env` file
     *   `NEXTAUTH_SECRET`: **Critical.** Must be a secure, unique secret string (e.g., generate with `openssl rand -hex 32`). **This exact value must also be used for `JWT_SECRET` in the API Gateway `.env` file.**
     *   `NODE_ENV=development`
 
-3.  **Database Service (`services/database-service/.env`)**
+2.  **Database Service (`services/database-service/.env`)**
     *   Copy from: `services/database-service/.env.example`
     *   `DATABASE_URL`: **Required.** Use the **Transaction Pooler URL** (Port 6543) from Supabase. This is used by the Prisma Client at runtime.
     *   `MIGRATE_DATABASE_URL`: **Required.** Use the **Session Pooler URL or Direct Connection URL** (Port 5432) from Supabase. This is used by the `entrypoint.sh` script for running `prisma migrate deploy` on container startup.
     *   `NODE_ENV=development`
     *   `PORT=5001`
 
-4.  **Interview Analysis Service (`services/interview_analysis/.env`)**
+3.  **Interview Analysis Service (`services/interview_analysis/.env`)**
     *   Copy from: `services/interview_analysis/.env.example`
     *   `GEMINI_API_KEY`: **Required.** Your Google Gemini API Key.
     *   `LOG_LEVEL=INFO` (or `DEBUG` for more logs)
     *   `NODE_ENV=development`
     *   `DATABASE_API_URL=http://database-service:5001`: Uses the Docker service name to connect to the Database Service API.
 
-5.  **API Gateway Service (`services/api_gateway/.env`)**
+4.  **API Gateway Service (`services/api_gateway/.env`)**
     *   Copy from: `services/api_gateway/.env.example`
     *   `LOG_LEVEL=INFO` (or `DEBUG`)
     *   `NODE_ENV=development`
@@ -66,7 +62,7 @@ This is the most crucial setup step. You need to create and populate `.env` file
     *   `ENABLE_DEV_AUTH=true`: Enables fallback authentication for easier local API testing (see `docs/04_authentication.md`).
     *   `DEVELOPMENT_USER_ID=dev-user-docker-123`: The fallback user ID if dev auth is enabled.
 
-6.  **(Optional) Sprint1 Deprecated Service (`services/sprint1_deprecated/.env`)**
+5.  **(Optional) Sprint1 Deprecated Service (`services/sprint1_deprecated/.env`)**
     *   Copy from: `services/sprint1_deprecated/.env.example`
     *   `OPENAI_API_KEY`: Required only if testing this service.
 
